@@ -424,6 +424,11 @@ export class AccessService {
         fullName: user.fullName,
         isActive: user.isActive,
         lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
+        failedLoginAttempts: user.failedLoginAttempts,
+        lockedUntil:
+          user.lockedUntil && user.lockedUntil > new Date()
+            ? user.lockedUntil.toISOString()
+            : null,
         roles: user.userRoles.map((assignment) => ({
           roleId: assignment.roleId,
           name: assignment.role.name,
@@ -433,6 +438,38 @@ export class AccessService {
         directCount: user.userPermissions.length,
         denyCount: user.userPermissions.filter((grant) => grant.effect === "DENY").length,
       }));
+    });
+  }
+
+  /**
+   * Clears a lockout.
+   *
+   * Needed because a lockoutMinutes of 0 means "until an administrator unlocks
+   * it" — without this endpoint that setting would be a way to lock a client out
+   * of its own account permanently.
+   */
+  async unlockUser(userId: string): Promise<void> {
+    const { clientId, actor } = requireRequestContext();
+
+    await this.prisma.forClient(clientId!, async (tx) => {
+      const user = await tx.user.findFirst({ where: { id: userId, deletedAt: null } });
+      if (!user) throw new NotFoundException("User not found.");
+
+      await tx.user.update({
+        where: { id: userId },
+        data: { lockedUntil: null, failedLoginAttempts: 0 },
+      });
+
+      await tx.auditEvent.create({
+        data: {
+          clientId: clientId!,
+          actorId: actor?.userId ?? null,
+          action: "auth.account.unlocked",
+          entity: "user",
+          entityId: userId,
+          metadata: { email: user.email, clearedAttempts: user.failedLoginAttempts },
+        },
+      });
     });
   }
 

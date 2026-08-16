@@ -6,6 +6,7 @@ import { SessionService } from "../auth/session.service";
 import { requireRequestContext } from "../core/context/request-context";
 import { PrismaService } from "../core/database/prisma.service";
 import { PasswordPolicyService } from "../settings/password-policy.service";
+import { SecuritySettingsService } from "../settings/security-settings.service";
 
 export interface ProfileView {
   id: string;
@@ -191,8 +192,16 @@ export class ProfileService {
       // Revoked rather than deleted: the rows are the evidence of what was
       // active at the moment of the change, which is what an incident review
       // needs afterwards.
+      //
+      // The current session is always replaced, because its token is reissued
+      // below regardless. What the setting controls is whether the *other*
+      // devices are ended too.
+      const settings = SecuritySettingsService.toSettings(await tx.securitySettings.findFirst());
+
       await tx.session.updateMany({
-        where: { userId: user.id, revokedAt: null },
+        where: settings.forceLogoutOnPasswordChange
+          ? { userId: user.id, revokedAt: null }
+          : { userId: user.id, revokedAt: null, tokenHash: this.sessions.hash(currentToken) },
         data: { revokedAt: new Date() },
       });
 
@@ -223,7 +232,6 @@ export class ProfileService {
       });
     });
 
-    void currentToken;
     return { token: issued.token, expiresAt: issued.idleExpiresAt };
   }
 

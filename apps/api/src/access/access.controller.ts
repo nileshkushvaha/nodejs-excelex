@@ -102,6 +102,13 @@ export class AccessController {
     return this.access.describeUserAccess(userId);
   }
 
+  @Post("users/:userId/unlock")
+  @RequirePermission("settings.user.manage")
+  @HttpCode(204)
+  async unlockUser(@Param("userId", ParseUUIDPipe) userId: string): Promise<void> {
+    await this.access.unlockUser(userId);
+  }
+
   @Post("users/:userId/roles")
   @RequirePermission("settings.user.manage")
   assignRole(@Param("userId", ParseUUIDPipe) userId: string, @Body() body: unknown) {

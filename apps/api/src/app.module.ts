@@ -15,6 +15,7 @@ import { HealthController } from "./health/health.controller";
 import { ProfileController } from "./profile/profile.controller";
 import { ProfileService } from "./profile/profile.service";
 import { PasswordPolicyService } from "./settings/password-policy.service";
+import { SecuritySettingsService } from "./settings/security-settings.service";
 import { SettingsController } from "./settings/settings.controller";
 
 @Module({
@@ -34,6 +35,7 @@ import { SettingsController } from "./settings/settings.controller";
     AccessService,
     ProfileService,
     PasswordPolicyService,
+    SecuritySettingsService,
     // Authentication is global and opted out of per route. A new endpoint is
     // protected by default; forgetting the decorator locks it rather than
     // opening it.

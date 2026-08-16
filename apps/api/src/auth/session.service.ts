@@ -32,16 +32,22 @@ export class SessionService {
    * SHA-256 rather than Argon2 deliberately: the token is 256 bits of entropy
    * from a CSPRNG, so there is no low-entropy secret to slow a guesser down,
    * and the hash is computed on every authenticated request.
+   *
+   * Lifetimes come from the client's security settings when supplied, falling
+   * back to the environment. Different clients have genuinely different idle
+   * tolerances — a hub scanning terminal is not a laptop in an office.
    */
-  issue(): IssuedSession {
+  issue(idleMinutes?: number, absoluteHours?: number): IssuedSession {
     const token = randomBytes(32).toString("base64url");
     const now = Date.now();
 
     return {
       token,
       tokenHash: this.hash(token),
-      idleExpiresAt: new Date(now + this.environment.SESSION_IDLE_MINUTES * 60_000),
-      absoluteExpiry: new Date(now + this.environment.SESSION_ABSOLUTE_HOURS * 3_600_000),
+      idleExpiresAt: new Date(now + (idleMinutes ?? this.environment.SESSION_IDLE_MINUTES) * 60_000),
+      absoluteExpiry: new Date(
+        now + (absoluteHours ?? this.environment.SESSION_ABSOLUTE_HOURS) * 3_600_000,
+      ),
     };
   }
 
@@ -56,8 +62,8 @@ export class SessionService {
     return a.length === b.length && timingSafeEqual(a, b);
   }
 
-  nextIdleExpiry(): Date {
-    return new Date(Date.now() + this.environment.SESSION_IDLE_MINUTES * 60_000);
+  nextIdleExpiry(idleMinutes?: number): Date {
+    return new Date(Date.now() + (idleMinutes ?? this.environment.SESSION_IDLE_MINUTES) * 60_000);
   }
 
   get cookieName(): string {

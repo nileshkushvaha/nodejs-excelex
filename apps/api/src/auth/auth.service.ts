@@ -2,6 +2,7 @@ import { Injectable, Logger, UnauthorizedException } from "@nestjs/common";
 import { verifyPassword } from "@excelex/database";
 import type { GrantSet } from "@excelex/permissions";
 
+import { SecuritySettingsService } from "../settings/security-settings.service";
 import { effectivePermissions, toGrantSet, type UserWithGrants } from "./grants";
 
 import { PrismaService } from "../core/database/prisma.service";
@@ -49,6 +50,16 @@ export class AuthService {
     private readonly sessions: SessionService,
   ) {}
 
+  /**
+   * Signs in, or refuses and records why.
+   *
+   * Split into two transactions on purpose. Everything a client-scoped request
+   * does runs inside a transaction, so throwing to reject a bad password would
+   * roll back the failed-attempt counter written moments earlier — the counter
+   * could never reach the lockout threshold, and the lockout would appear to
+   * work while doing nothing. The verdict is computed first and committed
+   * separately from the rejection.
+   */
   async signIn(
     clientId: string,
     host: string,
@@ -59,7 +70,9 @@ export class AuthService {
   ): Promise<SignInResult> {
     const normalisedEmail = email.trim().toLowerCase();
 
-    return this.prisma.forClient(clientId, async (tx) => {
+    const verdict = await this.prisma.forClient(clientId, async (tx) => {
+      const settings = SecuritySettingsService.toSettings(await tx.securitySettings.findFirst());
+
       const user = await tx.user.findFirst({
         where: { email: normalisedEmail, deletedAt: null },
         include: GRANT_INCLUDE,
@@ -70,15 +83,45 @@ export class AuthService {
       // address exists. An enumerable login is how an attacker turns a password
       // spray into a targeted one.
       const passwordMatches = await verifyPassword(user?.passwordHash, password);
+      const credentialsValid = Boolean(user && user.isActive && passwordMatches);
 
-      if (!user || !user.isActive || !passwordMatches) {
-        this.logger.warn(
-          `Failed sign-in for ${normalisedEmail} on ${host} from ${ip ?? "unknown"}`,
-        );
-        throw new UnauthorizedException("Those sign-in details are not correct.");
+      return { settings, user, credentialsValid };
+    });
+
+    const { settings, user, credentialsValid } = verdict;
+
+    if (!credentialsValid || !user) {
+      if (user) await this.recordFailure(clientId, user, settings, ip, userAgent);
+
+      this.logger.warn(`Failed sign-in for ${normalisedEmail} on ${host} from ${ip ?? "unknown"}`);
+      throw new UnauthorizedException("Those sign-in details are not correct.");
+    }
+
+    // Lock state is revealed only once the password is known to be correct.
+    // Announcing it earlier would confirm an address exists to anyone willing to
+    // guess wrong five times, turning the lockout into an enumeration oracle —
+    // the opposite of what it is for.
+    const now = new Date();
+    if (user.lockedUntil && user.lockedUntil > now) {
+      const minutes = Math.ceil((user.lockedUntil.getTime() - now.getTime()) / 60_000);
+      throw new UnauthorizedException(
+        settings.lockoutMinutes === 0
+          ? "This account is locked. An administrator must unlock it."
+          : `This account is locked. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`,
+      );
+    }
+
+    const issued = this.sessions.issue(settings.idleTimeoutMinutes, settings.absoluteTimeoutHours);
+
+    return this.prisma.forClient(clientId, async (tx) => {
+      // Single-session mode: a new sign-in ends the others. Done before the new
+      // session is written so the fresh one is never caught by its own sweep.
+      if (!settings.allowMultipleSessions) {
+        await tx.session.updateMany({
+          where: { userId: user.id, revokedAt: null },
+          data: { revokedAt: now },
+        });
       }
-
-      const issued = this.sessions.issue();
 
       await tx.session.create({
         data: {
@@ -95,7 +138,7 @@ export class AuthService {
 
       await tx.user.update({
         where: { id: user.id },
-        data: { lastLoginAt: new Date() },
+        data: { lastLoginAt: now, failedLoginAttempts: 0, lockedUntil: null },
       });
 
       await tx.auditEvent.create({
@@ -128,6 +171,8 @@ export class AuthService {
     const now = new Date();
 
     return this.prisma.forClient(clientId, async (tx) => {
+      const settings = SecuritySettingsService.toSettings(await tx.securitySettings.findFirst());
+
       const session = await tx.session.findFirst({
         where: { tokenHash, revokedAt: null },
         include: { user: { include: GRANT_INCLUDE } },
@@ -140,7 +185,7 @@ export class AuthService {
 
       await tx.session.update({
         where: { id: session.id },
-        data: { idleExpiresAt: this.sessions.nextIdleExpiry() },
+        data: { idleExpiresAt: this.sessions.nextIdleExpiry(settings.idleTimeoutMinutes) },
       });
 
       return this.toActor(session.user);
@@ -168,6 +213,55 @@ export class AuthService {
           },
         });
       }
+    });
+  }
+
+  /**
+   * Counts a failed attempt and locks the account once the threshold is met.
+   *
+   * Runs in its own transaction, committed before the caller throws. A
+   * lockoutMinutes of 0 means "until an administrator unlocks it", stored as a
+   * far-future timestamp so one column answers the whole question rather than
+   * two that can disagree.
+   */
+  private async recordFailure(
+    clientId: string,
+    user: { id: string; failedLoginAttempts: number },
+    settings: { lockAfterFailedAttempts: boolean; maxFailedAttempts: number; lockoutMinutes: number },
+    ip?: string,
+    userAgent?: string,
+  ): Promise<void> {
+    const attempts = user.failedLoginAttempts + 1;
+    const shouldLock = settings.lockAfterFailedAttempts && attempts >= settings.maxFailedAttempts;
+
+    const lockedUntil = shouldLock
+      ? settings.lockoutMinutes === 0
+        ? new Date("9999-12-31T00:00:00Z")
+        : new Date(Date.now() + settings.lockoutMinutes * 60_000)
+      : null;
+
+    await this.prisma.forClient(clientId, async (tx) => {
+      await tx.user.update({
+        where: { id: user.id },
+        data: {
+          failedLoginAttempts: attempts,
+          lastFailedLoginAt: new Date(),
+          ...(shouldLock ? { lockedUntil } : {}),
+        },
+      });
+
+      await tx.auditEvent.create({
+        data: {
+          clientId,
+          actorId: user.id,
+          action: shouldLock ? "auth.account.locked" : "auth.signin.failed",
+          entity: "user",
+          entityId: user.id,
+          metadata: { attempts, threshold: settings.maxFailedAttempts },
+          ip: ip ?? null,
+          userAgent: userAgent ?? null,
+        },
+      });
     });
   }
 
