@@ -127,6 +127,22 @@ wildcard role created; a `DENY` without a reason refused; a `DENY` beating the `
 `settings.role.manage` but no billing authority unable to grant it, unable to grant `*`,
 and unable to strip the administrator role.
 
+### Security settings ✅ enforced where it says so
+
+Per-client password policy, login security and session settings, split explicitly:
+
+| Enforced | Stored only |
+| --- | --- |
+| Minimum length, character classes, password reuse (hashed history, pruned to the policy) | Password expiry and force-change-on-first-login — need the forced-change flow that arrives with invitations |
+| Account lockout after N consecutive failures, lockout duration, administrator unlock | Login and reset throttling — need Redis, which is in the stack but not wired |
+| Idle and absolute session lifetimes, single-session mode, force-logout on password change | All email notifications — no mail transport yet |
+
+Stored-only controls say so in the UI, with the reason. A toggle that looks like it works
+and does not is worse than an absent one.
+
+**28 unit tests** over the two pure resolvers — `pnpm test` runs them alongside the
+isolation proof.
+
 ---
 
 ## Current milestone
@@ -224,3 +240,16 @@ Recorded because both were invisible to code review and neither had a test:
 - **A network failure took a whole page down with a 500.** An uncaught throw from
   `fetch` in a server component is not recoverable by the caller. Found when a restarted
   API produced a half-rendered form that looked like a layout bug.
+- **The account lockout reported success while doing nothing.** Every client-scoped
+  operation runs in a transaction; sign-in wrote the failed-attempt counter and then threw
+  to reject the credentials, so the rollback discarded the increment and the threshold was
+  never reached. Found by testing the feature rather than reading it. The pattern is
+  general — any counter written on a path that then throws is lost — and is worth checking
+  for wherever else it appears.
+- **A schema field silently vanished.** A scripted edit stopped matching after
+  `prisma format` reflowed the file, so `password_changed_at` never reached the migration.
+  Only the type-check caught it.
+- **Turbo cached away `prisma generate`.** The client is generated into a pnpm-hashed path
+  that cannot be declared as a build output, so a cache hit restored compiled sources while
+  leaving a client built from an older schema. `db:generate` is now an uncached task that
+  build depends on.
