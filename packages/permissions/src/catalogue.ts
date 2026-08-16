@@ -61,6 +61,8 @@ export const PERMISSION_DEFINITIONS = define([
   { key: "masters.rate.view", group: "Masters", label: "View rates", description: "See rate cards, zones and surcharges." },
   { key: "masters.rate.manage", group: "Masters", label: "Manage rates", description: "Create and amend rate cards. Financially significant." },
   { key: "masters.rate.approve", group: "Masters", label: "Approve rate changes", description: "Second approval for a rate change. Never held by the same person who makes them." },
+  { key: "masters.organisation.view", group: "Masters", label: "View organisation structure", description: "See departments and designations." },
+  { key: "masters.organisation.manage", group: "Masters", label: "Manage organisation structure", description: "Create and amend departments and designations." },
   { key: "masters.vendor.view", group: "Masters", label: "View vendors", description: "See carriers and vendor contracts." },
   { key: "masters.vendor.manage", group: "Masters", label: "Manage vendors", description: "Create and amend carriers and contracts." },
 

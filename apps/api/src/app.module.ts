@@ -12,6 +12,9 @@ import { ClientResolutionMiddleware } from "./core/context/client-resolution.mid
 import { PrismaService } from "./core/database/prisma.service";
 import { DashboardController } from "./dashboard/dashboard.controller";
 import { HealthController } from "./health/health.controller";
+import { MastersController } from "./masters/masters.controller";
+import { OrganisationService } from "./masters/organisation.service";
+import { ReferenceService } from "./masters/reference.service";
 import { ProfileController } from "./profile/profile.controller";
 import { ProfileService } from "./profile/profile.service";
 import { PasswordPolicyService } from "./settings/password-policy.service";
@@ -24,6 +27,7 @@ import { SettingsController } from "./settings/settings.controller";
     AuthController,
     DashboardController,
     HealthController,
+    MastersController,
     ProfileController,
     SettingsController,
   ],
@@ -33,6 +37,8 @@ import { SettingsController } from "./settings/settings.controller";
     SessionService,
     AuthService,
     AccessService,
+    ReferenceService,
+    OrganisationService,
     ProfileService,
     PasswordPolicyService,
     SecuritySettingsService,
