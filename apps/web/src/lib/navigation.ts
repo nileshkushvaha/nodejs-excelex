@@ -64,7 +64,7 @@ export const NAVIGATION: readonly NavigationSection[] = [
     title: "Settings",
     items: [
       { label: "Users", href: "/users", icon: "user", permission: "settings.user.view" },
-      { label: "Roles", href: "/roles", icon: "role", permission: "settings.role.manage" },
+      { label: "Roles", href: "/roles", icon: "role", permission: "settings.role.view" },
       { label: "Preferences", href: "/settings", icon: "settings" },
     ],
   },
