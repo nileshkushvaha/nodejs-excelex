@@ -16,8 +16,8 @@ G worker and storage · H Next.js foundation · I CI, documentation and closure
 - `apps/api` NestJS 11 scaffold. Not yet wired to anything.
 - `.gitignore` covering `node_modules`, build output and `.env`.
 
-**Not done:** `turbo.json` (root scripts already invoke `turbo run`, so `pnpm build` fails today),
-`packages/configuration`, ESLint/Prettier/commitlint at the root, `.nvmrc`, CI skeleton.
+**Not done:** `packages/configuration` (the API validates its own environment with Zod for now),
+ESLint/Prettier/commitlint at the root, `.nvmrc`, CI skeleton.
 
 ### B — Local infrastructure (partial)
 
@@ -25,7 +25,9 @@ G worker and storage · H Next.js foundation · I CI, documentation and closure
   The Postgres volume is mounted at `/var/lib/postgresql`, not `/data` — PostgreSQL 18 stores data
   in a major-version subdirectory and the old mount path makes the container refuse to start.
 
-**Not done:** MinIO, Mailpit, typed environment validation, health endpoints.
+Adminer is included for database inspection, development only.
+
+**Not done:** MinIO, Mailpit.
 
 ### C — Database and client isolation ✅ verified
 
@@ -65,19 +67,58 @@ The security foundation, complete and proven.
 
 ---
 
+### D — Host and request context ✅ working, not yet automatically tested
+
+- `withClientContext()` is the only route to client data: it seals the client id into an
+  `AsyncLocalStorage` store the Prisma extension reads, and opens the transaction whose first
+  statement is a parameterised `set_config('app.client_id', $1, true)` (audit finding CT-3).
+- The extension enumerates client-scoped models from the **DMMF at runtime**, so a model added later
+  is covered on the day it is added.
+- **NEW-1** handled: nested writes throw `NestedWriteError` rather than running with one barrier.
+  Nested `connect` stays allowed — it cannot create a row, and the composite FKs already prevent a
+  cross-client connect.
+- **NEW-2** handled: `upsert` injects `clientId` into `where`, `create` *and* `update`.
+- A supplied `clientId` that contradicts the sealed context raises rather than being overwritten.
+- `ClientResolutionMiddleware` derives the client from the host only; unknown host → 404;
+  caller-supplied `clientId` → 400; `X-Forwarded-Host` believed only when `TRUST_PROXY_HEADERS` is
+  set (audit finding HH-1).
+
+### E — Authentication ✅ working, not yet automatically tested
+
+Opaque server-side sessions, SHA-256 token hashes, `__Host-` cookie, Argon2id credentials, global
+fail-closed guard, permission checks, audit rows on sign-in and sign-out. Sign-in returns one
+message for every failure and verifies a password even when no user matched.
+
+### H — Next.js foundation ✅ working
+
+Public site, tracking placeholder, sign-in, and the authenticated shell with the shared navigation.
+Authorization is re-derived server-side in the layout on every render, never in `proxy.ts`. All
+authenticated routes are dynamic — `next build` confirms only `/` and `/track` are static, which is
+the real control replacing the rejected CA-4 corrections.
+
+**Verified by hand, end to end:** `/healthz`, `/readyz`, 401 without a cookie, generic failure on a
+bad password, sign-in issuing the `__Host-` cookie, `/auth/me`, a client-scoped dashboard summary,
+sign-out returning 204 and the subsequent 401, unknown host 404, caller-supplied `clientId` 400, and
+the same loop through the browser.
+
+---
+
 ## Current milestone
 
-**D — Host and request context.** Single-host resolution, `AsyncLocalStorage`, fail-closed guards,
-the client-scoped Prisma client, shared host fixtures.
+**E/F completion, and tests for what already works.**
 
-Two confirmed defects from AUDIT-3 must be handled *in* this milestone, because the Prisma extension
-is written here:
+The critical gap: **milestones D, E and H have no automated tests.** Everything above was verified by
+hand and by the shell proof. Until the suites exist, a regression in the extension or the guard is
+invisible. That is the next work, ahead of new features:
 
-- **NEW-1** — Prisma client extensions do not intercept nested reads or writes
-  (prisma/prisma#24525). Barrier 1 is simply absent for nested writes. Nested cross-model writes must
-  be forbidden by lint in client-scoped code, with a test that performs one and asserts denial.
-- **NEW-2** — `upsert`'s create branch bypasses scoping. The extension must inject `clientId` into
-  both `where` and `create`, with a test.
+- Unit: the extension's injection, mismatch rejection, nested-write rejection and `upsert` create
+  branch; host classification; permission evaluation.
+- Integration: the cross-client suite driven by the **DMMF**, replacing the hand-enumerated shell
+  script; a nested write targeting another client asserted denied *with RLS dropped*, so the
+  application barrier is proven independently (AUDIT-3 RLS-1/RLS-4).
+- The assertion that no session-level `SET` exists anywhere in the codebase.
+
+Then: invitations and activation, platform administration on the admin host, plans and quotas.
 
 ---
 
@@ -119,6 +160,27 @@ is written here:
   built at its milestone or reconciled into the plan.
 - **The isolation proof is a shell script, not the DMMF-driven suite** required by plan §9. It is the
   seed of that suite, not a substitute — it enumerates tables by hand.
+
+## How to run it
+
+```bash
+pnpm install
+pnpm infra:up                 # postgres, redis, adminer
+pnpm --filter @excelex/database exec prisma migrate deploy
+pnpm --filter @excelex/database run db:secure
+pnpm --filter @excelex/database run build && pnpm run db:seed
+pnpm run db:verify            # 29 assertions, must be 0 failed
+pnpm dev                      # api on :3001, web on :3000
+```
+
+| Surface | URL | Notes |
+| --- | --- | --- |
+| Web | http://localhost:3000 | sign in with the seeded administrator |
+| API | http://localhost:3001/api/v1 | proxied at /api from the web origin |
+| Adminer | http://localhost:8080 | server `postgres`, database `excelex` |
+| Prisma Studio | `pnpm --filter @excelex/database exec prisma studio` | :5555 |
+
+Seeded credentials are development-only and printed by the seed script.
 
 ## Blockers
 
