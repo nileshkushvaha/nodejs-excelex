@@ -20,7 +20,7 @@ export function UnlockButton({ userId, lockedUntil }: { userId: string; lockedUn
     <form action={action} className="flex items-center gap-2">
       <input type="hidden" name="userId" value={userId} />
       <span
-        className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-medium uppercase text-red-700"
+        className="rounded bg-red-100 dark:bg-red-900/60 px-1.5 py-0.5 text-[10px] font-medium uppercase text-red-700 dark:text-red-300"
         title={indefinite ? "Locked until an administrator unlocks it" : `Locked until ${until.toLocaleString("en-IN")}`}
       >
         locked
@@ -28,11 +28,11 @@ export function UnlockButton({ userId, lockedUntil }: { userId: string; lockedUn
       <button
         type="submit"
         disabled={pending}
-        className="rounded border border-slate-300 px-2 py-0.5 text-xs text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+        className="rounded border border-line-strong px-2 py-0.5 text-xs text-fg hover:bg-surface-2 disabled:opacity-50"
       >
         {pending ? "Unlocking…" : "Unlock"}
       </button>
-      {state && !state.ok ? <span className="text-xs text-red-600">{state.error}</span> : null}
+      {state && !state.ok ? <span className="text-xs text-red-600 dark:text-red-300">{state.error}</span> : null}
     </form>
   );
 }

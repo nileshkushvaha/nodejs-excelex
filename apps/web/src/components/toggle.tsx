@@ -34,7 +34,7 @@ export function Toggle({
         htmlFor={id}
         className={`relative mt-0.5 inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
           disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"
-        } ${checked ? "bg-sky-600" : "bg-slate-300"} focus-within:ring-2 focus-within:ring-sky-200`}
+        } ${checked ? "bg-accent" : "bg-line-strong"} focus-within:ring-2 focus-within:ring-accent-soft`}
       >
         <input
           id={id}
@@ -50,16 +50,16 @@ export function Toggle({
         />
         <span
           aria-hidden="true"
-          className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+          className={`inline-block h-4 w-4 transform rounded-full bg-surface shadow transition-transform ${
             checked ? "translate-x-4" : "translate-x-0.5"
           }`}
         />
       </label>
 
       <label htmlFor={id} className={disabled ? "cursor-not-allowed" : "cursor-pointer"}>
-        <span className="block text-sm font-medium text-slate-800">{label}</span>
+        <span className="block text-sm font-medium text-fg">{label}</span>
         {description ? (
-          <span className="block text-xs text-slate-500">{description}</span>
+          <span className="block text-xs text-muted">{description}</span>
         ) : null}
       </label>
     </div>

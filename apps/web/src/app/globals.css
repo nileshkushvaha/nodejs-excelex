@@ -1,75 +1,138 @@
 @import "tailwindcss";
 
 /**
- * The application is committed to a light surface: every card, table and panel
- * hard-codes bg-white or bg-slate-50.
+ * Theme tokens.
  *
- * The stock stylesheet flipped --foreground to near-white under
- * prefers-color-scheme: dark, and Tailwind's preflight gives form controls
- * `color: inherit` — so on a machine set to dark mode every input rendered
- * near-white text on a white background and was effectively invisible. A theme
- * that only half-applies is worse than either theme.
+ * Every surface, border and text colour in the application is named by role —
+ * surface, line, fg, muted — never by a literal shade. That is what makes a
+ * second theme possible at all: the alternative is 15 screens of hard-coded
+ * bg-white, each of which has to be found and paired with a dark: variant, and
+ * the one that gets missed is invisible until someone with dark mode on opens
+ * that screen.
+ *
+ * Dark mode is class-based rather than prefers-color-scheme, because the user
+ * chooses it explicitly in the header and that choice has to survive a machine
+ * whose OS says otherwise.
  */
-:root {
-  --background: #ffffff;
-  --foreground: #0f172a; /* slate-900 */
+@custom-variant dark (&:where(.dark, .dark *));
 
-  /* Tells the browser to paint its own widgets light too: date-picker
-     internals, scrollbars, spinners and autofill. Without it, those stay dark
-     on a dark-mode machine even though the page around them is white. */
+:root {
+  /* Page background, and the raised surfaces on top of it. */
+  --canvas: #f8fafc; /* slate-50  */
+  --surface: #ffffff;
+  --surface-2: #f8fafc; /* inset panels, table headers, chips */
+  --surface-3: #f1f5f9; /* slate-100 — hover states */
+
+  --line: #e2e8f0; /* slate-200 — card and table borders */
+  --line-soft: #f1f5f9; /* slate-100 — row dividers */
+  --line-strong: #cbd5e1; /* slate-300 — input borders */
+
+  --fg: #0f172a; /* slate-900 — body text and headings */
+  --fg-muted: #64748b; /* slate-500 — secondary text */
+  --fg-faint: #94a3b8; /* slate-400 — placeholders, disabled */
+
+  --accent: #0284c7; /* sky-600 */
+  --accent-strong: #0369a1; /* sky-700 — hover */
+  --accent-fg: #ffffff;
+  --accent-soft: #e0f2fe; /* sky-100 — focus rings, active nav */
+  --accent-text: #0369a1;
+
   color-scheme: light;
 }
 
+.dark {
+  --canvas: #020617; /* slate-950 */
+  --surface: #0f172a; /* slate-900 */
+  --surface-2: #1e293b; /* slate-800 */
+  --surface-3: #334155; /* slate-700 */
+
+  --line: #1e293b;
+  --line-soft: #1e293b;
+  --line-strong: #334155;
+
+  --fg: #e2e8f0;
+  --fg-muted: #94a3b8;
+  --fg-faint: #64748b;
+
+  --accent: #0284c7;
+  --accent-strong: #0369a1;
+  --accent-fg: #ffffff;
+  --accent-soft: #0c4a6e;
+  --accent-text: #38bdf8; /* sky-400 — needs to lift off a dark surface */
+
+  color-scheme: dark;
+}
+
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+  --color-line-strong: var(--line-strong);
+
+  --color-fg: var(--fg);
+  --color-muted: var(--fg-muted);
+  --color-faint: var(--fg-faint);
+
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-text: var(--accent-text);
+
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    "Noto Sans", sans-serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
-    "Noto Sans", sans-serif;
+  background: var(--canvas);
+  color: var(--fg);
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
 
 @layer base {
-  /* Stated rather than inherited. Inheritance is what made this fail silently:
-     a change to body colour should not be able to make form fields unreadable. */
+  /* Stated rather than inherited. Inheritance is what made these unreadable
+     before: Tailwind's preflight gives form controls `color: inherit`, so a
+     change to body colour silently made every input invisible. */
   input,
   textarea,
   select {
-    color: var(--color-slate-900);
+    color: var(--fg);
   }
 
   input::placeholder,
   textarea::placeholder {
-    color: var(--color-slate-400);
-    opacity: 1; /* Firefox dims placeholders by default, on top of the colour. */
+    color: var(--fg-faint);
+    opacity: 1; /* Firefox dims placeholders again on top of the colour. */
   }
 
   input:disabled,
   textarea:disabled,
   select:disabled {
-    color: var(--color-slate-500);
-    -webkit-text-fill-color: var(--color-slate-500); /* Safari ignores colour on disabled inputs. */
+    color: var(--fg-muted);
+    -webkit-text-fill-color: var(--fg-muted); /* Safari ignores colour when disabled. */
   }
 
-  /* Chrome paints autofilled fields with its own background and text colour.
-     The inset shadow is the only way to override the background, and
-     text-fill-color the only way to override the text. */
+  /* Chrome repaints autofilled fields with its own background and text colour,
+     which no ordinary rule overrides. */
   input:-webkit-autofill,
   input:-webkit-autofill:hover,
   input:-webkit-autofill:focus {
-    -webkit-text-fill-color: var(--color-slate-900);
-    box-shadow: 0 0 0 1000px #ffffff inset;
-    caret-color: var(--color-slate-900);
+    -webkit-text-fill-color: var(--fg);
+    box-shadow: 0 0 0 1000px var(--surface) inset;
+    caret-color: var(--fg);
   }
 
-  /* Focus is visible for keyboard users without ringing every mouse click —
-     the scanner workflows in later phases are keyboard-first. */
   :focus-visible {
     outline-offset: 1px;
   }
+
+  /* Theme switches instantly. A transition here would make every surface on the
+     page cross-fade at once, which reads as a rendering fault rather than a
+     deliberate change. */
 }

@@ -44,13 +44,13 @@ export function LoginForm() {
   return (
     <form onSubmit={submit} className="space-y-4" noValidate>
       {error ? (
-        <p role="alert" className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p role="alert" className="rounded border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/50 px-3 py-2 text-sm text-red-700 dark:text-red-300">
           {error}
         </p>
       ) : null}
 
       <div>
-        <label htmlFor="email" className="mb-1 block text-sm font-medium text-slate-700">
+        <label htmlFor="email" className="mb-1 block text-sm font-medium text-fg">
           Email address
         </label>
         <input
@@ -62,12 +62,12 @@ export function LoginForm() {
           autoFocus
           value={email}
           onChange={(event) => setEmail(event.target.value)}
-          className="w-full rounded border border-slate-300 px-3 py-2 text-sm outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+          className="w-full rounded border border-line-strong px-3 py-2 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft"
         />
       </div>
 
       <div>
-        <label htmlFor="password" className="mb-1 block text-sm font-medium text-slate-700">
+        <label htmlFor="password" className="mb-1 block text-sm font-medium text-fg">
           Password
         </label>
         <input
@@ -78,14 +78,14 @@ export function LoginForm() {
           required
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          className="w-full rounded border border-slate-300 px-3 py-2 text-sm outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+          className="w-full rounded border border-line-strong px-3 py-2 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft"
         />
       </div>
 
       <button
         type="submit"
         disabled={busy}
-        className="w-full rounded bg-sky-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-700 disabled:opacity-60"
+        className="w-full rounded bg-accent px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-strong disabled:opacity-60"
       >
         {busy ? "Signing in…" : "Sign in"}
       </button>

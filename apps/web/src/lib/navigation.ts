@@ -134,7 +134,14 @@ export const NAVIGATION: readonly NavigationSection[] = [
           { label: "Sessions", href: "/settings/sessions", permission: "settings.security.view" },
         ],
       },
-      { label: "My profile", icon: "settings", href: "/profile" },
+      {
+        label: "My account",
+        icon: "settings",
+        children: [
+          { label: "My profile", href: "/profile" },
+          { label: "Change password", href: "/profile/password" },
+        ],
+      },
     ],
   },
 ];

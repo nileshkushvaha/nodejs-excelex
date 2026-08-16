@@ -55,7 +55,7 @@ export function PermissionPicker({
       {superEntry ? (
         <label
           className={`flex cursor-pointer items-start gap-2.5 rounded border p-3 ${
-            holdsAll ? "border-amber-300 bg-amber-50" : "border-slate-200 bg-slate-50"
+            holdsAll ? "border-amber-300 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/50" : "border-line bg-surface-2"
           }`}
         >
           <input
@@ -68,10 +68,10 @@ export function PermissionPicker({
             className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-amber-600"
           />
           <span>
-            <span className="block text-sm font-medium text-slate-900">
+            <span className="block text-sm font-medium text-fg">
               Full access — every permission
             </span>
-            <span className="block text-xs text-slate-600">
+            <span className="block text-xs text-muted">
               Includes permissions added in future releases. The individual selections below have no
               additional effect while this is on.
             </span>
@@ -87,24 +87,24 @@ export function PermissionPicker({
         const allOn = groupKeys.every((key) => chosen.has(key));
 
         return (
-          <fieldset key={group} className="rounded border border-slate-200">
-            <legend className="ml-3 flex items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <fieldset key={group} className="rounded border border-line">
+            <legend className="ml-3 flex items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted">
               {group}
               <button
                 type="button"
                 disabled={disabled}
                 onClick={() => groupKeys.forEach((key) => toggle(key, !allOn))}
-                className="rounded border border-slate-200 px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                className="rounded border border-line px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal text-muted hover:bg-surface-2 disabled:opacity-50"
               >
                 {allOn ? "none" : "all"}
               </button>
             </legend>
 
-            <div className="divide-y divide-slate-100">
+            <div className="divide-y divide-line-soft">
               {entries.map((entry) => (
                 <label
                   key={entry.key}
-                  className="flex cursor-pointer items-start gap-2.5 px-3 py-2 hover:bg-slate-50"
+                  className="flex cursor-pointer items-start gap-2.5 px-3 py-2 hover:bg-surface-2"
                 >
                   <input
                     type="checkbox"
@@ -113,12 +113,12 @@ export function PermissionPicker({
                     disabled={disabled}
                     checked={chosen.has(entry.key)}
                     onChange={(event) => toggle(entry.key, event.target.checked)}
-                    className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-sky-600"
+                    className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-[var(--accent)]"
                   />
                   <span className="min-w-0">
-                    <span className="block text-sm text-slate-800">{entry.label}</span>
-                    <span className="block text-xs text-slate-500">{entry.description}</span>
-                    <code className="mt-0.5 block font-mono text-[10px] text-slate-400">
+                    <span className="block text-sm text-fg">{entry.label}</span>
+                    <span className="block text-xs text-muted">{entry.description}</span>
+                    <code className="mt-0.5 block font-mono text-[10px] text-faint">
                       {entry.key}
                     </code>
                   </span>

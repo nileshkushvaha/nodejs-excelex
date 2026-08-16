@@ -7,7 +7,7 @@ import type { ActionResult, PasswordPolicy } from "@/lib/api";
 import { savePasswordPolicy } from "./actions";
 
 const numberField =
-  "w-24 rounded border border-slate-300 px-2.5 py-1.5 text-sm tabular-nums outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100 disabled:bg-slate-50 disabled:text-slate-400";
+  "w-24 rounded border border-line-strong px-2.5 py-1.5 text-sm tabular-nums outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft disabled:bg-surface-2 disabled:text-faint";
 
 function Card({
   title,
@@ -19,10 +19,10 @@ function Card({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white">
-      <div className="border-b border-slate-200 px-5 py-3">
-        <h2 className="text-sm font-semibold text-slate-800">{title}</h2>
-        <p className="mt-0.5 text-xs text-slate-500">{description}</p>
+    <section className="rounded-lg border border-line bg-surface">
+      <div className="border-b border-line px-5 py-3">
+        <h2 className="text-sm font-semibold text-fg">{title}</h2>
+        <p className="mt-0.5 text-xs text-muted">{description}</p>
       </div>
       <div className="space-y-4 p-5">{children}</div>
     </section>
@@ -32,7 +32,7 @@ function Card({
 /** Marks a control whose value is stored but not yet acted on. */
 function NotEnforced() {
   return (
-    <p className="rounded border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800">
+    <p className="rounded border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/50 px-2.5 py-1.5 text-xs text-amber-800 dark:text-amber-300">
       Saved, but <strong>not yet enforced</strong> — enforcement needs the forced-change flow that
       arrives with invitations.
     </p>
@@ -53,18 +53,18 @@ export function PasswordPolicyForm({
   return (
     <form action={action} className="space-y-5">
       {state?.ok ? (
-        <p role="status" className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+        <p role="status" className="rounded border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/50 px-3 py-2 text-sm text-emerald-800 dark:text-emerald-300">
           Policy saved. It applies to the next password anyone sets.
         </p>
       ) : null}
       {state && !state.ok ? (
-        <p role="alert" className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p role="alert" className="rounded border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/50 px-3 py-2 text-sm text-red-700 dark:text-red-300">
           {state.error}
         </p>
       ) : null}
 
       {!canManage ? (
-        <p className="rounded border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+        <p className="rounded border border-line bg-surface-2 px-3 py-2 text-xs text-muted">
           You can read this policy but not change it. Changing it needs{" "}
           <code className="font-mono">settings.security.manage</code>.
         </p>
@@ -75,7 +75,7 @@ export function PasswordPolicyForm({
         description="Applied whenever someone sets or changes their password."
       >
         <div className="flex items-center gap-2">
-          <label htmlFor="minLength" className="text-sm font-medium text-slate-700">
+          <label htmlFor="minLength" className="text-sm font-medium text-fg">
             Minimum length
           </label>
           <input
@@ -89,10 +89,10 @@ export function PasswordPolicyForm({
             defaultValue={policy.minLength}
             className={numberField}
           />
-          <span className="text-sm text-slate-500">characters</span>
+          <span className="text-sm text-muted">characters</span>
         </div>
 
-        <div className="space-y-3 border-t border-slate-100 pt-4">
+        <div className="space-y-3 border-t border-line-soft pt-4">
           <Toggle
             name="requireUppercase"
             label="Require an uppercase letter"
@@ -120,7 +120,7 @@ export function PasswordPolicyForm({
           />
         </div>
 
-        <p className="rounded border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+        <p className="rounded border border-line bg-surface-2 px-3 py-2 text-xs text-muted">
           These are off by default on purpose. Current NIST guidance favours length over forced
           character classes — mandatory symbols mostly produce <code>Password1!</code> and a sticky
           note. They are here because many clients inherit them from a customer&apos;s or
@@ -138,7 +138,7 @@ export function PasswordPolicyForm({
         />
 
         <div className="flex items-center gap-2">
-          <label htmlFor="historyCount" className="text-sm font-medium text-slate-700">
+          <label htmlFor="historyCount" className="text-sm font-medium text-fg">
             Remember the last
           </label>
           <input
@@ -152,9 +152,9 @@ export function PasswordPolicyForm({
             defaultValue={policy.historyCount}
             className={numberField}
           />
-          <span className="text-sm text-slate-500">passwords</span>
+          <span className="text-sm text-muted">passwords</span>
         </div>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-muted">
           Only hashes are kept, and the list is pruned to this number on every change — an unbounded
           history of someone&apos;s old credentials is a liability that grows for as long as they
           work here.
@@ -171,7 +171,7 @@ export function PasswordPolicyForm({
         />
 
         <div className="flex items-center gap-2">
-          <label htmlFor="expiryDays" className="text-sm font-medium text-slate-700">
+          <label htmlFor="expiryDays" className="text-sm font-medium text-fg">
             Expire after
           </label>
           <input
@@ -185,7 +185,7 @@ export function PasswordPolicyForm({
             defaultValue={policy.expiryDays}
             className={numberField}
           />
-          <span className="text-sm text-slate-500">days</span>
+          <span className="text-sm text-muted">days</span>
         </div>
 
         {expiryEnabled ? <NotEnforced /> : null}
@@ -210,12 +210,12 @@ export function PasswordPolicyForm({
           <button
             type="submit"
             disabled={pending}
-            className="rounded bg-sky-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-700 disabled:opacity-60"
+            className="rounded bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-strong disabled:opacity-60"
           >
             {pending ? "Saving…" : "Save policy"}
           </button>
           {policy.updatedAt ? (
-            <span className="text-xs text-slate-500">
+            <span className="text-xs text-muted">
               Last changed{" "}
               {new Date(policy.updatedAt).toLocaleString("en-IN", {
                 timeZone: "Asia/Kolkata",
@@ -224,7 +224,7 @@ export function PasswordPolicyForm({
               })}
             </span>
           ) : (
-            <span className="text-xs text-slate-500">Never changed — showing defaults.</span>
+            <span className="text-xs text-muted">Never changed — showing defaults.</span>
           )}
         </div>
       ) : null}

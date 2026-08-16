@@ -10,11 +10,11 @@ import { saveSessionSettings } from "../login/actions";
 function Feedback({ state }: { state: ActionResult | null }) {
   if (!state) return null;
   return state.ok ? (
-    <p role="status" className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+    <p role="status" className="rounded border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/50 px-3 py-2 text-sm text-emerald-800 dark:text-emerald-300">
       Settings saved. They apply to sessions created from now on.
     </p>
   ) : (
-    <p role="alert" className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+    <p role="alert" className="rounded border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/50 px-3 py-2 text-sm text-red-700 dark:text-red-300">
       {state.error}
     </p>
   );
@@ -39,7 +39,7 @@ export function SessionSettingsForm({
         description="How long a session survives inactivity, and how long it can live at all."
       >
         <div className="flex flex-wrap items-center gap-2">
-          <label htmlFor="idleTimeoutMinutes" className="text-sm font-medium text-slate-700">
+          <label htmlFor="idleTimeoutMinutes" className="text-sm font-medium text-fg">
             Sign out after
           </label>
           <input
@@ -53,11 +53,11 @@ export function SessionSettingsForm({
             defaultValue={settings.idleTimeoutMinutes}
             className={numberField}
           />
-          <span className="text-sm text-slate-500">minutes of inactivity</span>
+          <span className="text-sm text-muted">minutes of inactivity</span>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <label htmlFor="absoluteTimeoutHours" className="text-sm font-medium text-slate-700">
+          <label htmlFor="absoluteTimeoutHours" className="text-sm font-medium text-fg">
             End every session after
           </label>
           <input
@@ -71,10 +71,10 @@ export function SessionSettingsForm({
             defaultValue={settings.absoluteTimeoutHours}
             className={numberField}
           />
-          <span className="text-sm text-slate-500">hours, regardless of activity</span>
+          <span className="text-sm text-muted">hours, regardless of activity</span>
         </div>
 
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-muted">
           There is deliberately no &ldquo;never expire&rdquo; option. The idle window slides forward
           on every request, so an operator working a full shift is not interrupted — what it ends is
           a session left open on an unattended terminal.
@@ -93,7 +93,7 @@ export function SessionSettingsForm({
           onChange={setMultiple}
         />
         {!multiple ? (
-          <p className="rounded border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800">
+          <p className="rounded border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/50 px-2.5 py-1.5 text-xs text-amber-800 dark:text-amber-300">
             With this off, signing in anywhere ends every other session for that account. Shared
             branch terminals are the usual reason to leave it on.
           </p>
@@ -112,9 +112,9 @@ export function SessionSettingsForm({
         title="Device management"
         description="Naming, trusting and revoking individual devices."
       >
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted">
           Not built. Each person can already see and revoke their own active sessions from{" "}
-          <a href="/profile" className="text-sky-700 underline">
+          <a href="/profile" className="text-accent-text underline">
             My profile
           </a>
           , which covers the same need until then.

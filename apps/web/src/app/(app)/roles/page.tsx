@@ -12,7 +12,7 @@ export default async function RolesPage() {
 
   if (!roles || !catalogue) {
     return (
-      <p className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+      <p className="rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/50 p-4 text-sm text-amber-800 dark:text-amber-300">
         You do not hold <code className="font-mono">settings.role.view</code>.
       </p>
     );
@@ -25,8 +25,8 @@ export default async function RolesPage() {
   return (
     <div className="mx-auto max-w-5xl">
       <header className="mb-5">
-        <h1 className="text-xl font-semibold text-slate-900">Roles</h1>
-        <p className="mt-0.5 text-sm text-slate-500">
+        <h1 className="text-xl font-semibold text-fg">Roles</h1>
+        <p className="mt-0.5 text-sm text-muted">
           A role is a named set of permissions. You can only grant what you hold yourself — the API
           refuses anything else, whatever this page shows.
         </p>

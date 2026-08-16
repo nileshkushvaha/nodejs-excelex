@@ -33,13 +33,13 @@ export default async function UserAccessPage({
 
   return (
     <div className="mx-auto max-w-3xl">
-      <Link href="/users" className="text-xs text-slate-500 hover:underline">
+      <Link href="/users" className="text-xs text-muted hover:underline">
         ← All users
       </Link>
 
       <header className="mb-5 mt-2">
-        <h1 className="text-xl font-semibold text-slate-900">{access.user.fullName}</h1>
-        <p className="mt-0.5 text-sm text-slate-500">{access.user.email}</p>
+        <h1 className="text-xl font-semibold text-fg">{access.user.fullName}</h1>
+        <p className="mt-0.5 text-sm text-muted">{access.user.email}</p>
       </header>
 
       <AccessEditor

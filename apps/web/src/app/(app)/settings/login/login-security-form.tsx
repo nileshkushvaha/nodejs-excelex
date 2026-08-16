@@ -10,11 +10,11 @@ import { saveLoginSecurity } from "./actions";
 function Feedback({ state }: { state: ActionResult | null }) {
   if (!state) return null;
   return state.ok ? (
-    <p role="status" className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+    <p role="status" className="rounded border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/50 px-3 py-2 text-sm text-emerald-800 dark:text-emerald-300">
       Settings saved.
     </p>
   ) : (
-    <p role="alert" className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+    <p role="alert" className="rounded border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/50 px-3 py-2 text-sm text-red-700 dark:text-red-300">
       {state.error}
     </p>
   );
@@ -48,7 +48,7 @@ export function LoginSecurityForm({
         />
 
         <div className="flex flex-wrap items-center gap-2">
-          <label htmlFor="maxFailedAttempts" className="text-sm font-medium text-slate-700">
+          <label htmlFor="maxFailedAttempts" className="text-sm font-medium text-fg">
             Lock after
           </label>
           <input
@@ -62,11 +62,11 @@ export function LoginSecurityForm({
             defaultValue={settings.maxFailedAttempts}
             className={numberField}
           />
-          <span className="text-sm text-slate-500">consecutive failures</span>
+          <span className="text-sm text-muted">consecutive failures</span>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <label htmlFor="lockoutMinutes" className="text-sm font-medium text-slate-700">
+          <label htmlFor="lockoutMinutes" className="text-sm font-medium text-fg">
             Stay locked for
           </label>
           <input
@@ -81,12 +81,12 @@ export function LoginSecurityForm({
             onChange={(event) => setLockoutMinutes(Number(event.target.value))}
             className={numberField}
           />
-          <span className="text-sm text-slate-500">minutes</span>
+          <span className="text-sm text-muted">minutes</span>
         </div>
 
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-muted">
           {lockoutMinutes === 0 ? (
-            <span className="text-amber-700">
+            <span className="text-amber-700 dark:text-amber-300">
               0 means the account stays locked until an administrator unlocks it from the Users
               screen.
             </span>
@@ -95,7 +95,7 @@ export function LoginSecurityForm({
           )}
         </p>
 
-        <p className="rounded border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+        <p className="rounded border border-line bg-surface-2 px-3 py-2 text-xs text-muted">
           A locked account is only reported as locked once the correct password is given. Saying so
           earlier would confirm the address exists to anyone willing to guess wrong a few times,
           turning the lockout into an enumeration oracle — the opposite of what it is for.

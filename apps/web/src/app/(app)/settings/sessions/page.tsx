@@ -8,7 +8,7 @@ export default async function SessionSettingsPage() {
 
   if (!settings) {
     return (
-      <p className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+      <p className="rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/50 p-4 text-sm text-amber-800 dark:text-amber-300">
         You do not hold <code className="font-mono">settings.security.view</code>.
       </p>
     );
@@ -17,8 +17,8 @@ export default async function SessionSettingsPage() {
   return (
     <div className="mx-auto max-w-3xl">
       <header className="mb-5">
-        <h1 className="text-xl font-semibold text-slate-900">Sessions</h1>
-        <p className="mt-0.5 text-sm text-slate-500">
+        <h1 className="text-xl font-semibold text-fg">Sessions</h1>
+        <p className="mt-0.5 text-sm text-muted">
           Session lifetime and how many devices one account may use.
         </p>
       </header>
