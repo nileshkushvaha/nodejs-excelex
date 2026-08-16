@@ -1,5 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 
+import type { GrantSet } from "@excelex/permissions";
+
 /**
  * Everything the request layer knows about who is asking, sealed once by the
  * client-resolution middleware and immutable thereafter.
@@ -14,6 +16,7 @@ export interface ContextActor {
   readonly email: string;
   readonly fullName: string;
   readonly permissions: readonly string[];
+  readonly grants: GrantSet;
   readonly branchIds: readonly string[];
 }
 

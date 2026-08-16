@@ -1,6 +1,8 @@
 import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
 import { APP_GUARD } from "@nestjs/core";
 
+import { AccessController } from "./access/access.controller";
+import { AccessService } from "./access/access.service";
 import { AuthController } from "./auth/auth.controller";
 import { AuthGuard } from "./auth/auth.guard";
 import { AuthService } from "./auth/auth.service";
@@ -12,12 +14,13 @@ import { DashboardController } from "./dashboard/dashboard.controller";
 import { HealthController } from "./health/health.controller";
 
 @Module({
-  controllers: [AuthController, DashboardController, HealthController],
+  controllers: [AccessController, AuthController, DashboardController, HealthController],
   providers: [
     { provide: ENVIRONMENT, useFactory: () => loadEnvironment() },
     PrismaService,
     SessionService,
     AuthService,
+    AccessService,
     // Authentication is global and opted out of per route. A new endpoint is
     // protected by default; forgetting the decorator locks it rather than
     // opening it.

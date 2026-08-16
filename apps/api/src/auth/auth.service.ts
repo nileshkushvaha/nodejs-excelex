@@ -1,5 +1,8 @@
 import { Injectable, Logger, UnauthorizedException } from "@nestjs/common";
 import { verifyPassword } from "@excelex/database";
+import type { GrantSet } from "@excelex/permissions";
+
+import { effectivePermissions, toGrantSet, type UserWithGrants } from "./grants";
 
 import { PrismaService } from "../core/database/prisma.service";
 import { SessionService } from "./session.service";
@@ -8,7 +11,10 @@ export interface AuthenticatedActor {
   readonly userId: string;
   readonly email: string;
   readonly fullName: string;
+  /** Expanded against the catalogue, denials already applied. */
   readonly permissions: readonly string[];
+  /** The raw grants, so a branch-scoped check can be re-resolved per record. */
+  readonly grants: GrantSet;
   readonly branchIds: readonly string[];
 }
 
@@ -23,6 +29,17 @@ export interface SignInResult {
  * elsewhere, against different tables, with mandatory MFA — they have no
  * clientId, so they physically cannot be stored here.
  */
+/**
+ * What every authentication query must load to answer "what may this person do?".
+ * Named once so the two call sites cannot drift — a missing include here would
+ * silently resolve to fewer permissions rather than fail.
+ */
+const GRANT_INCLUDE = {
+  userRoles: { include: { role: { include: { rolePermissions: true } } } },
+  userPermissions: true,
+  memberships: true,
+} as const;
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
@@ -45,7 +62,7 @@ export class AuthService {
     return this.prisma.forClient(clientId, async (tx) => {
       const user = await tx.user.findFirst({
         where: { email: normalisedEmail, deletedAt: null },
-        include: { userRoles: { include: { role: true } }, memberships: true },
+        include: GRANT_INCLUDE,
       });
 
       // One failure message for every cause, and the password is verified even
@@ -113,9 +130,7 @@ export class AuthService {
     return this.prisma.forClient(clientId, async (tx) => {
       const session = await tx.session.findFirst({
         where: { tokenHash, revokedAt: null },
-        include: {
-          user: { include: { userRoles: { include: { role: true } }, memberships: true } },
-        },
+        include: { user: { include: GRANT_INCLUDE } },
       });
 
       if (!session) return null;
@@ -156,23 +171,22 @@ export class AuthService {
     });
   }
 
-  private toActor(user: {
-    id: string;
-    email: string;
-    fullName: string;
-    userRoles: Array<{ role: { permissions: string[] } }>;
-    memberships: Array<{ branchId: string }>;
-  }): AuthenticatedActor {
-    const permissions = new Set<string>();
-    for (const assignment of user.userRoles) {
-      for (const permission of assignment.role.permissions) permissions.add(permission);
-    }
+  private toActor(
+    user: UserWithGrants & {
+      id: string;
+      email: string;
+      fullName: string;
+      memberships: Array<{ branchId: string }>;
+    },
+  ): AuthenticatedActor {
+    const grants = toGrantSet(user);
 
     return {
       userId: user.id,
       email: user.email,
       fullName: user.fullName,
-      permissions: [...permissions].sort(),
+      permissions: effectivePermissions(grants),
+      grants,
       branchIds: user.memberships.map((membership) => membership.branchId),
     };
   }

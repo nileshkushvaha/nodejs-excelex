@@ -7,6 +7,7 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
+import { resolvePermissions } from "@excelex/permissions";
 import type { Request } from "express";
 
 import { attachActor, currentRequestContext } from "../core/context/request-context";
@@ -61,7 +62,10 @@ export class AuthGuard implements CanActivate {
       context.getHandler(),
       context.getClass(),
     ]);
-    if (required && !actor.permissions.includes(required)) {
+    // Resolved rather than matched against the expanded list: the resolver is
+    // the single authority on precedence, so a DENY cannot be lost by whichever
+    // caller happened to expand the list.
+    if (required && !resolvePermissions(actor.grants).has(required)) {
       throw new ForbiddenException(`Missing permission: ${required}`);
     }
 
