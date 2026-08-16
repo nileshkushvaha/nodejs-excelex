@@ -84,6 +84,18 @@ export class AccessController {
     await this.access.deleteRole(roleId);
   }
 
+  @Get("users")
+  @RequirePermission("settings.user.view")
+  listUsers() {
+    return this.access.listUsers();
+  }
+
+  @Get("branches")
+  @RequirePermission("masters.branch.view")
+  listBranches() {
+    return this.access.listBranches();
+  }
+
   @Get("users/:userId")
   @RequirePermission("settings.user.view")
   describeUser(@Param("userId", ParseUUIDPipe) userId: string) {

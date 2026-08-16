@@ -130,7 +130,9 @@ export class AccessService {
     }
 
     return this.prisma.forClient(clientId!, async (tx) => {
-      const existing = await tx.role.findFirst({ where: { name } });
+      // deletedAt filtered: a soft-deleted role is a tombstone, not a name
+      // reservation. The unique index is partial for the same reason.
+      const existing = await tx.role.findFirst({ where: { name, deletedAt: null } });
       if (existing) throw new BadRequestException(`A role named "${name}" already exists.`);
 
       const role = await tx.role.create({
@@ -399,6 +401,52 @@ export class AccessService {
           metadata: { permissionKey },
         },
       });
+    });
+  }
+
+  /** Staff list for the users screen, with each person's roles. */
+  async listUsers() {
+    const { clientId } = requireRequestContext();
+
+    return this.prisma.forClient(clientId!, async (tx) => {
+      const users = await tx.user.findMany({
+        where: { deletedAt: null },
+        include: {
+          userRoles: { include: { role: true, branch: true } },
+          userPermissions: true,
+        },
+        orderBy: { email: "asc" },
+      });
+
+      return users.map((user) => ({
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        isActive: user.isActive,
+        lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
+        roles: user.userRoles.map((assignment) => ({
+          roleId: assignment.roleId,
+          name: assignment.role.name,
+          branchCode: assignment.branch?.code ?? null,
+          expiresAt: assignment.expiresAt?.toISOString() ?? null,
+        })),
+        directCount: user.userPermissions.length,
+        denyCount: user.userPermissions.filter((grant) => grant.effect === "DENY").length,
+      }));
+    });
+  }
+
+  /** Branches, for scoping a role assignment. */
+  async listBranches() {
+    const { clientId } = requireRequestContext();
+
+    return this.prisma.forClient(clientId!, async (tx) => {
+      const branches = await tx.branch.findMany({
+        where: { deletedAt: null },
+        orderBy: { code: "asc" },
+        select: { id: true, code: true, name: true },
+      });
+      return branches;
     });
   }
 
