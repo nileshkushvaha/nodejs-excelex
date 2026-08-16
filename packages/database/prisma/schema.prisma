@@ -767,3 +767,100 @@ model ClientSettings {
 
   @@map("client_settings")
 }
+
+// ─────────────────────────────────────────────────────────────
+// PRODUCT MASTERS — client scope
+// ─────────────────────────────────────────────────────────────
+
+/// @scope(client)
+/// What kind of movement a product is: Domestic, International, Local, Import.
+///
+/// Named ProductType because that is what the business calls it, but note the
+/// legacy application uses "Product Type" for two different things — this, and
+/// the Air/Surface/Train grouping below. They are separate masters here, since
+/// one describes where a shipment goes and the other how it travels.
+model ProductType {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  clientId  String    @map("client_id") @db.Uuid
+  code      String
+  name      String
+  isActive  Boolean   @default(true) @map("is_active")
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  products Product[]
+
+  @@unique([clientId, id], name: "product_type_client_id")
+  @@index([clientId])
+  @@map("product_types")
+}
+
+/// @scope(client)
+/// How a product travels: Air, Surface, Train, All. The legacy "Group Type".
+model ProductGroup {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  clientId  String    @map("client_id") @db.Uuid
+  code      String
+  name      String
+  isActive  Boolean   @default(true) @map("is_active")
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  products Product[]
+
+  @@unique([clientId, id], name: "product_group_client_id")
+  @@index([clientId])
+  @@map("product_groups")
+}
+
+/// Document or non-document.
+///
+/// A per-product property, not derived from the type: the legacy data has DOX
+/// (International Document) and SPX (International Non Document) as two
+/// products of the same type, so the distinction cannot live on the type.
+/// It drives rating, packaging rules and customs paperwork.
+enum ShipmentContentKind {
+  DOX
+  NDOX
+}
+
+/// @scope(client)
+/// A sellable service — the thing an AWB is booked against.
+model Product {
+  id       String @id @default(uuid(7)) @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+
+  code String
+  name String
+
+  productTypeId  String? @map("product_type_id") @db.Uuid
+  productGroupId String? @map("product_group_id") @db.Uuid
+
+  /// Free text in the legacy system, holding values like "SELF". Kept as text
+  /// rather than promoted to a master until the vocabulary is known — inventing
+  /// a master from one observed value is how reference data acquires rows
+  /// nobody can explain.
+  service String?
+
+  contentKind ShipmentContentKind @default(NDOX) @map("content_kind")
+
+  /// Whether the fuel surcharge applies. Some reverse and port-to-port products
+  /// are quoted all-inclusive and must not attract it.
+  fuelCharge Boolean @default(true) @map("fuel_charge")
+  /// Reverse charge: the recipient accounts for GST rather than the supplier.
+  gstReverse Boolean @default(false) @map("gst_reverse")
+
+  isActive  Boolean   @default(true) @map("is_active")
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  productType  ProductType?  @relation(fields: [clientId, productTypeId], references: [clientId, id], onDelete: Restrict)
+  productGroup ProductGroup? @relation(fields: [clientId, productGroupId], references: [clientId, id], onDelete: Restrict)
+
+  @@index([clientId, code])
+  @@index([clientId])
+  @@map("products")
+}

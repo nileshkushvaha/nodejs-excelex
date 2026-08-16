@@ -15,6 +15,7 @@ import { z } from "zod";
 
 import { RequirePermission } from "../auth/auth.guard";
 import { OrganisationService } from "./organisation.service";
+import { ProductService } from "./product.service";
 import { ReferenceService } from "./reference.service";
 
 const departmentSchema = z.object({
@@ -35,6 +36,23 @@ const designationSchema = departmentSchema.extend({
   level: z.coerce.number().int().min(0).max(1000).default(0),
 });
 
+const productSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .min(2, "A product needs a code.")
+    .max(20)
+    .regex(/^[A-Za-z0-9-]+$/, "A code may use letters, numbers and hyphens only."),
+  name: z.string().trim().min(2, "A product needs a name.").max(120),
+  productTypeId: z.string().uuid().nullish(),
+  productGroupId: z.string().uuid().nullish(),
+  service: z.string().trim().max(40).nullish(),
+  contentKind: z.enum(["DOX", "NDOX"]),
+  fuelCharge: z.coerce.boolean(),
+  gstReverse: z.coerce.boolean(),
+  isActive: z.coerce.boolean(),
+});
+
 function parse<T>(schema: z.ZodType<T>, body: unknown): T {
   const result = schema.safeParse(body);
   if (!result.success) {
@@ -48,6 +66,7 @@ export class MastersController {
   constructor(
     private readonly reference: ReferenceService,
     private readonly organisation: OrganisationService,
+    private readonly products: ProductService,
   ) {}
 
   // ── Reference data ───────────────────────────────────────────────────────
@@ -66,6 +85,57 @@ export class MastersController {
       throw new BadRequestException("Country must be a two-letter ISO code.");
     }
     return this.reference.states(code.toUpperCase());
+  }
+
+  // ── Products ─────────────────────────────────────────────────────────────
+  @Get("product-types")
+  @RequirePermission("masters.product.view")
+  listProductTypes() {
+    return this.products.listTypes();
+  }
+
+  @Get("product-groups")
+  @RequirePermission("masters.product.view")
+  listProductGroups() {
+    return this.products.listGroups();
+  }
+
+  @Get("products")
+  @RequirePermission("masters.product.view")
+  listProducts() {
+    return this.products.listProducts();
+  }
+
+  @Post("products")
+  @RequirePermission("masters.product.manage")
+  createProduct(@Body() body: unknown) {
+    const data = parse(productSchema, body);
+    return this.products.createProduct({
+      ...data,
+      productTypeId: data.productTypeId ?? null,
+      productGroupId: data.productGroupId ?? null,
+      service: data.service ?? null,
+    });
+  }
+
+  @Put("products/:id")
+  @RequirePermission("masters.product.manage")
+  @HttpCode(204)
+  async updateProduct(@Param("id", ParseUUIDPipe) id: string, @Body() body: unknown) {
+    const data = parse(productSchema, body);
+    await this.products.updateProduct(id, {
+      ...data,
+      productTypeId: data.productTypeId ?? null,
+      productGroupId: data.productGroupId ?? null,
+      service: data.service ?? null,
+    });
+  }
+
+  @Delete("products/:id")
+  @RequirePermission("masters.product.manage")
+  @HttpCode(204)
+  async deleteProduct(@Param("id", ParseUUIDPipe) id: string) {
+    await this.products.deleteProduct(id);
   }
 
   // ── Departments ──────────────────────────────────────────────────────────

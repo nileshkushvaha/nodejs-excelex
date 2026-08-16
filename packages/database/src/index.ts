@@ -58,3 +58,4 @@ export {
   type StateSeed,
 } from "./reference/india";
 export { seedCountriesAndStates, seedOrganisationMasters } from "./reference/seed-reference";
+export { PRODUCTS, PRODUCT_GROUPS, PRODUCT_TYPES, seedProductMasters } from "./reference/products";

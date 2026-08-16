@@ -6,6 +6,7 @@ import { PrismaClient } from "@prisma/client";
 import { SYSTEM_ROLES } from "@excelex/permissions";
 
 import { hashPassword } from "./password";
+import { seedProductMasters } from "./reference/products";
 import { seedCountriesAndStates, seedOrganisationMasters } from "./reference/seed-reference";
 import { syncPermissionCatalogue } from "./sync-permissions";
 
@@ -151,6 +152,13 @@ async function main(): Promise<void> {
       if (masters.departments > 0 || masters.designations > 0) {
         console.log(
           `Organisation masters: +${masters.departments} departments, +${masters.designations} designations`,
+        );
+      }
+
+      const productMasters = await seedProductMasters(tx, CLIENT_ID);
+      if (productMasters.products > 0 || productMasters.types > 0) {
+        console.log(
+          `Product masters: +${productMasters.types} types, +${productMasters.groups} groups, +${productMasters.products} products`,
         );
       }
 

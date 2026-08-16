@@ -82,6 +82,9 @@ DECLARE
     'departments',
     'designations',
     'client_settings',
+    'product_types',
+    'product_groups',
+    'products',
     'sessions',
     'invitations',
     'audit_events'
@@ -264,6 +267,7 @@ BEGIN
                         'user_roles','role_permissions','user_permissions',
                         'password_policies','password_history','security_settings',
                         'departments','designations','client_settings',
+                        'product_types','product_groups','products',
                         'sessions','invitations','audit_events')
       AND NOT (c.relrowsecurity AND c.relforcerowsecurity);
   IF bad > 0 THEN RAISE EXCEPTION '% client table(s) missing ENABLE+FORCE RLS', bad; END IF;

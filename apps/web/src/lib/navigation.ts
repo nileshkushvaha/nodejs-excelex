@@ -167,9 +167,9 @@ export const NAVIGATION: readonly NavigationSection[] = [
       {
         label: "Products & services",
         icon: "shipment",
-        permission: "masters.customer.view",
+        permission: "masters.product.view",
         children: [
-          soon("Products", "/products"),
+          { label: "Products", href: "/products", permission: "masters.product.view" },
           soon("Product types", "/products/types"),
           soon("Service mapping", "/products/service-mapping"),
           soon("Content types", "/products/contents"),

@@ -215,6 +215,27 @@ export interface GeneralSettings {
   updatedAt: string | null;
 }
 
+export interface Classification {
+  id: string;
+  code: string;
+  name: string;
+  isActive: boolean;
+  productCount: number;
+}
+
+export interface Product {
+  id: string;
+  code: string;
+  name: string;
+  service: string | null;
+  contentKind: "DOX" | "NDOX";
+  fuelCharge: boolean;
+  gstReverse: boolean;
+  isActive: boolean;
+  productType: { id: string; name: string } | null;
+  productGroup: { id: string; name: string } | null;
+}
+
 export interface Profile {
   id: string;
   email: string;
@@ -279,6 +300,9 @@ export const getStates = (country: string) =>
   get<StateRow[]>(`/api/v1/masters/states?country=${encodeURIComponent(country)}`);
 export const getDepartments = () => get<Department[]>("/api/v1/masters/departments");
 export const getDesignations = () => get<Designation[]>("/api/v1/masters/designations");
+export const getProducts = () => get<Product[]>("/api/v1/masters/products");
+export const getProductTypes = () => get<Classification[]>("/api/v1/masters/product-types");
+export const getProductGroups = () => get<Classification[]>("/api/v1/masters/product-groups");
 export const getGeneralSettings = () => get<GeneralSettings>("/api/v1/settings/general");
 export const getPasswordPolicy = () => get<PasswordPolicy>("/api/v1/settings/password-policy");
 export const getSecuritySettings = () => get<SecuritySettings>("/api/v1/settings/security");

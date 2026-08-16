@@ -14,6 +14,7 @@ import { DashboardController } from "./dashboard/dashboard.controller";
 import { HealthController } from "./health/health.controller";
 import { MastersController } from "./masters/masters.controller";
 import { OrganisationService } from "./masters/organisation.service";
+import { ProductService } from "./masters/product.service";
 import { ReferenceService } from "./masters/reference.service";
 import { ProfileController } from "./profile/profile.controller";
 import { ProfileService } from "./profile/profile.service";
@@ -40,6 +41,7 @@ import { SettingsController } from "./settings/settings.controller";
     AccessService,
     ReferenceService,
     OrganisationService,
+    ProductService,
     ProfileService,
     PasswordPolicyService,
     SecuritySettingsService,
