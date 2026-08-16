@@ -1,0 +1,13 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# pnpm 11 setting name. Packages whose install/postinstall scripts are allowed to
+# run. pnpm blocks build scripts by default as a supply-chain control; each entry
+# here is a deliberate exception. Add new ones as `name: true` — pnpm will write a
+# placeholder entry itself when it blocks something new.
+allowBuilds:
+  unrs-resolver: true      # native resolver used by the ESLint config Nest ships
+  prisma: true             # CLI: fetches/prepares query engine binaries
+  "@prisma/client": true   # generates the typed client
+  "@prisma/engines": true  # engine binaries

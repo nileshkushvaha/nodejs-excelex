@@ -1,0 +1,33 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: excelex_owner
+      POSTGRES_PASSWORD: dev_owner_password
+      POSTGRES_DB: excelex
+    ports:
+      - "5432:5432"
+    # PostgreSQL 18+ stores data in a major-version subdirectory, so the mount
+    # goes at /var/lib/postgresql — NOT /var/lib/postgresql/data as in 17 and
+    # earlier. Mounting the old path makes the container refuse to start.
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U excelex_owner -d excelex"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  redis:
+    image: redis:8-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+volumes:
+  pgdata:
