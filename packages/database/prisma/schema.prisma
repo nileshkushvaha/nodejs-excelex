@@ -703,3 +703,67 @@ model Designation {
   @@index([clientId])
   @@map("designations")
 }
+
+/// @scope(client)
+/// A client's own identity, contact details, statutory registrations and
+/// document defaults. One row per client.
+///
+/// Separate from the `clients` table on purpose: that row is platform-owned —
+/// ExcelEx sets the slug, status and plan — while everything here is the
+/// client's own to edit. Mixing them would mean one table with two owners and
+/// two very different authorisation rules.
+model ClientSettings {
+  id       String @id @default(uuid(7)) @db.Uuid
+  clientId String @unique @map("client_id") @db.Uuid
+
+  // ── Identity ─────────────────────────────────────────────────────────────
+  legalName   String  @map("legal_name")
+  tradingName String? @map("trading_name")
+  /// 15 characters: two-digit state code, PAN, entity number, Z, checksum.
+  gstin       String?
+  /// Permanent Account Number, ten characters.
+  pan         String?
+  /// Corporate Identity Number, twenty-one characters.
+  cin         String?
+
+  // ── Contact ──────────────────────────────────────────────────────────────
+  supportEmail String? @map("support_email")
+  supportPhone String? @map("support_phone")
+  websiteUrl   String? @map("website_url")
+
+  // ── Registered address ───────────────────────────────────────────────────
+  addressLine1 String? @map("address_line1")
+  addressLine2 String? @map("address_line2")
+  city         String?
+  /// ISO 3166-2 subdivision code, resolved against the states master.
+  stateCode    String? @map("state_code")
+  countryCode  String  @default("IN") @map("country_code")
+  postalCode   String? @map("postal_code")
+
+  // ── Localisation ─────────────────────────────────────────────────────────
+  /// IANA zone. Presentation only — everything is stored in UTC.
+  timezone   String @default("Asia/Kolkata")
+  currency   String @default("INR")
+  dateFormat String @default("dd/MM/yyyy") @map("date_format")
+  /// 1 = Monday, 7 = Sunday, per ISO 8601.
+  weekStart  Int    @default(1) @map("week_start")
+
+  // ── Documents ────────────────────────────────────────────────────────────
+  invoicePrefix String? @map("invoice_prefix")
+  invoiceFooter String? @map("invoice_footer")
+  termsText     String? @map("terms_text")
+
+  // ── Branding ─────────────────────────────────────────────────────────────
+  /// Object-storage keys, not URLs. Nothing writes these yet: uploads need the
+  /// storage service, which is not wired. The columns exist so the screen can
+  /// say so rather than offering a file input that silently does nothing.
+  logoKey     String? @map("logo_key")
+  logoDarkKey String? @map("logo_dark_key")
+  faviconKey  String? @map("favicon_key")
+
+  updatedById String?  @map("updated_by_id") @db.Uuid
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("client_settings")
+}

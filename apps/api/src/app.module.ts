@@ -18,6 +18,7 @@ import { ReferenceService } from "./masters/reference.service";
 import { ProfileController } from "./profile/profile.controller";
 import { ProfileService } from "./profile/profile.service";
 import { PasswordPolicyService } from "./settings/password-policy.service";
+import { ClientSettingsService } from "./settings/client-settings.service";
 import { SecuritySettingsService } from "./settings/security-settings.service";
 import { SettingsController } from "./settings/settings.controller";
 
@@ -42,6 +43,7 @@ import { SettingsController } from "./settings/settings.controller";
     ProfileService,
     PasswordPolicyService,
     SecuritySettingsService,
+    ClientSettingsService,
     // Authentication is global and opted out of per route. A new endpoint is
     // protected by default; forgetting the decorator locks it rather than
     // opening it.

@@ -301,7 +301,7 @@ export const NAVIGATION: readonly NavigationSection[] = [
         label: "General",
         icon: "settings",
         href: "/settings/general",
-        permission: "settings.security.view",
+        permission: "settings.general.view",
       },
       {
         label: "Access",

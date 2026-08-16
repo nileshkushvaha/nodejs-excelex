@@ -85,6 +85,8 @@ export const PERMISSION_DEFINITIONS = define([
   { key: "settings.role.view", group: "Settings", label: "View roles", description: "See roles and what they grant." },
   { key: "settings.role.manage", group: "Settings", label: "Manage roles", description: "Create roles and change what they grant. Effectively grants everything it can assign." },
   { key: "settings.permission.grant", group: "Settings", label: "Grant permissions directly", description: "Grant or deny a permission to one person, bypassing roles." },
+  { key: "settings.general.view", group: "Settings", label: "View general settings", description: "See the account's identity, contact and document settings." },
+  { key: "settings.general.manage", group: "Settings", label: "Manage general settings", description: "Change the account's legal name, registrations, address and document defaults." },
   { key: "settings.security.view", group: "Settings", label: "View security settings", description: "See the password policy and other account security settings." },
   { key: "settings.security.manage", group: "Settings", label: "Manage security settings", description: "Change the password policy for everyone in this account." },
   { key: "settings.audit.view", group: "Settings", label: "View audit trail", description: "Read this client's audit events." },

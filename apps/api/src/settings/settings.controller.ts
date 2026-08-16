@@ -3,6 +3,7 @@ import { POLICY_LIMITS } from "@excelex/permissions";
 import { z } from "zod";
 
 import { RequirePermission } from "../auth/auth.guard";
+import { ClientSettingsService } from "./client-settings.service";
 import { PasswordPolicyService } from "./password-policy.service";
 import { SecuritySettingsService } from "./security-settings.service";
 
@@ -47,12 +48,82 @@ const securitySettingsSchema = z.object({
   notifyAdminOnLock: z.coerce.boolean(),
 });
 
+const optionalText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .nullish()
+    // An emptied field means "not set", not an empty string. Storing "" makes
+    // every downstream `?? fallback` miss.
+    .transform((value) => (value ? value : null));
+
+const upperOptional = (max: number, pattern: RegExp, message: string) =>
+  optionalText(max).refine((value) => value === null || pattern.test(value.toUpperCase()), {
+    message,
+  });
+
+const clientSettingsSchema = z.object({
+  legalName: z.string().trim().min(2, "A legal name is required.").max(160),
+  tradingName: optionalText(160),
+  gstin: upperOptional(15, /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/, "That is not a valid GSTIN."),
+  pan: upperOptional(10, /^[A-Z]{5}[0-9]{4}[A-Z]$/, "That is not a valid PAN."),
+  cin: upperOptional(21, /^[LU][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$/, "That is not a valid CIN."),
+  supportEmail: optionalText(320).refine(
+    (value) => value === null || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value),
+    { message: "That is not a valid email address." },
+  ),
+  supportPhone: optionalText(32),
+  websiteUrl: optionalText(200).refine(
+    (value) => value === null || /^https?:\/\//.test(value),
+    { message: "A website URL must start with http:// or https://." },
+  ),
+  addressLine1: optionalText(200),
+  addressLine2: optionalText(200),
+  city: optionalText(80),
+  stateCode: optionalText(10),
+  countryCode: z.string().trim().length(2).toUpperCase(),
+  postalCode: optionalText(16),
+  timezone: z.string().trim().min(1).max(64),
+  currency: z.string().trim().length(3).toUpperCase(),
+  dateFormat: z.enum(["dd/MM/yyyy", "dd-MM-yyyy", "yyyy-MM-dd", "MM/dd/yyyy"]),
+  weekStart: z.coerce.number().int().min(1).max(7),
+  invoicePrefix: optionalText(12),
+  invoiceFooter: optionalText(500),
+  termsText: optionalText(2000),
+});
+
 @Controller({ path: "settings", version: "1" })
 export class SettingsController {
   constructor(
     private readonly passwordPolicy: PasswordPolicyService,
     private readonly security: SecuritySettingsService,
+    private readonly general: ClientSettingsService,
   ) {}
+
+  @Get("general")
+  @RequirePermission("settings.general.view")
+  viewGeneral() {
+    return this.general.view();
+  }
+
+  @Put("general")
+  @RequirePermission("settings.general.manage")
+  @HttpCode(204)
+  async updateGeneral(@Body() body: unknown): Promise<void> {
+    const result = clientSettingsSchema.safeParse(body);
+    if (!result.success) {
+      throw new BadRequestException(result.error.issues.map((issue) => issue.message));
+    }
+
+    // Statutory identifiers are stored uppercase so a lookup never has to guess.
+    await this.general.update({
+      ...result.data,
+      gstin: result.data.gstin?.toUpperCase() ?? null,
+      pan: result.data.pan?.toUpperCase() ?? null,
+      cin: result.data.cin?.toUpperCase() ?? null,
+    });
+  }
 
   /**
    * Readable with settings.security.view, but also by anyone who needs it to

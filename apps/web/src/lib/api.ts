@@ -187,6 +187,34 @@ export interface Designation {
   department: { id: string; code: string; name: string } | null;
 }
 
+export interface GeneralSettings {
+  legalName: string;
+  tradingName: string | null;
+  gstin: string | null;
+  pan: string | null;
+  cin: string | null;
+  supportEmail: string | null;
+  supportPhone: string | null;
+  websiteUrl: string | null;
+  addressLine1: string | null;
+  addressLine2: string | null;
+  city: string | null;
+  stateCode: string | null;
+  countryCode: string;
+  postalCode: string | null;
+  timezone: string;
+  currency: string;
+  dateFormat: string;
+  weekStart: number;
+  invoicePrefix: string | null;
+  invoiceFooter: string | null;
+  termsText: string | null;
+  logoKey: string | null;
+  logoDarkKey: string | null;
+  faviconKey: string | null;
+  updatedAt: string | null;
+}
+
 export interface Profile {
   id: string;
   email: string;
@@ -251,6 +279,7 @@ export const getStates = (country: string) =>
   get<StateRow[]>(`/api/v1/masters/states?country=${encodeURIComponent(country)}`);
 export const getDepartments = () => get<Department[]>("/api/v1/masters/departments");
 export const getDesignations = () => get<Designation[]>("/api/v1/masters/designations");
+export const getGeneralSettings = () => get<GeneralSettings>("/api/v1/settings/general");
 export const getPasswordPolicy = () => get<PasswordPolicy>("/api/v1/settings/password-policy");
 export const getSecuritySettings = () => get<SecuritySettings>("/api/v1/settings/security");
 
