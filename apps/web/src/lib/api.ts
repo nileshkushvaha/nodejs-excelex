@@ -81,7 +81,7 @@ export interface ActionResult {
  */
 export async function apiMutate(
   path: string,
-  method: "POST" | "PUT" | "DELETE",
+  method: "POST" | "PUT" | "PATCH" | "DELETE",
   body?: unknown,
 ): Promise<ActionResult> {
   let response: Response;
@@ -150,6 +150,40 @@ export interface Branch {
   name: string;
 }
 
+export interface Profile {
+  id: string;
+  email: string;
+  fullName: string;
+  lastLoginAt: string | null;
+  createdAt: string;
+  roles: string[];
+  branches: Branch[];
+}
+
+export interface PasswordPolicy {
+  minLength: number;
+  requireUppercase: boolean;
+  requireLowercase: boolean;
+  requireNumber: boolean;
+  requireSpecial: boolean;
+  preventReuse: boolean;
+  historyCount: number;
+  expiryEnabled: boolean;
+  expiryDays: number;
+  forceChangeOnFirstLogin: boolean;
+  updatedAt: string | null;
+}
+
+export interface ActiveSession {
+  id: string;
+  host: string;
+  ip: string | null;
+  userAgent: string | null;
+  createdAt: string;
+  idleExpiresAt: string;
+  current: boolean;
+}
+
 export const getPermissionCatalogue = () =>
   get<{ permissions: PermissionCatalogueEntry[] }>("/api/v1/access/permissions");
 export const getRoles = () => get<RoleSummary[]>("/api/v1/access/roles");
@@ -157,6 +191,9 @@ export const getUsers = () => get<UserSummary[]>("/api/v1/access/users");
 export const getBranches = () => get<Branch[]>("/api/v1/access/branches");
 export const getUserAccess = (userId: string) =>
   get<UserAccess>(`/api/v1/access/users/${userId}`);
+export const getProfile = () => get<Profile>("/api/v1/profile");
+export const getActiveSessions = () => get<ActiveSession[]>("/api/v1/profile/sessions");
+export const getPasswordPolicy = () => get<PasswordPolicy>("/api/v1/settings/password-policy");
 
 /** Returns null when unauthenticated, so callers redirect rather than crash. */
 export async function getCurrentSession(): Promise<CurrentSession | null> {
