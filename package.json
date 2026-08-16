@@ -7,7 +7,10 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "infra:up": "docker compose -f infrastructure/docker/docker-compose.yml up -d",
-    "infra:down": "docker compose -f infrastructure/docker/docker-compose.yml down"
+    "infra:down": "docker compose -f infrastructure/docker/docker-compose.yml down",
+    "db:seed": "pnpm --filter @excelex/database run db:seed",
+    "db:verify": "pnpm --filter @excelex/database run db:verify",
+    "test:security": "turbo run test:security"
   },
   "devDependencies": {
     "turbo": "^2",

@@ -8,15 +8,30 @@
     "migrate:deploy": "prisma migrate deploy && pnpm run db:secure",
     "db:secure": "bash scripts/apply-security.sh",
     "db:verify": "bash scripts/verify-isolation.sh",
-    "test:security": "pnpm run db:verify"
+    "test:security": "pnpm run db:verify",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "db:seed": "node dist/seed.js",
+    "db:generate": "prisma generate"
   },
   "dependencies": {
+    "@node-rs/argon2": "^2.1.0",
     "@prisma/adapter-pg": "^7",
     "@prisma/client": "^7",
     "pg": "^8"
   },
   "devDependencies": {
+    "@types/node": "^24.0.0",
     "dotenv": "^17.4.2",
-    "prisma": "^7"
+    "prisma": "^7",
+    "typescript": "^5.7.3"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
   }
 }
