@@ -101,6 +101,32 @@ bad password, sign-in issuing the `__Host-` cookie, `/auth/me`, a client-scoped 
 sign-out returning 204 and the subsequent 401, unknown host 404, caller-supplied `clientId` 400, and
 the same loop through the browser.
 
+### E/F — Roles and permissions ✅ working, not yet automatically tested
+
+A full RBAC model in `@excelex/permissions` plus `role_permissions`,
+`user_permissions` and a synced `permissions` catalogue. Everything Spatie provides —
+catalogue, role and user joins, direct user permissions, wildcards — plus four things it
+does not:
+
+| Improvement | Why |
+| --- | --- |
+| Catalogue is typed code; the table is its projection | A guard naming a permission that does not exist fails to compile, rather than failing silently at runtime |
+| `DENY` effect, always winning | Expresses "this role, except this person" without inventing a near-duplicate role, which is how permission models rot |
+| Expiring role assignments and grants | Temporary cover does not become permanent privilege |
+| Cannot confer what you do not hold | Without it, `settings.role.manage` is a privilege-escalation primitive |
+
+No implicit super-user: `*` is an ordinary grant row, visible and revocable. Wildcards
+match on segment boundaries, so `operations.ship*` is rejected rather than silently
+over-granting. Every mutation writes an audit event, with role changes recorded as a diff.
+
+The **Roles** and **User access** screens are built against this API.
+
+**Verified by hand:** a typo'd permission and a mid-segment wildcard refused; a valid
+wildcard role created; a `DENY` without a reason refused; a `DENY` beating the `*` grant
+(38 permissions → 37); a branch-scoped assignment with an expiry; and a user holding
+`settings.role.manage` but no billing authority unable to grant it, unable to grant `*`,
+and unable to strip the administrator role.
+
 ---
 
 ## Current milestone
@@ -117,6 +143,8 @@ invisible. That is the next work, ahead of new features:
   script; a nested write targeting another client asserted denied *with RLS dropped*, so the
   application barrier is proven independently (AUDIT-3 RLS-1/RLS-4).
 - The assertion that no session-level `SET` exists anywhere in the codebase.
+- Permission resolution: precedence, expiry, wildcard boundaries, branch scope — pure
+  functions, so these are cheap unit tests and the most valuable ones in the codebase.
 
 Then: invitations and activation, platform administration on the admin host, plans and quotas.
 
@@ -185,3 +213,14 @@ Seeded credentials are development-only and printed by the seed script.
 ## Blockers
 
 None.
+
+## Bugs found by using the product
+
+Recorded because both were invisible to code review and neither had a test:
+
+- **Soft-deleted rows squatted their unique values.** Deleting a role made its name
+  permanently unusable. Fixed with the partial unique indexes the plan had already
+  specified. Found by clicking "create role" in the UI.
+- **A network failure took a whole page down with a 500.** An uncaught throw from
+  `fetch` in a server component is not recoverable by the caller. Found when a restarted
+  API produced a half-rendered form that looked like a layout bug.
