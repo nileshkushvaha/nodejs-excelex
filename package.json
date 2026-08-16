@@ -16,5 +16,6 @@
     "turbo": "^2",
     "typescript": "^5",
     "prettier": "^3"
-  }
+  },
+  "packageManager": "pnpm@11.22.0"
 }
