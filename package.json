@@ -10,7 +10,9 @@
     "infra:down": "docker compose -f infrastructure/docker/docker-compose.yml down",
     "db:seed": "pnpm --filter @excelex/database run db:seed",
     "db:verify": "pnpm --filter @excelex/database run db:verify",
-    "test:security": "turbo run test:security"
+    "test:security": "turbo run test:security",
+    "test:unit": "turbo run test:unit",
+    "test": "turbo run test:unit test:security"
   },
   "devDependencies": {
     "turbo": "^2",

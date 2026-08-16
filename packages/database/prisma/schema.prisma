@@ -265,9 +265,18 @@ model User {
   /// Recorded now so password expiry can be enforced later without a backfill
   /// that would have to guess when everyone last changed theirs.
   passwordChangedAt DateTime? @map("password_changed_at") @db.Timestamptz(6)
-  deletedAt         DateTime? @map("deleted_at") @db.Timestamptz(6)
-  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  /// Consecutive failures since the last success. Reset on any successful
+  /// sign-in, so a locked-out account is one that failed repeatedly in a row
+  /// rather than one that has simply been used for a long time.
+  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
+  lastFailedLoginAt   DateTime? @map("last_failed_login_at") @db.Timestamptz(6)
+  /// Null means not locked. A far-future value is how "until an administrator
+  /// unlocks it" is represented, so one column answers the whole question.
+  lockedUntil         DateTime? @map("locked_until") @db.Timestamptz(6)
+  deletedAt           DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   client          Client                 @relation(fields: [clientId], references: [id], onDelete: Restrict)
   memberships     UserBranchMembership[]
@@ -539,4 +548,45 @@ model PasswordHistory {
 
   @@index([clientId, userId, createdAt])
   @@map("password_history")
+}
+
+/// @scope(client)
+/// Login and session security. One row per client, alongside the password
+/// policy — same shape, same reasoning: these are a client's own security
+/// decisions, often inherited from a customer's security questionnaire.
+///
+/// Fields are marked below as enforced or stored-only. A toggle that looks like
+/// it works and does not is worse than an absent one, so the UI says which is
+/// which rather than implying everything is live.
+model SecuritySettings {
+  id       String @id @default(uuid(7)) @db.Uuid
+  clientId String @unique @map("client_id") @db.Uuid
+
+  // ── Login attempts — ENFORCED ────────────────────────────────────────────
+  lockAfterFailedAttempts Boolean @default(true) @map("lock_after_failed_attempts")
+  maxFailedAttempts       Int     @default(5) @map("max_failed_attempts")
+  /// Minutes an account stays locked. 0 means until an administrator unlocks it.
+  lockoutMinutes          Int     @default(15) @map("lockout_minutes")
+
+  // ── Sessions — ENFORCED ──────────────────────────────────────────────────
+  idleTimeoutMinutes          Int     @default(60) @map("idle_timeout_minutes")
+  absoluteTimeoutHours        Int     @default(12) @map("absolute_timeout_hours")
+  /// When false, signing in on a new device ends every other session.
+  allowMultipleSessions       Boolean @default(true) @map("allow_multiple_sessions")
+  forceLogoutOnPasswordChange Boolean @default(true) @map("force_logout_on_password_change")
+
+  // ── Stored, NOT yet enforced ─────────────────────────────────────────────
+  /// Needs Redis, which is in the compose stack but not yet wired.
+  loginThrottleEnabled       Boolean @default(true) @map("login_throttle_enabled")
+  resetThrottleEnabled       Boolean @default(true) @map("reset_throttle_enabled")
+  /// Need a mail transport; Mailpit is not yet wired.
+  notifyUserOnFailedAttempts Boolean @default(false) @map("notify_user_on_failed_attempts")
+  notifyUserOnLock           Boolean @default(true) @map("notify_user_on_lock")
+  notifyAdminOnLock          Boolean @default(false) @map("notify_admin_on_lock")
+
+  updatedById String?  @map("updated_by_id") @db.Uuid
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("security_settings")
 }
