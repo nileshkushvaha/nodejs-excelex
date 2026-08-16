@@ -1,0 +1,395 @@
+// ExcelEx Platform — Phase 1 schema
+// Scope classification is DECLARED, never inferred from the presence of a clientId
+// column (audit finding CT-1). Every model carries exactly one scope annotation.
+//
+//   @scope(platform) — control plane. REVOKED from excelex_app. No RLS.
+//   @scope(client)   — client data. RLS enforced. excelex_app may read/write.
+//
+// tools/generate-rls.ts reads these annotations to emit policies and grants.
+// A model with no annotation is a build failure.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = []
+}
+
+// Prisma 7: the connection URL lives in prisma.config.ts, not here.
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────────────────────
+// PLATFORM SCOPE — control plane
+// ─────────────────────────────────────────────────────────────
+
+/// @scope(platform)
+model Client {
+  id        String       @id @default(uuid(7)) @db.Uuid
+  slug      String       @unique
+  legalName String @map("legal_name")
+  status    ClientStatus @default(TRIAL)
+  createdAt DateTime     @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt DateTime     @updatedAt @db.Timestamptz(6) @map("updated_at")
+
+  hostnames     ClientHostname[]
+  subscriptions Subscription[]
+  branches      Branch[]
+  users         User[]
+  roles         Role[]
+  sessions      Session[]
+  invitations   Invitation[]
+  auditEvents   AuditEvent[]
+
+  @@map("clients")
+}
+
+enum ClientStatus {
+  TRIAL
+  ACTIVE
+  SUSPENDED
+  EXPIRED
+  CLOSED
+}
+
+/// @scope(platform)
+/// Routing authority. The reserved-name constraint lives HERE, not on
+/// clients.slug — slugs do not route anything (audit finding HH-2).
+model ClientHostname {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  clientId   String    @db.Uuid @map("client_id")
+  hostname   String    @unique
+  isPrimary  Boolean   @default(false) @map("is_primary")
+  verifiedAt DateTime? @db.Timestamptz(6) @map("verified_at")
+  retiredAt  DateTime? @db.Timestamptz(6) @map("retired_at")
+  createdAt  DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
+
+  @@index([clientId])
+  @@map("client_hostnames")
+}
+
+/// @scope(platform)
+model Plan {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  code      String   @unique
+  name      String
+  createdAt DateTime @default(now()) @db.Timestamptz(6) @map("created_at")
+
+  limits        PlanLimit[]
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+/// @scope(platform)
+model PlanLimit {
+  id          String          @id @default(uuid(7)) @db.Uuid
+  planId      String          @db.Uuid @map("plan_id")
+  limitKey    String @map("limit_key")
+  limitValue  BigInt @map("limit_value")
+  enforcement EnforcementMode @default(HARD)
+
+  plan Plan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, limitKey])
+  @@map("plan_limits")
+}
+
+enum EnforcementMode {
+  HARD
+  SOFT
+  METERED
+}
+
+/// @scope(platform)
+model Subscription {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  clientId  String    @db.Uuid @map("client_id")
+  planId    String    @db.Uuid @map("plan_id")
+  startsAt  DateTime  @db.Timestamptz(6) @map("starts_at")
+  endsAt    DateTime? @db.Timestamptz(6) @map("ends_at")
+  trialEnds DateTime? @db.Timestamptz(6) @map("trial_ends")
+  createdAt DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  plan   Plan   @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  @@index([clientId])
+  @@map("subscriptions")
+}
+
+/// @scope(platform)
+/// ExcelEx staff. Separate from client users entirely — different table,
+/// different session store, mandatory MFA.
+model PlatformUser {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  email        String    @unique
+  fullName     String @map("full_name")
+  passwordHash String? @map("password_hash")
+  isActive     Boolean   @default(true) @map("is_active")
+  permissions  String[]  @default([])
+  lastLoginAt  DateTime? @db.Timestamptz(6) @map("last_login_at")
+  createdAt    DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt    DateTime  @updatedAt @db.Timestamptz(6) @map("updated_at")
+
+  sessions       PlatformSession[]
+  mfa            PlatformUserMfa?
+  supportSessions SupportAccessSession[]
+
+  @@map("platform_users")
+}
+
+/// @scope(platform)
+model PlatformSession {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  tokenHash      String    @unique @map("token_hash")
+  platformUserId String    @db.Uuid @map("platform_user_id")
+  host           String
+  ip             String?
+  userAgent      String? @map("user_agent")
+  mfaSatisfiedAt DateTime? @db.Timestamptz(6) @map("mfa_satisfied_at")
+  idleExpiresAt  DateTime  @db.Timestamptz(6) @map("idle_expires_at")
+  absoluteExpiry DateTime  @db.Timestamptz(6) @map("absolute_expiry")
+  revokedAt      DateTime? @db.Timestamptz(6) @map("revoked_at")
+  createdAt      DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
+
+  platformUser PlatformUser @relation(fields: [platformUserId], references: [id], onDelete: Cascade)
+
+  @@index([platformUserId])
+  @@map("platform_sessions")
+}
+
+/// @scope(platform)
+model PlatformUserMfa {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  platformUserId String    @unique @db.Uuid @map("platform_user_id")
+  secret         String
+  recoveryHashes String[]  @default([]) @map("recovery_hashes")
+  enrolledAt     DateTime? @db.Timestamptz(6) @map("enrolled_at")
+  lastUsedStep   BigInt? @map("last_used_step")
+
+  platformUser PlatformUser @relation(fields: [platformUserId], references: [id], onDelete: Cascade)
+
+  @@map("platform_user_mfa")
+}
+
+/// @scope(platform)
+/// Append-only. UPDATE and DELETE are revoked from every runtime role.
+/// Honest claim: this is immutable to the application, NOT to the database
+/// owner. Tamper-evidence is deferred (see AUDIT-3 §4).
+model PlatformAuditEvent {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  actorId   String?  @db.Uuid @map("actor_id")
+  clientId  String?  @db.Uuid @map("client_id")
+  action    String
+  entity    String?
+  entityId  String? @map("entity_id")
+  reason    String?
+  metadata  Json?
+  ip        String?
+  userAgent String? @map("user_agent")
+  requestId String? @map("request_id")
+  createdAt DateTime @default(now()) @db.Timestamptz(6) @map("created_at")
+
+  @@index([clientId, createdAt])
+  @@index([actorId, createdAt])
+  @@map("platform_audit_events")
+}
+
+/// @scope(platform)
+/// Read-only by default, explicit reason, short expiry, step-up MFA required,
+/// client notified. Write access needs a second approver.
+model SupportAccessSession {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  platformUserId String    @db.Uuid @map("platform_user_id")
+  clientId       String    @db.Uuid @map("client_id")
+  reason         String
+  mode           SupportMode @default(READ_ONLY)
+  approvedById   String?   @db.Uuid @map("approved_by_id")
+  notifiedAt     DateTime? @db.Timestamptz(6) @map("notified_at")
+  expiresAt      DateTime  @db.Timestamptz(6) @map("expires_at")
+  revokedAt      DateTime? @db.Timestamptz(6) @map("revoked_at")
+  createdAt      DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
+
+  platformUser PlatformUser @relation(fields: [platformUserId], references: [id], onDelete: Restrict)
+
+  @@index([clientId, expiresAt])
+  @@map("support_access_sessions")
+}
+
+enum SupportMode {
+  READ_ONLY
+  READ_WRITE
+}
+
+// ─────────────────────────────────────────────────────────────
+// CLIENT SCOPE — RLS enforced, clientId mandatory
+// ─────────────────────────────────────────────────────────────
+
+/// @scope(client)
+model Branch {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  clientId  String    @db.Uuid @map("client_id")
+  code      String
+  name      String
+  isActive  Boolean   @default(true) @map("is_active")
+  deletedAt DateTime? @db.Timestamptz(6) @map("deleted_at")
+  createdAt DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6) @map("updated_at")
+
+  client      Client                 @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  memberships UserBranchMembership[]
+
+  // Unconditional composite unique — required as a composite FK target.
+  // Partial unique indexes cannot back a foreign key (audit finding B4).
+  @@unique([clientId, id], name: "branch_client_id")
+  @@unique([clientId, code])
+  @@index([clientId])
+  @@map("branches")
+}
+
+/// @scope(client)
+model User {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  clientId     String    @db.Uuid @map("client_id")
+  email        String
+  fullName     String @map("full_name")
+  passwordHash String? @map("password_hash")
+  isActive     Boolean   @default(true) @map("is_active")
+  lastLoginAt  DateTime? @db.Timestamptz(6) @map("last_login_at")
+  deletedAt    DateTime? @db.Timestamptz(6) @map("deleted_at")
+  createdAt    DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt    DateTime  @updatedAt @db.Timestamptz(6) @map("updated_at")
+
+  client      Client                 @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  memberships UserBranchMembership[]
+  userRoles   UserRole[]
+  sessions    Session[]
+
+  @@unique([clientId, id], name: "user_client_id")
+  @@unique([clientId, email])
+  @@index([clientId])
+  @@map("users")
+}
+
+/// @scope(client)
+model UserBranchMembership {
+  id       String @id @default(uuid(7)) @db.Uuid
+  clientId String @db.Uuid @map("client_id")
+  userId   String @db.Uuid @map("user_id")
+  branchId String @db.Uuid @map("branch_id")
+
+  // Composite FKs — a cross-client reference is structurally impossible.
+  // MATCH SIMPLE (the default) is correct here; MATCH FULL would make
+  // optional relations unrepresentable (audit finding A2).
+  user   User   @relation(fields: [clientId, userId], references: [clientId, id], onDelete: Cascade)
+  branch Branch @relation(fields: [clientId, branchId], references: [clientId, id], onDelete: Cascade)
+
+  @@unique([clientId, userId, branchId])
+  @@index([clientId])
+  @@map("user_branch_memberships")
+}
+
+/// @scope(client)
+/// Permissions are a typed vocabulary in packages/permissions, stored as
+/// strings. No separate Permission table — the catalogue lives in code so a
+/// typo is a compile error rather than a silent authorisation gap.
+model Role {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  clientId    String    @db.Uuid @map("client_id")
+  name        String
+  description String?
+  permissions String[]  @default([])
+  isSystem    Boolean   @default(false) @map("is_system")
+  deletedAt   DateTime? @db.Timestamptz(6) @map("deleted_at")
+  createdAt   DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(6) @map("updated_at")
+
+  client    Client     @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  userRoles UserRole[]
+
+  @@unique([clientId, id], name: "role_client_id")
+  @@unique([clientId, name])
+  @@index([clientId])
+  @@map("roles")
+}
+
+/// @scope(client)
+model UserRole {
+  id       String @id @default(uuid(7)) @db.Uuid
+  clientId String @db.Uuid @map("client_id")
+  userId   String @db.Uuid @map("user_id")
+  roleId   String @db.Uuid @map("role_id")
+
+  user User @relation(fields: [clientId, userId], references: [clientId, id], onDelete: Cascade)
+  role Role @relation(fields: [clientId, roleId], references: [clientId, id], onDelete: Cascade)
+
+  @@unique([clientId, userId, roleId])
+  @@index([clientId])
+  @@map("user_roles")
+}
+
+/// @scope(client)
+/// Opaque server-side sessions. Only the SHA-256 hash of the token is stored,
+/// so a database read does not yield a usable session.
+model Session {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  clientId       String    @db.Uuid @map("client_id")
+  userId         String    @db.Uuid @map("user_id")
+  tokenHash      String    @unique @map("token_hash")
+  host           String
+  ip             String?
+  userAgent      String? @map("user_agent")
+  idleExpiresAt  DateTime  @db.Timestamptz(6) @map("idle_expires_at")
+  absoluteExpiry DateTime  @db.Timestamptz(6) @map("absolute_expiry")
+  revokedAt      DateTime? @db.Timestamptz(6) @map("revoked_at")
+  createdAt      DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  user   User   @relation(fields: [clientId, userId], references: [clientId, id], onDelete: Cascade)
+
+  @@index([clientId, userId])
+  @@map("sessions")
+}
+
+/// @scope(client)
+/// Single-use activation tokens, stored hashed. Legacy password hashes are
+/// never imported — migrated users receive one of these instead.
+model Invitation {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  clientId   String    @db.Uuid @map("client_id")
+  email      String
+  tokenHash  String    @unique @map("token_hash")
+  roleIds    String[]  @default([]) @map("role_ids")
+  invitedBy  String?   @db.Uuid @map("invited_by")
+  expiresAt  DateTime  @db.Timestamptz(6) @map("expires_at")
+  acceptedAt DateTime? @db.Timestamptz(6) @map("accepted_at")
+  createdAt  DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId, email])
+  @@map("invitations")
+}
+
+/// @scope(client)
+/// Append-only client audit trail.
+model AuditEvent {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  clientId  String   @db.Uuid @map("client_id")
+  actorId   String?  @db.Uuid @map("actor_id")
+  action    String
+  entity    String?
+  entityId  String? @map("entity_id")
+  metadata  Json?
+  ip        String?
+  userAgent String? @map("user_agent")
+  requestId String? @map("request_id")
+  createdAt DateTime @default(now()) @db.Timestamptz(6) @map("created_at")
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId, createdAt])
+  @@map("audit_events")
+}
