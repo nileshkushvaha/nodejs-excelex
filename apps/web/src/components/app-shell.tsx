@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { CommandPalette } from "@/components/command-palette";
+import { FullscreenToggle, HelpMenu, QuickLinksMenu, TrackingSearch } from "@/components/header-menus";
 import { Sidebar } from "@/components/sidebar";
 import { ThemeToggle } from "@/components/theme";
 
@@ -84,7 +85,11 @@ export function AppShell({
 
           <div className="flex shrink-0 items-center gap-2">
             <StatusPill status={clientStatus} host={clientHost} />
+            <TrackingSearch />
+            <QuickLinksMenu permissions={permissions} />
+            <FullscreenToggle />
             <ThemeToggle />
+            <HelpMenu permissions={permissions} />
             <Notifications />
             <UserMenu user={user} />
           </div>
