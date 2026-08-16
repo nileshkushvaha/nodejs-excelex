@@ -125,7 +125,7 @@ function DetailsCard({ profile }: { profile: Profile }) {
             value={profile.email}
             readOnly
             disabled
-            className={`${field} cursor-not-allowed bg-slate-50 text-slate-500`}
+            className={`${field} cursor-not-allowed bg-slate-50 text-slate-600`}
           />
           <p className="mt-1 text-xs text-slate-500">
             This is your sign-in identifier, so changing it needs the new address verified first —

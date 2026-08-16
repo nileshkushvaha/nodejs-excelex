@@ -1,26 +1,75 @@
 @import "tailwindcss";
 
+/**
+ * The application is committed to a light surface: every card, table and panel
+ * hard-codes bg-white or bg-slate-50.
+ *
+ * The stock stylesheet flipped --foreground to near-white under
+ * prefers-color-scheme: dark, and Tailwind's preflight gives form controls
+ * `color: inherit` — so on a machine set to dark mode every input rendered
+ * near-white text on a white background and was effectively invisible. A theme
+ * that only half-applies is worse than either theme.
+ */
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #0f172a; /* slate-900 */
+
+  /* Tells the browser to paint its own widgets light too: date-picker
+     internals, scrollbars, spinners and autofill. Without it, those stay dark
+     on a dark-mode machine even though the page around them is white. */
+  color-scheme: light;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    "Noto Sans", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer base {
+  /* Stated rather than inherited. Inheritance is what made this fail silently:
+     a change to body colour should not be able to make form fields unreadable. */
+  input,
+  textarea,
+  select {
+    color: var(--color-slate-900);
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-slate-400);
+    opacity: 1; /* Firefox dims placeholders by default, on top of the colour. */
+  }
+
+  input:disabled,
+  textarea:disabled,
+  select:disabled {
+    color: var(--color-slate-500);
+    -webkit-text-fill-color: var(--color-slate-500); /* Safari ignores colour on disabled inputs. */
+  }
+
+  /* Chrome paints autofilled fields with its own background and text colour.
+     The inset shadow is the only way to override the background, and
+     text-fill-color the only way to override the text. */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--color-slate-900);
+    box-shadow: 0 0 0 1000px #ffffff inset;
+    caret-color: var(--color-slate-900);
+  }
+
+  /* Focus is visible for keyboard users without ringing every mouse click —
+     the scanner workflows in later phases are keyboard-first. */
+  :focus-visible {
+    outline-offset: 1px;
+  }
 }
