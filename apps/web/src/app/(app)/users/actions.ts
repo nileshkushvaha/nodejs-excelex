@@ -40,6 +40,20 @@ export async function unassignRole(
   return result;
 }
 
+export async function unlockUser(
+  _previous: ActionResult | null,
+  form: FormData,
+): Promise<ActionResult> {
+  const userId = String(form.get("userId") ?? "");
+  const result = await apiMutate(`/api/v1/access/users/${userId}/unlock`, "POST");
+
+  if (result.ok) {
+    revalidatePath("/users");
+    revalidatePath(`/users/${userId}`);
+  }
+  return result;
+}
+
 export async function setDirectPermission(
   _previous: ActionResult | null,
   form: FormData,

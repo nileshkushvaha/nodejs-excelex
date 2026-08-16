@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { getUsers } from "@/lib/api";
+import { UnlockButton } from "./unlock-button";
 
 export const metadata = { title: "Users · ExcelEx" };
 
@@ -31,6 +32,7 @@ export default async function UsersPage() {
             <tr>
               <th className="px-4 py-2 font-medium">Name</th>
               <th className="px-4 py-2 font-medium">Roles</th>
+              <th className="px-4 py-2 font-medium">Status</th>
               <th className="px-4 py-2 font-medium">Direct grants</th>
               <th className="px-4 py-2 font-medium">Last sign-in</th>
             </tr>
@@ -67,6 +69,17 @@ export default async function UsersPage() {
                         </span>
                       ))}
                     </span>
+                  )}
+                </td>
+                <td className="px-4 py-2.5 text-xs">
+                  {user.lockedUntil ? (
+                    <UnlockButton userId={user.id} lockedUntil={user.lockedUntil} />
+                  ) : user.failedLoginAttempts > 0 ? (
+                    <span className="text-amber-700" title="Consecutive failures since the last success">
+                      {user.failedLoginAttempts} failed
+                    </span>
+                  ) : (
+                    <span className="text-slate-400">ok</span>
                   )}
                 </td>
                 <td className="px-4 py-2.5 text-xs text-slate-600">

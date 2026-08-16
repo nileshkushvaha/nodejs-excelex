@@ -130,8 +130,8 @@ export const NAVIGATION: readonly NavigationSection[] = [
         permission: "settings.security.view",
         children: [
           { label: "Password policy", href: "/settings/security", permission: "settings.security.view" },
-          { label: "Login security", href: "/settings/login", permission: "settings.security.view", comingSoon: true },
-          { label: "Sessions", href: "/settings/sessions", permission: "settings.security.view", comingSoon: true },
+          { label: "Login security", href: "/settings/login", permission: "settings.security.view" },
+          { label: "Sessions", href: "/settings/sessions", permission: "settings.security.view" },
         ],
       },
       { label: "My profile", icon: "settings", href: "/profile" },

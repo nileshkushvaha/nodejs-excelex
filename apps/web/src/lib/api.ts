@@ -126,6 +126,8 @@ export interface UserSummary {
   roles: Array<{ roleId: string; name: string; branchCode: string | null; expiresAt: string | null }>;
   directCount: number;
   denyCount: number;
+  failedLoginAttempts: number;
+  lockedUntil: string | null;
 }
 
 export interface UserAccess {
@@ -174,6 +176,22 @@ export interface PasswordPolicy {
   updatedAt: string | null;
 }
 
+export interface SecuritySettings {
+  lockAfterFailedAttempts: boolean;
+  maxFailedAttempts: number;
+  lockoutMinutes: number;
+  idleTimeoutMinutes: number;
+  absoluteTimeoutHours: number;
+  allowMultipleSessions: boolean;
+  forceLogoutOnPasswordChange: boolean;
+  loginThrottleEnabled: boolean;
+  resetThrottleEnabled: boolean;
+  notifyUserOnFailedAttempts: boolean;
+  notifyUserOnLock: boolean;
+  notifyAdminOnLock: boolean;
+  updatedAt: string | null;
+}
+
 export interface ActiveSession {
   id: string;
   host: string;
@@ -194,6 +212,7 @@ export const getUserAccess = (userId: string) =>
 export const getProfile = () => get<Profile>("/api/v1/profile");
 export const getActiveSessions = () => get<ActiveSession[]>("/api/v1/profile/sessions");
 export const getPasswordPolicy = () => get<PasswordPolicy>("/api/v1/settings/password-policy");
+export const getSecuritySettings = () => get<SecuritySettings>("/api/v1/settings/security");
 
 /** Returns null when unauthenticated, so callers redirect rather than crash. */
 export async function getCurrentSession(): Promise<CurrentSession | null> {
