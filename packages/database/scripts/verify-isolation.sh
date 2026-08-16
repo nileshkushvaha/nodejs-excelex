@@ -85,15 +85,16 @@ echo ""
 echo "Coverage: the policies actually exist"
 # Without this, a bare `prisma migrate reset` yields tables with no RLS and every
 # assertion below would still pass on an unprotected database.
-check "all 8 client tables have ENABLE + FORCE row level security" "8" \
-  "$(pg "$OWNER" -tA -q -c "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relname IN ('branches','users','user_branch_memberships','roles','user_roles','sessions','invitations','audit_events') AND c.relrowsecurity AND c.relforcerowsecurity;")"
-check "all 8 client tables carry the client_isolation policy" "8" \
+check "all 10 client tables have ENABLE + FORCE row level security" "10" \
+  "$(pg "$OWNER" -tA -q -c "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relname IN ('branches','users','user_branch_memberships','roles','user_roles','role_permissions','user_permissions','sessions','invitations','audit_events') AND c.relrowsecurity AND c.relforcerowsecurity;")"
+check "all 10 client tables carry the client_isolation policy" "10" \
   "$(pg "$OWNER" -tA -q -c "SELECT count(*) FROM pg_policies WHERE schemaname='public' AND policyname='client_isolation';")"
 
 echo ""
 echo "Barrier: platform tables unreachable from the client runtime"
 for t in clients client_hostnames subscriptions platform_users platform_sessions \
-         platform_user_mfa platform_audit_events support_access_sessions plans plan_limits; do
+         platform_user_mfa platform_audit_events support_access_sessions plans plan_limits \
+         permissions; do
   check "excelex_app SELECT on $t is denied" "denied" "$(denied "$APP" "SELECT count(*) FROM $t;")"
 done
 
@@ -106,8 +107,16 @@ done
 
 echo ""
 echo "Barrier: row-level isolation between clients"
-check "client A sees only its own user"  "admin@excelex.in" "$(as_client $A "string_agg(email,',') FROM users")"
-check "client B sees only its own user"  "admin@globex.com" "$(as_client $B "string_agg(email,',') FROM users")"
+# Asserted as properties rather than as an exact row list: the proof must hold
+# whatever else the development database happens to contain, or it starts
+# failing for reasons that have nothing to do with isolation.
+check "client A sees its own user"        "1" "$(as_client $A "count(*)::text FROM users WHERE email='admin@excelex.in'")"
+check "client A cannot see client B's user" "0" "$(as_client $A "count(*)::text FROM users WHERE email='admin@globex.com'")"
+check "every row client A sees belongs to client A" "0" \
+  "$(as_client $A "count(*)::text FROM users WHERE client_id <> '$A'")"
+check "client B sees its own user"        "1" "$(as_client $B "count(*)::text FROM users WHERE email='admin@globex.com'")"
+check "every row client B sees belongs to client B" "0" \
+  "$(as_client $B "count(*)::text FROM users WHERE client_id <> '$B'")"
 check "no context reveals nothing"       "<none>" \
   "$(pg "$APP" -tA -q -c "SELECT coalesce(string_agg(email,','),'<none>') FROM users;")"
 check "empty-string context fails closed, not with 22P02" "0" \

@@ -74,6 +74,8 @@ DECLARE
     'user_branch_memberships',
     'roles',
     'user_roles',
+    'role_permissions',
+    'user_permissions',
     'sessions',
     'invitations',
     'audit_events'
@@ -116,6 +118,7 @@ DECLARE
     'client_hostnames',
     'plans',
     'plan_limits',
+    'permissions',
     'subscriptions',
     'platform_users',
     'platform_sessions',
@@ -175,6 +178,25 @@ ALTER FUNCTION public.current_client_status() OWNER TO excelex_owner;
 REVOKE ALL ON FUNCTION public.current_client_status() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.current_client_status() TO excelex_app;
 
+-- The permission catalogue is platform data — one vocabulary for every client,
+-- which a client must not be able to edit — but every client's role editor has
+-- to list it. Read-only through a narrow accessor, like hostname resolution.
+CREATE OR REPLACE FUNCTION public.list_permissions()
+RETURNS TABLE (key text, "group" text, label text, description text, deprecated boolean)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $$
+  SELECT p.key, p."group", p.label, p.description, p.deprecated
+  FROM public.permissions p
+  ORDER BY p."group", p.key;
+$$;
+
+ALTER FUNCTION public.list_permissions() OWNER TO excelex_owner;
+REVOKE ALL ON FUNCTION public.list_permissions() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.list_permissions() TO excelex_app, excelex_platform;
+
 -- ─────────────────────────────────────────────────────────────
 -- 7. Verification — must all report OK
 -- ─────────────────────────────────────────────────────────────
@@ -193,7 +215,8 @@ BEGIN
     JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE n.nspname = 'public'
       AND c.relname IN ('branches','users','user_branch_memberships','roles',
-                        'user_roles','sessions','invitations','audit_events')
+                        'user_roles','role_permissions','user_permissions',
+                        'sessions','invitations','audit_events')
       AND NOT (c.relrowsecurity AND c.relforcerowsecurity);
   IF bad > 0 THEN RAISE EXCEPTION '% client table(s) missing ENABLE+FORCE RLS', bad; END IF;
 

@@ -26,10 +26,10 @@ datasource db {
 model Client {
   id        String       @id @default(uuid(7)) @db.Uuid
   slug      String       @unique
-  legalName String @map("legal_name")
+  legalName String       @map("legal_name")
   status    ClientStatus @default(TRIAL)
-  createdAt DateTime     @default(now()) @db.Timestamptz(6) @map("created_at")
-  updatedAt DateTime     @updatedAt @db.Timestamptz(6) @map("updated_at")
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   hostnames     ClientHostname[]
   subscriptions Subscription[]
@@ -56,12 +56,12 @@ enum ClientStatus {
 /// clients.slug — slugs do not route anything (audit finding HH-2).
 model ClientHostname {
   id         String    @id @default(uuid(7)) @db.Uuid
-  clientId   String    @db.Uuid @map("client_id")
+  clientId   String    @map("client_id") @db.Uuid
   hostname   String    @unique
   isPrimary  Boolean   @default(false) @map("is_primary")
-  verifiedAt DateTime? @db.Timestamptz(6) @map("verified_at")
-  retiredAt  DateTime? @db.Timestamptz(6) @map("retired_at")
-  createdAt  DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
+  verifiedAt DateTime? @map("verified_at") @db.Timestamptz(6)
+  retiredAt  DateTime? @map("retired_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
   client Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
 
@@ -74,7 +74,7 @@ model Plan {
   id        String   @id @default(uuid(7)) @db.Uuid
   code      String   @unique
   name      String
-  createdAt DateTime @default(now()) @db.Timestamptz(6) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   limits        PlanLimit[]
   subscriptions Subscription[]
@@ -85,9 +85,9 @@ model Plan {
 /// @scope(platform)
 model PlanLimit {
   id          String          @id @default(uuid(7)) @db.Uuid
-  planId      String          @db.Uuid @map("plan_id")
-  limitKey    String @map("limit_key")
-  limitValue  BigInt @map("limit_value")
+  planId      String          @map("plan_id") @db.Uuid
+  limitKey    String          @map("limit_key")
+  limitValue  BigInt          @map("limit_value")
   enforcement EnforcementMode @default(HARD)
 
   plan Plan @relation(fields: [planId], references: [id], onDelete: Cascade)
@@ -105,12 +105,12 @@ enum EnforcementMode {
 /// @scope(platform)
 model Subscription {
   id        String    @id @default(uuid(7)) @db.Uuid
-  clientId  String    @db.Uuid @map("client_id")
-  planId    String    @db.Uuid @map("plan_id")
-  startsAt  DateTime  @db.Timestamptz(6) @map("starts_at")
-  endsAt    DateTime? @db.Timestamptz(6) @map("ends_at")
-  trialEnds DateTime? @db.Timestamptz(6) @map("trial_ends")
-  createdAt DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
+  clientId  String    @map("client_id") @db.Uuid
+  planId    String    @map("plan_id") @db.Uuid
+  startsAt  DateTime  @map("starts_at") @db.Timestamptz(6)
+  endsAt    DateTime? @map("ends_at") @db.Timestamptz(6)
+  trialEnds DateTime? @map("trial_ends") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
   client Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
   plan   Plan   @relation(fields: [planId], references: [id], onDelete: Restrict)
@@ -125,16 +125,16 @@ model Subscription {
 model PlatformUser {
   id           String    @id @default(uuid(7)) @db.Uuid
   email        String    @unique
-  fullName     String @map("full_name")
-  passwordHash String? @map("password_hash")
+  fullName     String    @map("full_name")
+  passwordHash String?   @map("password_hash")
   isActive     Boolean   @default(true) @map("is_active")
   permissions  String[]  @default([])
-  lastLoginAt  DateTime? @db.Timestamptz(6) @map("last_login_at")
-  createdAt    DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
-  updatedAt    DateTime  @updatedAt @db.Timestamptz(6) @map("updated_at")
+  lastLoginAt  DateTime? @map("last_login_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  sessions       PlatformSession[]
-  mfa            PlatformUserMfa?
+  sessions        PlatformSession[]
+  mfa             PlatformUserMfa?
   supportSessions SupportAccessSession[]
 
   @@map("platform_users")
@@ -144,15 +144,15 @@ model PlatformUser {
 model PlatformSession {
   id             String    @id @default(uuid(7)) @db.Uuid
   tokenHash      String    @unique @map("token_hash")
-  platformUserId String    @db.Uuid @map("platform_user_id")
+  platformUserId String    @map("platform_user_id") @db.Uuid
   host           String
   ip             String?
-  userAgent      String? @map("user_agent")
-  mfaSatisfiedAt DateTime? @db.Timestamptz(6) @map("mfa_satisfied_at")
-  idleExpiresAt  DateTime  @db.Timestamptz(6) @map("idle_expires_at")
-  absoluteExpiry DateTime  @db.Timestamptz(6) @map("absolute_expiry")
-  revokedAt      DateTime? @db.Timestamptz(6) @map("revoked_at")
-  createdAt      DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
+  userAgent      String?   @map("user_agent")
+  mfaSatisfiedAt DateTime? @map("mfa_satisfied_at") @db.Timestamptz(6)
+  idleExpiresAt  DateTime  @map("idle_expires_at") @db.Timestamptz(6)
+  absoluteExpiry DateTime  @map("absolute_expiry") @db.Timestamptz(6)
+  revokedAt      DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
   platformUser PlatformUser @relation(fields: [platformUserId], references: [id], onDelete: Cascade)
 
@@ -163,11 +163,11 @@ model PlatformSession {
 /// @scope(platform)
 model PlatformUserMfa {
   id             String    @id @default(uuid(7)) @db.Uuid
-  platformUserId String    @unique @db.Uuid @map("platform_user_id")
+  platformUserId String    @unique @map("platform_user_id") @db.Uuid
   secret         String
   recoveryHashes String[]  @default([]) @map("recovery_hashes")
-  enrolledAt     DateTime? @db.Timestamptz(6) @map("enrolled_at")
-  lastUsedStep   BigInt? @map("last_used_step")
+  enrolledAt     DateTime? @map("enrolled_at") @db.Timestamptz(6)
+  lastUsedStep   BigInt?   @map("last_used_step")
 
   platformUser PlatformUser @relation(fields: [platformUserId], references: [id], onDelete: Cascade)
 
@@ -180,17 +180,17 @@ model PlatformUserMfa {
 /// owner. Tamper-evidence is deferred (see AUDIT-3 §4).
 model PlatformAuditEvent {
   id        String   @id @default(uuid(7)) @db.Uuid
-  actorId   String?  @db.Uuid @map("actor_id")
-  clientId  String?  @db.Uuid @map("client_id")
+  actorId   String?  @map("actor_id") @db.Uuid
+  clientId  String?  @map("client_id") @db.Uuid
   action    String
   entity    String?
-  entityId  String? @map("entity_id")
+  entityId  String?  @map("entity_id")
   reason    String?
   metadata  Json?
   ip        String?
-  userAgent String? @map("user_agent")
-  requestId String? @map("request_id")
-  createdAt DateTime @default(now()) @db.Timestamptz(6) @map("created_at")
+  userAgent String?  @map("user_agent")
+  requestId String?  @map("request_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@index([clientId, createdAt])
   @@index([actorId, createdAt])
@@ -201,16 +201,16 @@ model PlatformAuditEvent {
 /// Read-only by default, explicit reason, short expiry, step-up MFA required,
 /// client notified. Write access needs a second approver.
 model SupportAccessSession {
-  id             String    @id @default(uuid(7)) @db.Uuid
-  platformUserId String    @db.Uuid @map("platform_user_id")
-  clientId       String    @db.Uuid @map("client_id")
+  id             String      @id @default(uuid(7)) @db.Uuid
+  platformUserId String      @map("platform_user_id") @db.Uuid
+  clientId       String      @map("client_id") @db.Uuid
   reason         String
   mode           SupportMode @default(READ_ONLY)
-  approvedById   String?   @db.Uuid @map("approved_by_id")
-  notifiedAt     DateTime? @db.Timestamptz(6) @map("notified_at")
-  expiresAt      DateTime  @db.Timestamptz(6) @map("expires_at")
-  revokedAt      DateTime? @db.Timestamptz(6) @map("revoked_at")
-  createdAt      DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
+  approvedById   String?     @map("approved_by_id") @db.Uuid
+  notifiedAt     DateTime?   @map("notified_at") @db.Timestamptz(6)
+  expiresAt      DateTime    @map("expires_at") @db.Timestamptz(6)
+  revokedAt      DateTime?   @map("revoked_at") @db.Timestamptz(6)
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
 
   platformUser PlatformUser @relation(fields: [platformUserId], references: [id], onDelete: Restrict)
 
@@ -230,16 +230,17 @@ enum SupportMode {
 /// @scope(client)
 model Branch {
   id        String    @id @default(uuid(7)) @db.Uuid
-  clientId  String    @db.Uuid @map("client_id")
+  clientId  String    @map("client_id") @db.Uuid
   code      String
   name      String
   isActive  Boolean   @default(true) @map("is_active")
-  deletedAt DateTime? @db.Timestamptz(6) @map("deleted_at")
-  createdAt DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6) @map("updated_at")
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   client      Client                 @relation(fields: [clientId], references: [id], onDelete: Restrict)
   memberships UserBranchMembership[]
+  userRoles   UserRole[]
 
   // Unconditional composite unique — required as a composite FK target.
   // Partial unique indexes cannot back a foreign key (audit finding B4).
@@ -252,20 +253,21 @@ model Branch {
 /// @scope(client)
 model User {
   id           String    @id @default(uuid(7)) @db.Uuid
-  clientId     String    @db.Uuid @map("client_id")
+  clientId     String    @map("client_id") @db.Uuid
   email        String
-  fullName     String @map("full_name")
-  passwordHash String? @map("password_hash")
+  fullName     String    @map("full_name")
+  passwordHash String?   @map("password_hash")
   isActive     Boolean   @default(true) @map("is_active")
-  lastLoginAt  DateTime? @db.Timestamptz(6) @map("last_login_at")
-  deletedAt    DateTime? @db.Timestamptz(6) @map("deleted_at")
-  createdAt    DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
-  updatedAt    DateTime  @updatedAt @db.Timestamptz(6) @map("updated_at")
+  lastLoginAt  DateTime? @map("last_login_at") @db.Timestamptz(6)
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  client      Client                 @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  memberships UserBranchMembership[]
-  userRoles   UserRole[]
-  sessions    Session[]
+  client          Client                 @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  memberships     UserBranchMembership[]
+  userRoles       UserRole[]
+  userPermissions UserPermission[]
+  sessions        Session[]
 
   @@unique([clientId, id], name: "user_client_id")
   @@unique([clientId, email])
@@ -276,9 +278,9 @@ model User {
 /// @scope(client)
 model UserBranchMembership {
   id       String @id @default(uuid(7)) @db.Uuid
-  clientId String @db.Uuid @map("client_id")
-  userId   String @db.Uuid @map("user_id")
-  branchId String @db.Uuid @map("branch_id")
+  clientId String @map("client_id") @db.Uuid
+  userId   String @map("user_id") @db.Uuid
+  branchId String @map("branch_id") @db.Uuid
 
   // Composite FKs — a cross-client reference is structurally impossible.
   // MATCH SIMPLE (the default) is correct here; MATCH FULL would make
@@ -297,17 +299,17 @@ model UserBranchMembership {
 /// typo is a compile error rather than a silent authorisation gap.
 model Role {
   id          String    @id @default(uuid(7)) @db.Uuid
-  clientId    String    @db.Uuid @map("client_id")
+  clientId    String    @map("client_id") @db.Uuid
   name        String
   description String?
-  permissions String[]  @default([])
   isSystem    Boolean   @default(false) @map("is_system")
-  deletedAt   DateTime? @db.Timestamptz(6) @map("deleted_at")
-  createdAt   DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
-  updatedAt   DateTime  @updatedAt @db.Timestamptz(6) @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  client    Client     @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  userRoles UserRole[]
+  client          Client           @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
 
   @@unique([clientId, id], name: "role_client_id")
   @@unique([clientId, name])
@@ -316,18 +318,78 @@ model Role {
 }
 
 /// @scope(client)
+/// A role assignment. branchId null means the role applies across the whole
+/// client; a branch-scoped row limits it to that branch — Spatie's "teams",
+/// but native, because a branch manager in Delhi is not one in Mumbai.
+/// Assign several rows to cover several branches.
 model UserRole {
-  id       String @id @default(uuid(7)) @db.Uuid
-  clientId String @db.Uuid @map("client_id")
-  userId   String @db.Uuid @map("user_id")
-  roleId   String @db.Uuid @map("role_id")
+  id          String    @id @default(uuid(7)) @db.Uuid
+  clientId    String    @map("client_id") @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  roleId      String    @map("role_id") @db.Uuid
+  branchId    String?   @map("branch_id") @db.Uuid
+  /// Temporary cover that expires on its own rather than becoming permanent.
+  expiresAt   DateTime? @map("expires_at") @db.Timestamptz(6)
+  grantedById String?   @map("granted_by_id") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  user User @relation(fields: [clientId, userId], references: [clientId, id], onDelete: Cascade)
+  user   User    @relation(fields: [clientId, userId], references: [clientId, id], onDelete: Cascade)
+  role   Role    @relation(fields: [clientId, roleId], references: [clientId, id], onDelete: Cascade)
+  branch Branch? @relation(fields: [clientId, branchId], references: [clientId, id], onDelete: Cascade)
+
+  @@unique([clientId, userId, roleId, branchId])
+  @@index([clientId, userId])
+  @@map("user_roles")
+}
+
+/// @scope(client)
+/// What a role grants. A join table rather than a string array, so a permission
+/// can be added or removed without rewriting the row, and so "which roles grant
+/// this?" is a query rather than a scan.
+model RolePermission {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  clientId      String   @map("client_id") @db.Uuid
+  roleId        String   @map("role_id") @db.Uuid
+  permissionKey String   @map("permission_key")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
   role Role @relation(fields: [clientId, roleId], references: [clientId, id], onDelete: Cascade)
 
-  @@unique([clientId, userId, roleId])
+  @@unique([clientId, roleId, permissionKey])
   @@index([clientId])
-  @@map("user_roles")
+  @@map("role_permissions")
+}
+
+/// @scope(client)
+/// A permission granted or denied to one person, outside any role.
+///
+/// The DENY effect is the piece Spatie has no equivalent for. It makes "the
+/// operations manager role, except this one person may not reopen manifests"
+/// expressible without inventing a near-duplicate role — and near-duplicate
+/// roles are how permission models rot.
+model UserPermission {
+  id            String           @id @default(uuid(7)) @db.Uuid
+  clientId      String           @map("client_id") @db.Uuid
+  userId        String           @map("user_id") @db.Uuid
+  permissionKey String           @map("permission_key")
+  effect        PermissionEffect @default(ALLOW)
+  /// Required for DENY in the service layer: a denial nobody can explain later
+  /// is one nobody dares remove.
+  reason        String?
+  expiresAt     DateTime?        @map("expires_at") @db.Timestamptz(6)
+  grantedById   String?          @map("granted_by_id") @db.Uuid
+  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [clientId, userId], references: [clientId, id], onDelete: Cascade)
+
+  @@unique([clientId, userId, permissionKey])
+  @@index([clientId, userId])
+  @@map("user_permissions")
+}
+
+enum PermissionEffect {
+  ALLOW
+  DENY
 }
 
 /// @scope(client)
@@ -335,16 +397,16 @@ model UserRole {
 /// so a database read does not yield a usable session.
 model Session {
   id             String    @id @default(uuid(7)) @db.Uuid
-  clientId       String    @db.Uuid @map("client_id")
-  userId         String    @db.Uuid @map("user_id")
+  clientId       String    @map("client_id") @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
   tokenHash      String    @unique @map("token_hash")
   host           String
   ip             String?
-  userAgent      String? @map("user_agent")
-  idleExpiresAt  DateTime  @db.Timestamptz(6) @map("idle_expires_at")
-  absoluteExpiry DateTime  @db.Timestamptz(6) @map("absolute_expiry")
-  revokedAt      DateTime? @db.Timestamptz(6) @map("revoked_at")
-  createdAt      DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
+  userAgent      String?   @map("user_agent")
+  idleExpiresAt  DateTime  @map("idle_expires_at") @db.Timestamptz(6)
+  absoluteExpiry DateTime  @map("absolute_expiry") @db.Timestamptz(6)
+  revokedAt      DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
   client Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
   user   User   @relation(fields: [clientId, userId], references: [clientId, id], onDelete: Cascade)
@@ -358,14 +420,14 @@ model Session {
 /// never imported — migrated users receive one of these instead.
 model Invitation {
   id         String    @id @default(uuid(7)) @db.Uuid
-  clientId   String    @db.Uuid @map("client_id")
+  clientId   String    @map("client_id") @db.Uuid
   email      String
   tokenHash  String    @unique @map("token_hash")
   roleIds    String[]  @default([]) @map("role_ids")
-  invitedBy  String?   @db.Uuid @map("invited_by")
-  expiresAt  DateTime  @db.Timestamptz(6) @map("expires_at")
-  acceptedAt DateTime? @db.Timestamptz(6) @map("accepted_at")
-  createdAt  DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
+  invitedBy  String?   @map("invited_by") @db.Uuid
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  acceptedAt DateTime? @map("accepted_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
   client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
@@ -377,19 +439,43 @@ model Invitation {
 /// Append-only client audit trail.
 model AuditEvent {
   id        String   @id @default(uuid(7)) @db.Uuid
-  clientId  String   @db.Uuid @map("client_id")
-  actorId   String?  @db.Uuid @map("actor_id")
+  clientId  String   @map("client_id") @db.Uuid
+  actorId   String?  @map("actor_id") @db.Uuid
   action    String
   entity    String?
-  entityId  String? @map("entity_id")
+  entityId  String?  @map("entity_id")
   metadata  Json?
   ip        String?
-  userAgent String? @map("user_agent")
-  requestId String? @map("request_id")
-  createdAt DateTime @default(now()) @db.Timestamptz(6) @map("created_at")
+  userAgent String?  @map("user_agent")
+  requestId String?  @map("request_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([clientId, createdAt])
   @@map("audit_events")
+}
+
+/// @scope(platform)
+/// The permission catalogue, synced from @excelex/permissions.
+///
+/// The code is the source of truth and this table is its projection — the
+/// opposite of a database-first model like Spatie's. That is what lets a guard
+/// naming a permission fail to compile rather than fail silently at runtime.
+///
+/// It is platform-scoped because the vocabulary is the same for every client;
+/// a client cannot invent a permission the code does not implement. Grant rows
+/// deliberately carry no foreign key to it, because a grant may be a wildcard
+/// (`operations.*`) which by definition has no catalogue row. Existence is
+/// validated in the service layer against the typed catalogue, and the stored
+/// shape is constrained in the migration.
+model Permission {
+  key         String   @id
+  group       String
+  label       String
+  description String
+  deprecated  Boolean  @default(false)
+  syncedAt    DateTime @default(now()) @map("synced_at") @db.Timestamptz(6)
+
+  @@map("permissions")
 }

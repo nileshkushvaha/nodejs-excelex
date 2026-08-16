@@ -3,7 +3,10 @@ import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
+import { SYSTEM_ROLES } from "@excelex/permissions";
+
 import { hashPassword } from "./password";
+import { syncPermissionCatalogue } from "./sync-permissions";
 
 /**
  * Development seed: one client (ExcelEx itself), one hostname, one role, one
@@ -23,25 +26,6 @@ const HOSTNAME = process.env["SEED_HOSTNAME"] ?? "localhost";
 const ADMIN_EMAIL = process.env["SEED_ADMIN_EMAIL"] ?? "admin@excelex.in";
 const ADMIN_PASSWORD = process.env["SEED_ADMIN_PASSWORD"] ?? "ChangeMe!2026";
 
-/**
- * The permission vocabulary this role is granted. It is a plain string array
- * until packages/permissions exists to make a typo a compile error rather than
- * a silent authorization gap.
- */
-const ADMINISTRATOR_PERMISSIONS = [
-  "operations.dashboard.view",
-  "operations.shipment.view",
-  "operations.shipment.create",
-  "operations.manifest.view",
-  "masters.customer.view",
-  "masters.customer.manage",
-  "masters.branch.view",
-  "masters.branch.manage",
-  "settings.user.view",
-  "settings.user.manage",
-  "settings.role.manage",
-];
-
 async function main(): Promise<void> {
   const connectionString = process.env["DATABASE_MIGRATION_URL"];
   if (!connectionString) throw new Error("DATABASE_MIGRATION_URL is not set.");
@@ -49,6 +33,11 @@ async function main(): Promise<void> {
   const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
 
   try {
+    const catalogue = await syncPermissionCatalogue(prisma);
+    console.log(
+      `Permission catalogue: ${catalogue.upserted} synced, ${catalogue.deprecated} newly deprecated`,
+    );
+
     await prisma.client.upsert({
       where: { id: CLIENT_ID },
       create: {
@@ -79,17 +68,50 @@ async function main(): Promise<void> {
         update: { name: "Head Office" },
       });
 
-      const role = await tx.role.upsert({
-        where: { clientId_name: { clientId: CLIENT_ID, name: "Administrator" } },
-        create: {
-          clientId: CLIENT_ID,
-          name: "Administrator",
-          description: "Full access to this client's data and settings.",
-          permissions: ADMINISTRATOR_PERMISSIONS,
-          isSystem: true,
-        },
-        update: { permissions: ADMINISTRATOR_PERMISSIONS },
-      });
+      // Every client starts with the same system roles. They are re-synced on
+      // each run so a permission added to the catalogue reaches the seeded
+      // roles, but only for isSystem rows — a role the client has edited is
+      // theirs, and overwriting it would silently revoke access they granted.
+      let administratorRoleId = "";
+
+      for (const definition of SYSTEM_ROLES) {
+        const role = await tx.role.upsert({
+          where: { clientId_name: { clientId: CLIENT_ID, name: definition.name } },
+          create: {
+            clientId: CLIENT_ID,
+            name: definition.name,
+            description: definition.description,
+            isSystem: true,
+          },
+          update: { description: definition.description },
+        });
+
+        if (definition.name === "Administrator") administratorRoleId = role.id;
+
+        await tx.rolePermission.deleteMany({
+          where: {
+            clientId: CLIENT_ID,
+            roleId: role.id,
+            permissionKey: { notIn: [...definition.permissions] },
+          },
+        });
+
+        for (const permissionKey of definition.permissions) {
+          await tx.rolePermission.upsert({
+            where: {
+              clientId_roleId_permissionKey: {
+                clientId: CLIENT_ID,
+                roleId: role.id,
+                permissionKey,
+              },
+            },
+            create: { clientId: CLIENT_ID, roleId: role.id, permissionKey },
+            update: {},
+          });
+        }
+      }
+
+      const role = { id: administratorRoleId };
 
       const user = await tx.user.upsert({
         where: { clientId_email: { clientId: CLIENT_ID, email: ADMIN_EMAIL } },
@@ -103,9 +125,10 @@ async function main(): Promise<void> {
       });
 
       const existingRole = await tx.userRole.findFirst({
-        where: { clientId: CLIENT_ID, userId: user.id, roleId: role.id },
+        where: { clientId: CLIENT_ID, userId: user.id, roleId: role.id, branchId: null },
       });
       if (!existingRole) {
+        // branchId null: client-wide, not limited to any one branch.
         await tx.userRole.create({
           data: { clientId: CLIENT_ID, userId: user.id, roleId: role.id },
         });
@@ -121,7 +144,7 @@ async function main(): Promise<void> {
       }
     });
 
-    console.log("Seeded client 'excelex'");
+    console.log(`Seeded client 'excelex' with ${SYSTEM_ROLES.length} system roles`);
     console.log(`  hostname  ${HOSTNAME}`);
     console.log(`  sign in   ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`);
   } finally {

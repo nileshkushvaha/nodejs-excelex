@@ -46,3 +46,5 @@ export type {
 export { ClientStatus, EnforcementMode, SupportMode } from "@prisma/client";
 
 export { hashPassword, verifyPassword } from "./password";
+
+export { syncPermissionCatalogue } from "./sync-permissions";
