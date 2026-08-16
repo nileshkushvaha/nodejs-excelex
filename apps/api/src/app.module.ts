@@ -12,15 +12,28 @@ import { ClientResolutionMiddleware } from "./core/context/client-resolution.mid
 import { PrismaService } from "./core/database/prisma.service";
 import { DashboardController } from "./dashboard/dashboard.controller";
 import { HealthController } from "./health/health.controller";
+import { ProfileController } from "./profile/profile.controller";
+import { ProfileService } from "./profile/profile.service";
+import { PasswordPolicyService } from "./settings/password-policy.service";
+import { SettingsController } from "./settings/settings.controller";
 
 @Module({
-  controllers: [AccessController, AuthController, DashboardController, HealthController],
+  controllers: [
+    AccessController,
+    AuthController,
+    DashboardController,
+    HealthController,
+    ProfileController,
+    SettingsController,
+  ],
   providers: [
     { provide: ENVIRONMENT, useFactory: () => loadEnvironment() },
     PrismaService,
     SessionService,
     AuthService,
     AccessService,
+    ProfileService,
+    PasswordPolicyService,
     // Authentication is global and opted out of per route. A new endpoint is
     // protected by default; forgetting the decorator locks it rather than
     // opening it.
