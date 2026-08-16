@@ -204,17 +204,17 @@ export const NAVIGATION: readonly NavigationSection[] = [
       {
         label: "Organisation",
         icon: "user",
-        permission: "settings.user.view",
+        permission: "masters.organisation.view",
         children: [
           {
             label: "Departments",
             href: "/organisation/departments",
-            permission: "settings.user.view",
+            permission: "masters.organisation.view",
           },
           {
             label: "Designations",
             href: "/organisation/designations",
-            permission: "settings.user.view",
+            permission: "masters.organisation.view",
           },
           soon("Sales executives", "/organisation/sales-executives", "settings.user.view"),
           soon("Field executives", "/organisation/field-executives", "settings.user.view"),

@@ -152,6 +152,41 @@ export interface Branch {
   name: string;
 }
 
+export interface Country {
+  code: string;
+  alpha3: string;
+  name: string;
+  dialCode: string | null;
+  currency: string | null;
+  region: string | null;
+}
+
+export interface StateRow {
+  code: string;
+  name: string;
+  type: string;
+  gstCode: string | null;
+}
+
+export interface Department {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+  designationCount: number;
+}
+
+export interface Designation {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  level: number;
+  isActive: boolean;
+  department: { id: string; code: string; name: string } | null;
+}
+
 export interface Profile {
   id: string;
   email: string;
@@ -211,6 +246,11 @@ export const getUserAccess = (userId: string) =>
   get<UserAccess>(`/api/v1/access/users/${userId}`);
 export const getProfile = () => get<Profile>("/api/v1/profile");
 export const getActiveSessions = () => get<ActiveSession[]>("/api/v1/profile/sessions");
+export const getCountries = () => get<Country[]>("/api/v1/masters/countries");
+export const getStates = (country: string) =>
+  get<StateRow[]>(`/api/v1/masters/states?country=${encodeURIComponent(country)}`);
+export const getDepartments = () => get<Department[]>("/api/v1/masters/departments");
+export const getDesignations = () => get<Designation[]>("/api/v1/masters/designations");
 export const getPasswordPolicy = () => get<PasswordPolicy>("/api/v1/settings/password-policy");
 export const getSecuritySettings = () => get<SecuritySettings>("/api/v1/settings/security");
 
