@@ -76,6 +76,8 @@ DECLARE
     'user_roles',
     'role_permissions',
     'user_permissions',
+    'password_policies',
+    'password_history',
     'sessions',
     'invitations',
     'audit_events'
@@ -216,6 +218,7 @@ BEGIN
     WHERE n.nspname = 'public'
       AND c.relname IN ('branches','users','user_branch_memberships','roles',
                         'user_roles','role_permissions','user_permissions',
+                        'password_policies','password_history',
                         'sessions','invitations','audit_events')
       AND NOT (c.relrowsecurity AND c.relforcerowsecurity);
   IF bad > 0 THEN RAISE EXCEPTION '% client table(s) missing ENABLE+FORCE RLS', bad; END IF;

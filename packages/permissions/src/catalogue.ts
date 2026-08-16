@@ -83,6 +83,8 @@ export const PERMISSION_DEFINITIONS = define([
   { key: "settings.role.view", group: "Settings", label: "View roles", description: "See roles and what they grant." },
   { key: "settings.role.manage", group: "Settings", label: "Manage roles", description: "Create roles and change what they grant. Effectively grants everything it can assign." },
   { key: "settings.permission.grant", group: "Settings", label: "Grant permissions directly", description: "Grant or deny a permission to one person, bypassing roles." },
+  { key: "settings.security.view", group: "Settings", label: "View security settings", description: "See the password policy and other account security settings." },
+  { key: "settings.security.manage", group: "Settings", label: "Manage security settings", description: "Change the password policy for everyone in this account." },
   { key: "settings.audit.view", group: "Settings", label: "View audit trail", description: "Read this client's audit events." },
   { key: "settings.session.manage", group: "Settings", label: "Manage sessions", description: "See and revoke other people's sessions." },
 ] as const satisfies readonly PermissionDefinition[]);

@@ -255,22 +255,26 @@ model Branch {
 
 /// @scope(client)
 model User {
-  id           String    @id @default(uuid(7)) @db.Uuid
-  clientId     String    @map("client_id") @db.Uuid
-  email        String
-  fullName     String    @map("full_name")
-  passwordHash String?   @map("password_hash")
-  isActive     Boolean   @default(true) @map("is_active")
-  lastLoginAt  DateTime? @map("last_login_at") @db.Timestamptz(6)
-  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(6)
-  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                String    @id @default(uuid(7)) @db.Uuid
+  clientId          String    @map("client_id") @db.Uuid
+  email             String
+  fullName          String    @map("full_name")
+  passwordHash      String?   @map("password_hash")
+  isActive          Boolean   @default(true) @map("is_active")
+  lastLoginAt       DateTime? @map("last_login_at") @db.Timestamptz(6)
+  /// Recorded now so password expiry can be enforced later without a backfill
+  /// that would have to guess when everyone last changed theirs.
+  passwordChangedAt DateTime? @map("password_changed_at") @db.Timestamptz(6)
+  deletedAt         DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   client          Client                 @relation(fields: [clientId], references: [id], onDelete: Restrict)
   memberships     UserBranchMembership[]
   userRoles       UserRole[]
   userPermissions UserPermission[]
   sessions        Session[]
+  passwordHistory PasswordHistory[]
 
   @@unique([clientId, id], name: "user_client_id")
   /// Partial unique index on (client_id, email) WHERE deleted_at IS NULL — see
@@ -484,4 +488,55 @@ model Permission {
   syncedAt    DateTime @default(now()) @map("synced_at") @db.Timestamptz(6)
 
   @@map("permissions")
+}
+
+/// @scope(client)
+/// One row per client. The password policy is a client's own security decision —
+/// many inherit composition rules from a customer's or insurer's questionnaire
+/// and cannot decline them, so the rules are configurable rather than a constant
+/// compiled into the code.
+model PasswordPolicy {
+  id       String @id @default(uuid(7)) @db.Uuid
+  clientId String @unique @map("client_id") @db.Uuid
+
+  minLength        Int     @default(8) @map("min_length")
+  requireUppercase Boolean @default(false) @map("require_uppercase")
+  requireLowercase Boolean @default(false) @map("require_lowercase")
+  requireNumber    Boolean @default(false) @map("require_number")
+  requireSpecial   Boolean @default(false) @map("require_special")
+
+  preventReuse Boolean @default(true) @map("prevent_reuse")
+  historyCount Int     @default(5) @map("history_count")
+
+  /// Stored and editable, not yet enforced — enforcement needs the forced-change
+  /// flow that arrives with invitations. Labelled as such in the UI rather than
+  /// presented as working.
+  expiryEnabled           Boolean @default(false) @map("expiry_enabled")
+  expiryDays              Int     @default(90) @map("expiry_days")
+  forceChangeOnFirstLogin Boolean @default(false) @map("force_change_on_first_login")
+
+  updatedById String?  @map("updated_by_id") @db.Uuid
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("password_policies")
+}
+
+/// @scope(client)
+/// Previous password hashes, so reuse can be refused.
+///
+/// Only hashes are kept, and they are pruned to the policy's history count on
+/// every change — an unbounded list of a person's old credentials is a liability
+/// that grows for as long as they work here.
+model PasswordHistory {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  clientId     String   @map("client_id") @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [clientId, userId], references: [clientId, id], onDelete: Cascade)
+
+  @@index([clientId, userId, createdAt])
+  @@map("password_history")
 }
