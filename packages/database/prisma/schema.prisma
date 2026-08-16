@@ -245,7 +245,10 @@ model Branch {
   // Unconditional composite unique — required as a composite FK target.
   // Partial unique indexes cannot back a foreign key (audit finding B4).
   @@unique([clientId, id], name: "branch_client_id")
-  @@unique([clientId, code])
+  /// Uniqueness of code is a PARTIAL unique index (deleted_at IS NULL), created
+  /// in the migration — Prisma cannot express one. Without that, a soft-deleted
+  /// branch squats its own code forever.
+  @@index([clientId, code])
   @@index([clientId])
   @@map("branches")
 }
@@ -270,7 +273,9 @@ model User {
   sessions        Session[]
 
   @@unique([clientId, id], name: "user_client_id")
-  @@unique([clientId, email])
+  /// Partial unique index on (client_id, email) WHERE deleted_at IS NULL — see
+  /// the migration. A soft-deleted user must not hold their address forever.
+  @@index([clientId, email])
   @@index([clientId])
   @@map("users")
 }
@@ -312,7 +317,8 @@ model Role {
   rolePermissions RolePermission[]
 
   @@unique([clientId, id], name: "role_client_id")
-  @@unique([clientId, name])
+  /// Partial unique index on (client_id, name) WHERE deleted_at IS NULL.
+  @@index([clientId, name])
   @@index([clientId])
   @@map("roles")
 }

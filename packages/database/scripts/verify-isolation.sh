@@ -46,13 +46,13 @@ BEGIN;
   SELECT set_config('app.client_id','$A',true);
   INSERT INTO users (id, client_id, email, full_name, updated_at)
   VALUES (gen_random_uuid(),'$A','admin@excelex.in','ExcelEx Admin', now())
-  ON CONFLICT (client_id,email) DO NOTHING;
+  ON CONFLICT (client_id,email) WHERE deleted_at IS NULL DO NOTHING;
 COMMIT;
 BEGIN;
   SELECT set_config('app.client_id','$B',true);
   INSERT INTO users (id, client_id, email, full_name, updated_at)
   VALUES (gen_random_uuid(),'$B','admin@globex.com','Globex Admin', now())
-  ON CONFLICT (client_id,email) DO NOTHING;
+  ON CONFLICT (client_id,email) WHERE deleted_at IS NULL DO NOTHING;
 COMMIT;
 SQL
 

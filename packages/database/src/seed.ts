@@ -62,11 +62,10 @@ async function main(): Promise<void> {
     await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.client_id', ${CLIENT_ID}, true)`;
 
-      const branch = await tx.branch.upsert({
-        where: { clientId_code: { clientId: CLIENT_ID, code: "HO" } },
-        create: { clientId: CLIENT_ID, code: "HO", name: "Head Office" },
-        update: { name: "Head Office" },
-      });
+      const existingBranch = await tx.branch.findFirst({ where: { code: "HO", deletedAt: null } });
+      const branch =
+        existingBranch ??
+        (await tx.branch.create({ data: { clientId: CLIENT_ID, code: "HO", name: "Head Office" } }));
 
       // Every client starts with the same system roles. They are re-synced on
       // each run so a permission added to the catalogue reaches the seeded
@@ -75,16 +74,20 @@ async function main(): Promise<void> {
       let administratorRoleId = "";
 
       for (const definition of SYSTEM_ROLES) {
-        const role = await tx.role.upsert({
-          where: { clientId_name: { clientId: CLIENT_ID, name: definition.name } },
-          create: {
-            clientId: CLIENT_ID,
-            name: definition.name,
-            description: definition.description,
-            isSystem: true,
-          },
-          update: { description: definition.description },
-        });
+        const found = await tx.role.findFirst({ where: { name: definition.name, deletedAt: null } });
+        const role = found
+          ? await tx.role.update({
+              where: { id: found.id },
+              data: { description: definition.description, isSystem: true },
+            })
+          : await tx.role.create({
+              data: {
+                clientId: CLIENT_ID,
+                name: definition.name,
+                description: definition.description,
+                isSystem: true,
+              },
+            });
 
         if (definition.name === "Administrator") administratorRoleId = role.id;
 
@@ -113,16 +116,20 @@ async function main(): Promise<void> {
 
       const role = { id: administratorRoleId };
 
-      const user = await tx.user.upsert({
-        where: { clientId_email: { clientId: CLIENT_ID, email: ADMIN_EMAIL } },
-        create: {
-          clientId: CLIENT_ID,
-          email: ADMIN_EMAIL,
-          fullName: "ExcelEx Administrator",
-          passwordHash,
-        },
-        update: { passwordHash, isActive: true },
-      });
+      const foundUser = await tx.user.findFirst({ where: { email: ADMIN_EMAIL, deletedAt: null } });
+      const user = foundUser
+        ? await tx.user.update({
+            where: { id: foundUser.id },
+            data: { passwordHash, isActive: true },
+          })
+        : await tx.user.create({
+            data: {
+              clientId: CLIENT_ID,
+              email: ADMIN_EMAIL,
+              fullName: "ExcelEx Administrator",
+              passwordHash,
+            },
+          });
 
       const existingRole = await tx.userRole.findFirst({
         where: { clientId: CLIENT_ID, userId: user.id, roleId: role.id, branchId: null },
