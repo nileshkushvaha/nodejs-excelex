@@ -79,6 +79,8 @@ DECLARE
     'password_policies',
     'password_history',
     'security_settings',
+    'departments',
+    'designations',
     'sessions',
     'invitations',
     'audit_events'
@@ -122,6 +124,8 @@ DECLARE
     'plans',
     'plan_limits',
     'permissions',
+    'countries',
+    'states',
     'subscriptions',
     'platform_users',
     'platform_sessions',
@@ -200,6 +204,44 @@ ALTER FUNCTION public.list_permissions() OWNER TO excelex_owner;
 REVOKE ALL ON FUNCTION public.list_permissions() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.list_permissions() TO excelex_app, excelex_platform;
 
+-- Reference data is platform-owned — one world, shared by every client, which no
+-- client may edit — but every address form has to read it. Read-only through
+-- narrow accessors, like hostname resolution and the permission catalogue.
+CREATE OR REPLACE FUNCTION public.list_countries()
+RETURNS TABLE (code text, alpha3 text, name text, dial_code text, currency text, region text)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $$
+  SELECT c.code, c.alpha3, c.name, c.dial_code, c.currency, c.region
+  FROM public.countries c
+  WHERE c.is_active
+  ORDER BY c.name;
+$$;
+
+ALTER FUNCTION public.list_countries() OWNER TO excelex_owner;
+REVOKE ALL ON FUNCTION public.list_countries() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.list_countries() TO excelex_app, excelex_platform;
+
+CREATE OR REPLACE FUNCTION public.list_states(p_country_code text)
+RETURNS TABLE (code text, name text, type text, gst_code text)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $$
+  SELECT s.code, s.name, s.type, s.gst_code
+  FROM public.states s
+  WHERE upper(s.country_code) = upper(p_country_code)
+    AND s.is_active
+  ORDER BY s.name;
+$$;
+
+ALTER FUNCTION public.list_states(text) OWNER TO excelex_owner;
+REVOKE ALL ON FUNCTION public.list_states(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.list_states(text) TO excelex_app, excelex_platform;
+
 -- ─────────────────────────────────────────────────────────────
 -- 7. Verification — must all report OK
 -- ─────────────────────────────────────────────────────────────
@@ -220,6 +262,7 @@ BEGIN
       AND c.relname IN ('branches','users','user_branch_memberships','roles',
                         'user_roles','role_permissions','user_permissions',
                         'password_policies','password_history','security_settings',
+                        'departments','designations',
                         'sessions','invitations','audit_events')
       AND NOT (c.relrowsecurity AND c.relforcerowsecurity);
   IF bad > 0 THEN RAISE EXCEPTION '% client table(s) missing ENABLE+FORCE RLS', bad; END IF;

@@ -6,6 +6,7 @@ import { PrismaClient } from "@prisma/client";
 import { SYSTEM_ROLES } from "@excelex/permissions";
 
 import { hashPassword } from "./password";
+import { seedCountriesAndStates, seedOrganisationMasters } from "./reference/seed-reference";
 import { syncPermissionCatalogue } from "./sync-permissions";
 
 /**
@@ -33,6 +34,11 @@ async function main(): Promise<void> {
   const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
 
   try {
+    const reference = await seedCountriesAndStates(prisma);
+    console.log(
+      `Reference data: ${reference.countries} countries, ${reference.states} Indian states and union territories`,
+    );
+
     const catalogue = await syncPermissionCatalogue(prisma);
     console.log(
       `Permission catalogue: ${catalogue.upserted} synced, ${catalogue.deprecated} newly deprecated`,
@@ -139,6 +145,13 @@ async function main(): Promise<void> {
         await tx.userRole.create({
           data: { clientId: CLIENT_ID, userId: user.id, roleId: role.id },
         });
+      }
+
+      const masters = await seedOrganisationMasters(tx, CLIENT_ID);
+      if (masters.departments > 0 || masters.designations > 0) {
+        console.log(
+          `Organisation masters: +${masters.departments} departments, +${masters.designations} designations`,
+        );
       }
 
       const existingMembership = await tx.userBranchMembership.findFirst({

@@ -590,3 +590,116 @@ model SecuritySettings {
 
   @@map("security_settings")
 }
+
+// ─────────────────────────────────────────────────────────────
+// REFERENCE DATA — platform scope, shared by every client
+// ─────────────────────────────────────────────────────────────
+
+/// @scope(platform)
+/// ISO 3166-1 countries.
+///
+/// Platform-scoped because the world is the same for every client: a client
+/// that could edit its own copy of India would produce shipment addresses that
+/// no other client's data could be reconciled against. Read through a narrow
+/// accessor, exactly like the permission catalogue.
+model Country {
+  /// ISO 3166-1 alpha-2. The natural key, and what carrier APIs speak.
+  code         String  @id
+  alpha3       String  @unique
+  numeric      String  @unique
+  name         String
+  officialName String? @map("official_name")
+  /// E.164 calling code without the plus, e.g. "91". Not unique — NANP shares 1.
+  dialCode     String? @map("dial_code")
+  currency     String?
+  region       String?
+  subregion    String?
+  /// Whether ExcelEx clients may currently ship there. Serviceability per client
+  /// is a separate, client-scoped concern that arrives with the rate modules.
+  isActive     Boolean @default(true) @map("is_active")
+
+  states State[]
+
+  @@index([name])
+  @@map("countries")
+}
+
+/// @scope(platform)
+/// First-level administrative subdivisions. Seeded for India; other countries
+/// are added as clients need them, which is why the table is keyed generically
+/// rather than assuming Indian states.
+model State {
+  id          String  @id @default(uuid(7)) @db.Uuid
+  countryCode String  @map("country_code")
+  /// ISO 3166-2 subdivision part, e.g. "MH" for Maharashtra.
+  code        String
+  name        String
+  /// India distinguishes states from union territories, and the distinction is
+  /// not cosmetic — it changes which tax registration applies.
+  type        String  @default("STATE")
+  /// GST state code. Two digits, and the first two of every GSTIN issued there.
+  gstCode     String? @map("gst_code")
+  isActive    Boolean @default(true) @map("is_active")
+
+  country Country @relation(fields: [countryCode], references: [code], onDelete: Restrict)
+
+  @@unique([countryCode, code])
+  @@index([countryCode, name])
+  @@map("states")
+}
+
+// ─────────────────────────────────────────────────────────────
+// ORGANISATION MASTERS — client scope
+// ─────────────────────────────────────────────────────────────
+
+/// @scope(client)
+/// A department within a courier company. Client-scoped because org structure is
+/// a client's own decision — one runs a single Operations department, another
+/// splits Hub from Last Mile.
+model Department {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  clientId    String    @map("client_id") @db.Uuid
+  code        String
+  name        String
+  description String?
+  isActive    Boolean   @default(true) @map("is_active")
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  /// Partial unique indexes on (client_id, code) and (client_id, name) live in
+  /// the migration — a soft-deleted department must not squat its own code.
+  designations Designation[]
+
+  @@unique([clientId, id], name: "department_client_id")
+  @@index([clientId, code])
+  @@index([clientId])
+  @@map("departments")
+}
+
+/// @scope(client)
+/// A job title. Optionally belongs to a department, because a courier company
+/// has titles that sit outside one — a Managing Director belongs to no
+/// department, and forcing a "General" bucket to satisfy a NOT NULL is how
+/// reference data starts lying.
+model Designation {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  clientId     String    @map("client_id") @db.Uuid
+  departmentId String?   @map("department_id") @db.Uuid
+  code         String
+  name         String
+  description  String?
+  /// Seniority, low to high. Used for ordering and later for approval chains.
+  level        Int       @default(0)
+  isActive     Boolean   @default(true) @map("is_active")
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  department Department? @relation(fields: [clientId, departmentId], references: [clientId, id], onDelete: Restrict)
+
+  @@index([clientId, code])
+  @@index([clientId, departmentId])
+  @@index([clientId])
+  @@map("designations")
+}
