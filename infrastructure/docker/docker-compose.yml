@@ -19,6 +19,20 @@ services:
       retries: 12
       start_period: 10s
 
+  # Database inspection UI. Development only — it is never part of a deployed
+  # stack, and it connects with whichever role you type, so use excelex_app when
+  # you want to see what a client request can actually reach.
+  adminer:
+    image: adminer:5
+    ports:
+      - "8080:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+      ADMINER_DESIGN: dracula
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   redis:
     image: redis:8-alpine
     ports:
