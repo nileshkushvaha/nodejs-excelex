@@ -161,6 +161,38 @@ body {
     outline: 2px solid var(--accent);
     outline-offset: 1px;
   }
+
+  /**
+   * Tailwind v4's preflight sets `cursor: default` on buttons, matching the
+   * browser default rather than v3's behaviour. The result is that every
+   * button in the product shows an arrow, which reads as "not clickable" to
+   * anyone who has used a web page before.
+   *
+   * Restored here rather than by adding cursor-pointer to a hundred call
+   * sites, because the next component someone writes would miss it again.
+   */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="radio"],
+  [role="menuitem"],
+  summary,
+  select:not(:disabled),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  input[type="file"]:not(:disabled),
+  /* A label bound to a control activates that control, so it is clickable in
+     the same sense the control is. */
+  label[for]:not(:has(input:disabled)) {
+    cursor: pointer;
+  }
+
+  /* A disabled control should say why it cannot be used, not stay silent. */
+  button:disabled,
+  select:disabled,
+  input:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
 }
 
 @layer components {
