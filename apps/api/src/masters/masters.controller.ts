@@ -23,6 +23,7 @@ import { DestinationImportService } from "./import/destination-import.service";
 import { ProductImportService } from "./import/product-import.service";
 import { DestinationService } from "./destination.service";
 import { ProductService } from "./product.service";
+import { ChargeService } from "./charge.service";
 import { SalesExecutiveService } from "./sales-executive.service";
 import { ServiceCentreService } from "./service-centre.service";
 import { ZoneService } from "./zone.service";
@@ -76,6 +77,52 @@ const productTypeSchema = z.object({
     .regex(/^[A-Za-z0-9-]+$/, "A code may use letters, numbers and hyphens only."),
   name: z.string().trim().min(2, "A product type needs a name.").max(80),
   isActive: z.coerce.boolean().default(true),
+});
+
+const chargeSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .min(2, "A charge needs a code.")
+    .max(10)
+    .regex(/^[A-Za-z0-9-]+$/, "A code may use letters, numbers and hyphens only."),
+  name: z.string().trim().min(2, "A charge needs a name.").max(120),
+  chargeType: z.enum(["AIRWAYBILL", "EXPENSE", "INCOME", "PURCHASE"]),
+  calculationBase: z.enum([
+    "ACTUAL_WEIGHT",
+    "CHARGE_WEIGHT",
+    "COD_AMOUNT",
+    "COMMERCIAL",
+    "FLAT",
+    "FREIGHT",
+    "ODA",
+    "ODA1",
+    "ODA2",
+    "ODA3",
+    "PIECES",
+    "POINT",
+    "SHIPMENT_VALUE",
+  ]),
+  /**
+   * Validated as a decimal string, not coerced to a number: the column is exact
+   * decimal because it reaches an invoice, and a JavaScript number on the way in
+   * would defeat that before it was stored.
+   */
+  rate: z
+    .string()
+    .trim()
+    .default("0")
+    .refine((value) => /^\d{1,8}(\.\d{1,4})?$/.test(value), {
+      message: "Rate must be a positive number with up to four decimal places.",
+    }),
+  applyFuel: z.coerce.boolean(),
+  applyTaxOnFuel: z.coerce.boolean(),
+  applyTax: z.coerce.boolean(),
+  hsnCode: z.string().trim().max(20).nullish(),
+  sequence: z.coerce.number().int().min(0).max(9999).default(0),
+  applyFuelOnComponents: z.coerce.boolean(),
+  isActive: z.coerce.boolean().default(true),
+  componentIds: z.array(z.string().uuid()).default([]),
 });
 
 const zoneSchema = z.object({
@@ -217,6 +264,11 @@ function parse<T>(schema: z.ZodType<T>, body: unknown): T {
   return result.data;
 }
 
+/** Nullish is how the schema spells "absent"; the service takes null. */
+function toChargeInput(data: z.infer<typeof chargeSchema>) {
+  return { ...data, hsnCode: data.hsnCode ?? null };
+}
+
 @Controller({ path: "masters", version: "1" })
 export class MastersController {
   constructor(
@@ -229,6 +281,7 @@ export class MastersController {
     private readonly destinationImport: DestinationImportService,
     private readonly serviceCentres: ServiceCentreService,
     private readonly salesExecutives: SalesExecutiveService,
+    private readonly charges: ChargeService,
   ) {}
 
   // ── Sales executives ─────────────────────────────────────────────────────
@@ -423,6 +476,43 @@ export class MastersController {
   @Header("content-disposition", 'attachment; filename="destination-import-template.csv"')
   destinationTemplate(): string {
     return `${DestinationImportService.TEMPLATE_HEADERS.join(",")}\nAAM,AMTALA,Domestic,,,IN,WB,,REGULAR,,,Active\n`;
+  }
+
+  // ── Charges ──────────────────────────────────────────────────────────────
+  // Under the rate permissions: a charge is what a rate card prices, and the
+  // people who set rates are the people who maintain them.
+  @Get("charges")
+  @RequirePermission("masters.rate.view")
+  listCharges() {
+    return this.charges.list();
+  }
+
+  @Post("charges")
+  @RequirePermission("masters.rate.manage")
+  createCharge(@Body() body: unknown) {
+    return this.charges.create(toChargeInput(parse(chargeSchema, body)));
+  }
+
+  @Get("charges/:id")
+  @RequirePermission("masters.rate.view")
+  async chargeById(@Param("id", ParseUUIDPipe) id: string) {
+    const row = await this.charges.byId(id);
+    if (!row) throw new BadRequestException("Charge not found.");
+    return row;
+  }
+
+  @Put("charges/:id")
+  @RequirePermission("masters.rate.manage")
+  @HttpCode(204)
+  async updateCharge(@Param("id", ParseUUIDPipe) id: string, @Body() body: unknown) {
+    await this.charges.update(id, toChargeInput(parse(chargeSchema, body)));
+  }
+
+  @Delete("charges/:id")
+  @RequirePermission("masters.rate.manage")
+  @HttpCode(204)
+  async deleteCharge(@Param("id", ParseUUIDPipe) id: string) {
+    await this.charges.remove(id);
   }
 
   // ── Zones ────────────────────────────────────────────────────────────────

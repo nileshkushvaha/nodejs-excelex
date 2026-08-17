@@ -18,6 +18,7 @@ import { DestinationImportService } from "./masters/import/destination-import.se
 import { ProductImportService } from "./masters/import/product-import.service";
 import { DestinationService } from "./masters/destination.service";
 import { ProductService } from "./masters/product.service";
+import { ChargeService } from "./masters/charge.service";
 import { SalesExecutiveService } from "./masters/sales-executive.service";
 import { ServiceCentreService } from "./masters/service-centre.service";
 import { ReferenceService } from "./masters/reference.service";
@@ -54,6 +55,7 @@ import { SettingsController } from "./settings/settings.controller";
     DestinationImportService,
     ServiceCentreService,
     SalesExecutiveService,
+    ChargeService,
     ProfileService,
     PasswordPolicyService,
     SecuritySettingsService,

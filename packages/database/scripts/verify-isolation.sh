@@ -85,9 +85,9 @@ echo ""
 echo "Coverage: the policies actually exist"
 # Without this, a bare `prisma migrate reset` yields tables with no RLS and every
 # assertion below would still pass on an unprotected database.
-check "all 23 client tables have ENABLE + FORCE row level security" "23" \
-  "$(pg "$OWNER" -tA -q -c "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relname IN ('branches','users','user_branch_memberships','roles','user_roles','role_permissions','user_permissions','password_policies','password_history','security_settings','departments','designations','client_settings','product_types','product_groups','products','zones','destinations','service_centres','sales_executives','sessions','invitations','audit_events') AND c.relrowsecurity AND c.relforcerowsecurity;")"
-check "all 23 client tables carry the client_isolation policy" "23" \
+check "all 25 client tables have ENABLE + FORCE row level security" "25" \
+  "$(pg "$OWNER" -tA -q -c "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relname IN ('branches','users','user_branch_memberships','roles','user_roles','role_permissions','user_permissions','password_policies','password_history','security_settings','departments','designations','client_settings','product_types','product_groups','products','zones','destinations','service_centres','sales_executives','charges','charge_components','sessions','invitations','audit_events') AND c.relrowsecurity AND c.relforcerowsecurity;")"
+check "all 25 client tables carry the client_isolation policy" "25" \
   "$(pg "$OWNER" -tA -q -c "SELECT count(*) FROM pg_policies WHERE schemaname='public' AND policyname='client_isolation';")"
 
 echo ""

@@ -6,6 +6,7 @@ import { PrismaClient } from "@prisma/client";
 import { SYSTEM_ROLES } from "@excelex/permissions";
 
 import { hashPassword } from "./password";
+import { seedCharges } from "./reference/charges";
 import { seedProductMasters } from "./reference/products";
 import { seedCountriesAndStates, seedOrganisationMasters } from "./reference/seed-reference";
 import { syncPermissionCatalogue } from "./sync-permissions";
@@ -160,6 +161,11 @@ async function main(): Promise<void> {
         console.log(
           `Product masters: +${productMasters.types} types, +${productMasters.groups} groups, +${productMasters.products} products`,
         );
+      }
+
+      const charges = await seedCharges(tx, CLIENT_ID);
+      if (charges.charges > 0) {
+        console.log(`Charges: +${charges.charges}`);
       }
 
       const existingMembership = await tx.userBranchMembership.findFirst({

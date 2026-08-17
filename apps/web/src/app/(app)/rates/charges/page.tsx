@@ -1,0 +1,33 @@
+import { getCharges, getCurrentSession } from "@/lib/api";
+import { ChargesManager } from "./charges-manager";
+
+export const metadata = { title: "Charges · ExcelEx" };
+
+export default async function ChargesPage() {
+  const [charges, session] = await Promise.all([getCharges(), getCurrentSession()]);
+
+  if (!charges) {
+    return (
+      <p className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-300">
+        You do not hold <code className="font-mono">masters.rate.view</code>.
+      </p>
+    );
+  }
+
+  return (
+    <div className="animate-fade-up">
+      <header className="mb-5">
+        <h1 className="text-2xl font-semibold tracking-tight text-fg">Charges</h1>
+        <p className="mt-0.5 text-sm text-muted">
+          The lines that can appear on an invoice beside the freight. Each says what it is
+          calculated against and whether fuel and tax apply on top.
+        </p>
+      </header>
+
+      <ChargesManager
+        charges={charges}
+        canManage={session?.user.permissions.includes("masters.rate.manage") ?? false}
+      />
+    </div>
+  );
+}

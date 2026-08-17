@@ -1083,3 +1083,118 @@ model SalesExecutive {
   @@index([clientId])
   @@map("sales_executives")
 }
+
+// ─────────────────────────────────────────────────────────────
+// CHARGES — client scope
+// ─────────────────────────────────────────────────────────────
+
+/// Which ledger a charge belongs to.
+///
+/// AIRWAYBILL is what appears on a customer's invoice. The other three are
+/// internal: what a vendor bills us (EXPENSE, PURCHASE) and what we bill
+/// someone other than the consignor (INCOME).
+enum ChargeType {
+  AIRWAYBILL
+  EXPENSE
+  INCOME
+  PURCHASE
+}
+
+/// What a charge is calculated against.
+///
+/// FLAT is the constant — the rate is the amount. Every other member names a
+/// quantity on the shipment that the rate multiplies. ODA1/2/3 are graded
+/// out-of-delivery-area bands, kept distinct because they price differently.
+enum ChargeCalculationBase {
+  ACTUAL_WEIGHT
+  CHARGE_WEIGHT
+  COD_AMOUNT
+  COMMERCIAL
+  FLAT
+  FREIGHT
+  ODA
+  ODA1
+  ODA2
+  ODA3
+  PIECES
+  POINT
+  SHIPMENT_VALUE
+}
+
+/// @scope(client)
+/// A line that can appear on an invoice beside the freight.
+model Charge {
+  id       String @id @default(uuid(7)) @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+
+  code String
+  name String
+
+  chargeType      ChargeType            @default(AIRWAYBILL) @map("charge_type")
+  calculationBase ChargeCalculationBase @default(FLAT) @map("calculation_base")
+
+  /// The rate, exact.
+  ///
+  /// Decimal for the same reason commission is: this ends up on an invoice.
+  /// Four decimal places because percentage-style bases (freight, shipment
+  /// value) are quoted finer than currency is.
+  rate Decimal @default(0) @db.Decimal(12, 4)
+
+  /// Does the fuel surcharge apply on top of this charge.
+  applyFuel      Boolean @default(false) @map("apply_fuel")
+  /// Is tax charged on the fuel component. Separate because the fuel surcharge
+  /// can be taxed at a rate the charge itself is not.
+  applyTaxOnFuel Boolean @default(false) @map("apply_tax_on_fuel")
+  applyTax       Boolean @default(false) @map("apply_tax")
+
+  /// HSN/SAC code. Free text: the code is issued by the tax authority and its
+  /// format has changed more than once.
+  hsnCode String? @map("hsn_code")
+
+  /// Where this sits on a printed invoice. Ties are broken by code, so a table
+  /// left entirely at zero still has a stable order.
+  sequence Int @default(0)
+
+  /// Does the fuel surcharge apply to the charges gathered under this one.
+  /// Distinct from applyFuel, which is about this charge's own amount.
+  applyFuelOnComponents Boolean @default(false) @map("apply_fuel_on_components")
+
+  isActive  Boolean   @default(true) @map("is_active")
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  components ChargeComponent[] @relation("ChargeParent")
+  partOf     ChargeComponent[] @relation("ChargeComponentOf")
+
+  @@unique([clientId, id], name: "charge_client_id")
+  @@index([clientId, code])
+  @@index([clientId, sequence])
+  @@index([clientId])
+  @@map("charges")
+}
+
+/// @scope(client)
+/// One charge gathered under another — the legacy "Multiple Charges" list.
+///
+/// A composite charge (an all-in "AIRWAYBILL CHARGES", say) names the charges
+/// it stands for, so booking one line applies all of them.
+model ChargeComponent {
+  id       String @id @default(uuid(7)) @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+
+  chargeId    String @map("charge_id") @db.Uuid
+  componentId String @map("component_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  charge    Charge @relation("ChargeParent", fields: [clientId, chargeId], references: [clientId, id], onDelete: Cascade)
+  /// Restrict, not Cascade: deleting a charge that another one is built from
+  /// would silently change what that composite bills.
+  component Charge @relation("ChargeComponentOf", fields: [clientId, componentId], references: [clientId, id], onDelete: Restrict)
+
+  @@unique([clientId, chargeId, componentId])
+  @@index([clientId, componentId])
+  @@index([clientId])
+  @@map("charge_components")
+}

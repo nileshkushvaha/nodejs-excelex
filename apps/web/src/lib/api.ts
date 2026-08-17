@@ -215,6 +215,41 @@ export interface GeneralSettings {
   updatedAt: string | null;
 }
 
+export type ChargeType = "AIRWAYBILL" | "EXPENSE" | "INCOME" | "PURCHASE";
+
+export type ChargeCalculationBase =
+  | "ACTUAL_WEIGHT"
+  | "CHARGE_WEIGHT"
+  | "COD_AMOUNT"
+  | "COMMERCIAL"
+  | "FLAT"
+  | "FREIGHT"
+  | "ODA"
+  | "ODA1"
+  | "ODA2"
+  | "ODA3"
+  | "PIECES"
+  | "POINT"
+  | "SHIPMENT_VALUE";
+
+export interface Charge {
+  id: string;
+  code: string;
+  name: string;
+  chargeType: ChargeType;
+  calculationBase: ChargeCalculationBase;
+  /** Exact decimal, carried as a string end to end. */
+  rate: string;
+  applyFuel: boolean;
+  applyTaxOnFuel: boolean;
+  applyTax: boolean;
+  hsnCode: string | null;
+  sequence: number;
+  applyFuelOnComponents: boolean;
+  isActive: boolean;
+  components: { id: string; code: string; name: string }[];
+}
+
 export interface Classification {
   id: string;
   code: string;
@@ -408,6 +443,7 @@ export const getDestination = (id: string) =>
   get<Destination>(`/api/v1/masters/destinations/${id}`);
 export const getZones = () => get<Zone[]>("/api/v1/masters/zones");
 export const getProducts = () => get<Product[]>("/api/v1/masters/products");
+export const getCharges = () => get<Charge[]>("/api/v1/masters/charges");
 export const getProductTypes = () => get<Classification[]>("/api/v1/masters/product-types");
 export const getProductGroups = () => get<Classification[]>("/api/v1/masters/product-groups");
 export const getGeneralSettings = () => get<GeneralSettings>("/api/v1/settings/general");
