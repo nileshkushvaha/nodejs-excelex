@@ -35,6 +35,7 @@ export function ServiceCentresManager({
       {
         kind: "select",
         key: "destinationId",
+        searchable: true,
         label: "Branch",
         options: destinations.map((row) => ({ value: row.id, label: `${row.code} — ${row.name}` })),
         match: (row, value) => row.destination?.id === value,
@@ -42,6 +43,7 @@ export function ServiceCentresManager({
       {
         kind: "select",
         key: "stateCode",
+        searchable: true,
         label: "State",
         options: states.map((state) => ({ value: state.code, label: state.name })),
         match: (row, value) => row.stateCode === value,
