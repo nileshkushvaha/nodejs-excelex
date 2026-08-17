@@ -14,9 +14,9 @@ export default async function StatesPage({
   const [states, countries] = await Promise.all([getStates(selected), getCountries()]);
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto max-w-5xl animate-fade-up">
       <header className="mb-5">
-        <h1 className="text-xl font-semibold text-fg">States and territories</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-fg">States and territories</h1>
         <p className="mt-0.5 text-sm text-muted">
           Seeded for India. The GST code is the first two digits of every GSTIN issued in that
           state, so an invoice has to agree with it — which is why it is stored rather than derived.

@@ -25,9 +25,9 @@ export default async function ProductsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="mx-auto max-w-6xl animate-fade-up">
       <header className="mb-5">
-        <h1 className="text-xl font-semibold text-fg">Products</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-fg">Products</h1>
         <p className="mt-0.5 text-sm text-muted">
           The services shipments are booked against. Seeded from the live ExcelEx product list.
         </p>

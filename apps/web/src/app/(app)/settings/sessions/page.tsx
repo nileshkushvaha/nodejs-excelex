@@ -15,9 +15,9 @@ export default async function SessionSettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto max-w-3xl animate-fade-up">
       <header className="mb-5">
-        <h1 className="text-xl font-semibold text-fg">Sessions</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-fg">Sessions</h1>
         <p className="mt-0.5 text-sm text-muted">
           Session lifetime and how many devices one account may use.
         </p>

@@ -85,7 +85,7 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={busy}
-        className="w-full rounded bg-accent px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-strong disabled:opacity-60"
+        className="btn-primary w-full rounded-lg px-3 py-2.5 text-sm font-medium disabled:opacity-60"
       >
         {busy ? "Signing in…" : "Sign in"}
       </button>

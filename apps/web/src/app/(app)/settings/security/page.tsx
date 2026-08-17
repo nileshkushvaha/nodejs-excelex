@@ -17,9 +17,9 @@ export default async function SecuritySettingsPage() {
   const canManage = session?.user.permissions.includes("settings.security.manage") ?? false;
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto max-w-3xl animate-fade-up">
       <header className="mb-5">
-        <h1 className="text-xl font-semibold text-fg">Password policy</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-fg">Password policy</h1>
         <p className="mt-0.5 text-sm text-muted">
           Applies to everyone in this account when they set or change a password.
         </p>

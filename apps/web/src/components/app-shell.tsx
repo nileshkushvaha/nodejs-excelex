@@ -62,7 +62,8 @@ export function AppShell({
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-16 shrink-0 items-center gap-3 border-b border-line bg-surface px-4 sm:px-6">
+        <header className="relative flex h-16 shrink-0 items-center gap-3 border-b border-line bg-surface px-4 sm:px-6">
+          <span aria-hidden="true" className="brand-gradient absolute inset-x-0 bottom-0 h-px opacity-60" />
           {/* The collapse control lives beside the content it resizes, not at the
               bottom of the panel it hides — where, once collapsed, it is the one
               thing a user has to hunt for. */}
@@ -228,7 +229,7 @@ function UserMenu({ user }: { user: { fullName: string; email: string } }) {
         aria-expanded={open}
         className="flex items-center gap-2 rounded-full p-0.5 pr-2 transition-colors hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-accent"
       >
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent text-[12px] font-semibold text-white">
+        <span className="brand-gradient grid h-9 w-9 shrink-0 place-items-center rounded-full text-[12px] font-semibold text-white">
           {initials || "?"}
         </span>
         <span className="hidden text-sm font-medium text-fg sm:block">

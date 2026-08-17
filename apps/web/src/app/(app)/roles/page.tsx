@@ -23,9 +23,9 @@ export default async function RolesPage() {
   const canManage = session?.user.permissions.includes("settings.role.manage") ?? false;
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto max-w-5xl animate-fade-up">
       <header className="mb-5">
-        <h1 className="text-xl font-semibold text-fg">Roles</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-fg">Roles</h1>
         <p className="mt-0.5 text-sm text-muted">
           A role is a named set of permissions. You can only grant what you hold yourself — the API
           refuses anything else, whatever this page shows.

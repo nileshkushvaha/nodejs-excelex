@@ -308,7 +308,7 @@ function ProductDialog({
                 onClick={() => setContentKind(kind)}
                 className={`px-4 py-1.5 text-sm font-medium transition-colors ${
                   contentKind === kind
-                    ? "bg-accent text-white"
+                    ? "brand-gradient text-white"
                     : "bg-surface text-muted hover:bg-surface-2"
                 }`}
               >

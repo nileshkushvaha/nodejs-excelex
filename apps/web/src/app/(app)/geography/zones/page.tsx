@@ -17,7 +17,7 @@ export default async function ZonesPage() {
   return (
     <div className="mx-auto max-w-4xl animate-fade-up">
       <header className="mb-5">
-        <h1 className="text-xl font-semibold text-fg">Zones</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-fg">Zones</h1>
         <p className="mt-0.5 text-sm text-muted">
           Rating zones. A rate card prices zone pairs rather than every city pair — which is what
           keeps it a few dozen rows instead of a few million.

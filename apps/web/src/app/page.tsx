@@ -13,7 +13,7 @@ export default function HomePage() {
       <header className="border-b border-line">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-6">
           <span className="flex items-center gap-2 font-semibold">
-            <span className="grid h-7 w-7 place-items-center rounded bg-accent text-sm font-bold text-white">
+            <span className="brand-gradient grid h-7 w-7 place-items-center rounded-lg text-sm font-bold text-white">
               E
             </span>
             ExcelEx
@@ -24,7 +24,7 @@ export default function HomePage() {
             </Link>
             <Link
               href="/login"
-              className="rounded bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-strong"
+              className="btn-primary rounded-lg px-3 py-1.5 text-sm font-medium"
             >
               Sign in
             </Link>
@@ -45,7 +45,7 @@ export default function HomePage() {
           <div className="mt-8 flex gap-3">
             <Link
               href="/login"
-              className="rounded bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-strong"
+              className="btn-primary rounded-lg px-4 py-2 text-sm font-medium"
             >
               Sign in to your account
             </Link>

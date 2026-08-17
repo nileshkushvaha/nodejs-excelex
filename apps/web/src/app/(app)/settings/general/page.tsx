@@ -42,9 +42,9 @@ export default async function GeneralSettingsPage() {
     .sort((a, b) => a.code.localeCompare(b.code));
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto max-w-3xl animate-fade-up">
       <header className="mb-5">
-        <h1 className="text-xl font-semibold text-fg">General settings</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-fg">General settings</h1>
         <p className="mt-0.5 text-sm text-muted">
           This account&apos;s identity, registrations and document defaults. Your plan and account
           status are set by ExcelEx and are not editable here.

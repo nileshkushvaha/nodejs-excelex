@@ -42,8 +42,9 @@ export function Sidebar({
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         } ${collapsed ? "w-[76px]" : "w-64"}`}
       >
-        <div className="flex h-16 items-center gap-2.5 border-b border-line px-4">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-accent text-sm font-bold text-white">
+        <div className="relative flex h-16 items-center gap-2.5 border-b border-line px-4">
+          <span aria-hidden="true" className="brand-gradient absolute inset-x-0 bottom-0 h-px opacity-60" />
+          <span className="brand-gradient grid h-9 w-9 shrink-0 place-items-center rounded-lg text-sm font-bold text-white shadow-[var(--shadow-brand)]">
             E
           </span>
           {!collapsed ? (
@@ -143,7 +144,7 @@ function GroupNode({
 
   const rowBase =
     "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent";
-  const activeRow = "bg-accent-soft font-medium text-accent-text";
+  const activeRow = "nav-active font-medium text-accent-text";
   const idleRow = "text-muted hover:bg-surface-2 hover:text-fg";
 
   // ── A leaf: a link with no children ──────────────────────────────────────
@@ -287,7 +288,7 @@ function ChildList({
             inFlyout ? "px-3 py-1.5" : "rounded px-2 py-1"
           } ${
             active
-              ? "bg-accent-soft font-medium text-accent-text"
+              ? "nav-active font-medium text-accent-text"
               : "text-muted hover:bg-surface-2 hover:text-fg"
           }`}
         >

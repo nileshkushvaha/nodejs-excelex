@@ -15,7 +15,7 @@ export default async function LoginPage() {
     <main className="grid min-h-dvh place-items-center bg-surface-2 px-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 text-center">
-          <span className="mx-auto mb-3 grid h-10 w-10 place-items-center rounded bg-accent text-lg font-bold text-white">
+          <span className="brand-gradient mx-auto mb-3 grid h-12 w-12 place-items-center rounded-xl text-lg font-bold text-white shadow-[var(--shadow-brand)]">
             E
           </span>
           <h1 className="text-lg font-semibold text-fg">Sign in to ExcelEx</h1>

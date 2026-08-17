@@ -104,7 +104,7 @@ export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => 
                   setReport(null);
                   setError(null);
                 }}
-                className="block w-full text-sm text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-accent file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:cursor-pointer"
+                className="block w-full text-sm text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-[image:var(--brand-gradient)] file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:cursor-pointer"
               />
               <p className="mt-2 text-xs text-muted">
                 Columns are matched by heading, so “Product Code”, “product_code” and “PRODUCT CODE”
@@ -190,7 +190,7 @@ function Report({ report, onDone }: { report: ImportReport; onDone: () => void }
       {errors.length > 0 ? (
         <div className="max-h-56 overflow-y-auto rounded-lg border border-line">
           <table className="w-full text-sm">
-            <thead className="sticky top-0 border-b border-line bg-surface-2 text-left text-xs uppercase tracking-wide text-muted">
+            <thead className="sticky top-0 brand-gradient-soft border-b border-line text-left text-xs font-semibold uppercase tracking-wide text-muted">
               <tr>
                 <th className="px-3 py-2 font-medium">Row</th>
                 <th className="px-3 py-2 font-medium">Code</th>

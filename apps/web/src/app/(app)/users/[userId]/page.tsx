@@ -32,13 +32,13 @@ export default async function UserAccessPage({
   const held = session?.user.permissions ?? [];
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto max-w-3xl animate-fade-up">
       <Link href="/users" className="text-xs text-muted hover:underline">
         ← All users
       </Link>
 
       <header className="mb-5 mt-2">
-        <h1 className="text-xl font-semibold text-fg">{access.user.fullName}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-fg">{access.user.fullName}</h1>
         <p className="mt-0.5 text-sm text-muted">{access.user.email}</p>
       </header>
 

@@ -15,9 +15,9 @@ export default async function DepartmentsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto max-w-5xl animate-fade-up">
       <header className="mb-5">
-        <h1 className="text-xl font-semibold text-fg">Departments</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-fg">Departments</h1>
         <p className="mt-0.5 text-sm text-muted">
           Your own organisation structure. Seeded with the eight a courier company usually runs —
           edit them freely, they are a starting point rather than a constraint.

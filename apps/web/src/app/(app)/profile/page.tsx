@@ -21,10 +21,10 @@ export default async function ProfilePage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mx-auto max-w-2xl animate-fade-up">
       <header className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-fg">My profile</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-fg">My profile</h1>
           <p className="mt-0.5 text-sm text-muted">
             Your own account. Changing these needs no permission — you are both the subject and the
             actor.

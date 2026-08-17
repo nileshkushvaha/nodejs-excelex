@@ -19,9 +19,9 @@ export default async function DesignationsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto max-w-5xl animate-fade-up">
       <header className="mb-5">
-        <h1 className="text-xl font-semibold text-fg">Designations</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-fg">Designations</h1>
         <p className="mt-0.5 text-sm text-muted">
           Job titles, ordered by seniority. A title that sits above any one department — a Managing
           Director — belongs to none rather than to an invented “General” bucket.

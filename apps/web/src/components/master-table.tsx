@@ -71,7 +71,7 @@ export function MasterTable<T>({
       <div className="overflow-hidden card rounded-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="border-b border-line bg-surface-2 text-left text-xs uppercase tracking-wide text-muted">
+            <thead className="brand-gradient-soft border-b border-line text-left text-xs font-semibold uppercase tracking-wide text-muted">
               <tr>
                 {columns.map((column) => (
                   <th key={column.header} className={`px-4 py-2.5 font-medium ${column.className ?? ""}`}>
@@ -89,7 +89,7 @@ export function MasterTable<T>({
                 </tr>
               ) : (
                 filtered.map((row) => (
-                  <tr key={rowKey(row)} className="hover:bg-surface-2">
+                  <tr key={rowKey(row)} className="row-hover hover:bg-surface-2">
                     {columns.map((column) => (
                       <td key={column.header} className={`px-4 py-2.5 ${column.className ?? ""}`}>
                         {column.cell(row)}

@@ -15,9 +15,9 @@ export default async function LoginSecurityPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto max-w-3xl animate-fade-up">
       <header className="mb-5">
-        <h1 className="text-xl font-semibold text-fg">Login security</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-fg">Login security</h1>
         <p className="mt-0.5 text-sm text-muted">
           Protection against brute-force and credential-stuffing attempts.
         </p>

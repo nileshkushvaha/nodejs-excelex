@@ -156,7 +156,7 @@ function RolesSection({
             <button
               type="submit"
               disabled={assigning}
-              className="self-end rounded bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-strong disabled:opacity-60"
+              className="self-end btn-primary rounded-lg px-3 py-1.5 text-sm font-medium disabled:opacity-60"
             >
               {assigning ? "Assigning…" : "Assign"}
             </button>
@@ -279,7 +279,7 @@ function DirectSection({
             <button
               type="submit"
               disabled={saving}
-              className="self-end rounded bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-strong disabled:opacity-60"
+              className="self-end btn-primary rounded-lg px-3 py-1.5 text-sm font-medium disabled:opacity-60"
             >
               {saving ? "Saving…" : "Apply"}
             </button>

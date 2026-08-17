@@ -4,9 +4,16 @@ export const metadata = { title: "Dashboard · ExcelEx" };
 
 function StatCard({ label, value, hint }: { label: string; value: number; hint: string }) {
   return (
-    <div className="card rounded-xl p-4">
+    // The brand bar sits along the top edge rather than behind the whole card.
+    // A figure has to stay readable, and gradient-filled text is the fastest way
+    // to make one that is not — particularly at the dark end of the sweep.
+    <div className="card card-interactive group relative overflow-hidden rounded-xl p-4">
+      <span
+        aria-hidden="true"
+        className="brand-gradient absolute inset-x-0 top-0 h-1 opacity-80 transition-opacity group-hover:opacity-100"
+      />
       <p className="text-xs font-medium uppercase tracking-wide text-muted">{label}</p>
-      <p className="mt-1.5 text-2xl font-semibold tabular-nums text-fg">{value}</p>
+      <p className="mt-2 text-3xl font-bold tabular-nums text-fg">{value}</p>
       <p className="mt-0.5 text-xs text-faint">{hint}</p>
     </div>
   );
@@ -16,9 +23,9 @@ export default async function DashboardPage() {
   const [session, summary] = await Promise.all([getCurrentSession(), getDashboardSummary()]);
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto max-w-5xl animate-fade-up">
       <header className="mb-6">
-        <h1 className="text-xl font-semibold text-fg">
+        <h1 className="text-2xl font-semibold tracking-tight text-fg">
           Good to see you, {session?.user.fullName.split(" ")[0]}
         </h1>
         <p className="mt-0.5 text-sm text-muted">

@@ -17,9 +17,9 @@ export default async function UsersPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto max-w-5xl animate-fade-up">
       <header className="mb-5">
-        <h1 className="text-xl font-semibold text-fg">Users</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-fg">Users</h1>
         <p className="mt-0.5 text-sm text-muted">
           Staff accounts for this client. Accounts are created by invitation — that flow arrives
           with the rest of the authentication milestone.
@@ -28,7 +28,7 @@ export default async function UsersPage() {
 
       <div className="overflow-hidden card rounded-xl">
         <table className="w-full text-sm">
-          <thead className="border-b border-line bg-surface-2 text-left text-xs uppercase tracking-wide text-muted">
+          <thead className="brand-gradient-soft border-b border-line text-left text-xs font-semibold uppercase tracking-wide text-muted">
             <tr>
               <th className="px-4 py-2 font-medium">Name</th>
               <th className="px-4 py-2 font-medium">Roles</th>
@@ -39,7 +39,7 @@ export default async function UsersPage() {
           </thead>
           <tbody className="divide-y divide-line-soft">
             {users.map((user) => (
-              <tr key={user.id} className="hover:bg-surface-2">
+              <tr key={user.id} className="row-hover hover:bg-surface-2">
                 <td className="px-4 py-2.5">
                   <Link href={`/users/${user.id}`} className="font-medium text-accent-text hover:underline">
                     {user.fullName}
