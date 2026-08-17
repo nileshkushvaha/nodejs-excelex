@@ -938,11 +938,12 @@ model Destination {
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  zone           Zone?         @relation(fields: [clientId, zoneId], references: [clientId, id], onDelete: Restrict)
-  mainBranch     Destination?  @relation("DestinationMainBranch", fields: [clientId, mainBranchId], references: [clientId, id], onDelete: Restrict)
-  servesAsMain   Destination[] @relation("DestinationMainBranch")
-  manifestBranch Destination?  @relation("DestinationManifestBranch", fields: [clientId, manifestBranchId], references: [clientId, id], onDelete: Restrict)
-  servesManifest Destination[] @relation("DestinationManifestBranch")
+  zone           Zone?           @relation(fields: [clientId, zoneId], references: [clientId, id], onDelete: Restrict)
+  serviceCentres ServiceCentre[]
+  mainBranch     Destination?    @relation("DestinationMainBranch", fields: [clientId, mainBranchId], references: [clientId, id], onDelete: Restrict)
+  servesAsMain   Destination[]   @relation("DestinationMainBranch")
+  manifestBranch Destination?    @relation("DestinationManifestBranch", fields: [clientId, manifestBranchId], references: [clientId, id], onDelete: Restrict)
+  servesManifest Destination[]   @relation("DestinationManifestBranch")
 
   @@unique([clientId, id], name: "destination_client_id")
   /// The list is filtered and sorted on these in the database, so they are
@@ -952,4 +953,100 @@ model Destination {
   @@index([clientId, kind, isActive])
   @@index([clientId, stateCode])
   @@map("destinations")
+}
+
+/// @scope(client)
+/// A service centre — the legal entity that invoices, as opposed to a
+/// destination, which is a place shipments go.
+///
+/// One client runs several: "EXCELEX EXPRESS LOGISTICS LLP" and "EXCELEX
+/// LOGISTICS SERVICES" are separate centres billing from the same branch. That
+/// is why the invoice numbering, GST registration and bank account live here
+/// rather than on the client — they differ per centre, and an invoice has to
+/// carry the details of the entity that issued it.
+model ServiceCentre {
+  id       String @id @default(uuid(7)) @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+
+  code    String
+  name    String
+  subName String? @map("sub_name")
+
+  // ── Registered address ───────────────────────────────────────────────────
+  addressLine1 String? @map("address_line1")
+  addressLine2 String? @map("address_line2")
+  addressLine3 String? @map("address_line3")
+  addressLine4 String? @map("address_line4")
+  pinCode      String? @map("pin_code")
+  countryCode  String  @default("IN") @map("country_code")
+  stateCode    String? @map("state_code")
+
+  /// The place this centre operates from. The list calls it "Branch".
+  destinationId String? @map("destination_id") @db.Uuid
+
+  telephone String?
+  email     String?
+
+  // ── Statutory registrations ──────────────────────────────────────────────
+  /// Per centre, not per client: each registered entity has its own.
+  gstin        String?
+  gstTelephone String? @map("gst_telephone")
+  pan          String?
+  /// Importer/exporter code number, and the legacy service-tax number.
+  icnNo        String? @map("icn_no")
+  stNo         String? @map("st_no")
+
+  // ── Invoice artwork ──────────────────────────────────────────────────────
+  /// Object-storage keys. Nothing writes these yet — uploads need the storage
+  /// service, which is not wired. The columns exist so the screen can say so.
+  companyLogoKey   String? @map("company_logo_key")
+  signatoryLogoKey String? @map("signatory_logo_key")
+
+  /// The ten free-text lines printed on an invoice, in order.
+  ///
+  /// An array rather than ten columns because they are positional lines of
+  /// print, not ten distinct facts. Note the legacy data puts bank details in
+  /// lines 7 to 10 — those have proper fields below, and the terms should carry
+  /// terms.
+  terms String[] @default([])
+
+  // ── Bank details ─────────────────────────────────────────────────────────
+  bankName        String? @map("bank_name")
+  bankAccountNo   String? @map("bank_account_no")
+  bankAccountName String? @map("bank_account_name")
+  bankAddress     String? @map("bank_address")
+  ifsc            String?
+  micr            String?
+
+  // ── Document numbering ───────────────────────────────────────────────────
+  /// The last number ISSUED, not the next one. Allocation must therefore read,
+  /// increment and write under a row lock — two concurrent invoices reading the
+  /// same value would both claim it, and duplicate invoice numbers are a
+  /// statutory problem rather than a cosmetic one. The allocation service
+  /// arrives with invoicing; these columns are the state it will guard.
+  invoicePrefix    String? @map("invoice_prefix")
+  invoiceLastNo    Int     @default(0) @map("invoice_last_no")
+  invoiceSuffix    String? @map("invoice_suffix")
+  freeFormPrefix   String? @map("free_form_prefix")
+  freeFormLastNo   Int     @default(0) @map("free_form_last_no")
+  freeFormSuffix   String? @map("free_form_suffix")
+  debitNotePrefix  String? @map("debit_note_prefix")
+  debitNoteLastNo  Int     @default(0) @map("debit_note_last_no")
+  debitNoteSuffix  String? @map("debit_note_suffix")
+  creditNotePrefix String? @map("credit_note_prefix")
+  creditNoteLastNo Int     @default(0) @map("credit_note_last_no")
+  creditNoteSuffix String? @map("credit_note_suffix")
+  receiptLastNo    Int     @default(0) @map("receipt_last_no")
+
+  isActive  Boolean   @default(true) @map("is_active")
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  destination Destination? @relation(fields: [clientId, destinationId], references: [clientId, id], onDelete: Restrict)
+
+  @@index([clientId, code])
+  @@index([clientId, name])
+  @@index([clientId])
+  @@map("service_centres")
 }

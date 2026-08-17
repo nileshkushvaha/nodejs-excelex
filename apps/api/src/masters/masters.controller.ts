@@ -23,6 +23,7 @@ import { DestinationImportService } from "./import/destination-import.service";
 import { ProductImportService } from "./import/product-import.service";
 import { DestinationService } from "./destination.service";
 import { ProductService } from "./product.service";
+import { ServiceCentreService } from "./service-centre.service";
 import { ZoneService } from "./zone.service";
 import { ReferenceService } from "./reference.service";
 
@@ -100,6 +101,70 @@ const destinationSchema = z.object({
   isActive: z.coerce.boolean().default(true),
 });
 
+const optional = (max: number) =>
+  z.string().trim().max(max).nullish().transform((value) => (value ? value : null));
+
+const counter = z.coerce.number().int().min(0).max(99_999_999).default(0);
+
+const serviceCentreSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .min(2, "A service centre needs a code.")
+    .max(20)
+    .regex(/^[A-Za-z0-9-]+$/, "A code may use letters, numbers and hyphens only."),
+  name: z.string().trim().min(2, "A service centre needs a name.").max(160),
+  subName: optional(160),
+  addressLine1: optional(200),
+  addressLine2: optional(200),
+  addressLine3: optional(200),
+  addressLine4: optional(200),
+  pinCode: optional(16),
+  countryCode: z.string().trim().length(2).toUpperCase().default("IN"),
+  stateCode: optional(10).transform((value) => (value ? value.toUpperCase() : null)),
+  destinationId: z.string().uuid().nullish().transform((value) => value ?? null),
+  telephone: optional(32),
+  email: optional(320).refine(
+    (value) => value === null || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value),
+    { message: "That is not a valid email address." },
+  ),
+  gstin: optional(15).refine(
+    (value) => value === null || /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(value.toUpperCase()),
+    { message: "That is not a valid GSTIN." },
+  ),
+  gstTelephone: optional(32),
+  pan: optional(10).refine(
+    (value) => value === null || /^[A-Z]{5}[0-9]{4}[A-Z]$/.test(value.toUpperCase()),
+    { message: "That is not a valid PAN." },
+  ),
+  icnNo: optional(40),
+  stNo: optional(40),
+  terms: z.array(z.string().trim().max(300)).max(10).default([]),
+  bankName: optional(120),
+  bankAccountNo: optional(40),
+  bankAccountName: optional(120),
+  bankAddress: optional(200),
+  ifsc: optional(11).refine(
+    (value) => value === null || /^[A-Z]{4}0[A-Z0-9]{6}$/.test(value.toUpperCase()),
+    { message: "That is not a valid IFSC code." },
+  ),
+  micr: optional(9),
+  invoicePrefix: optional(20),
+  invoiceLastNo: counter,
+  invoiceSuffix: optional(20),
+  freeFormPrefix: optional(20),
+  freeFormLastNo: counter,
+  freeFormSuffix: optional(20),
+  debitNotePrefix: optional(20),
+  debitNoteLastNo: counter,
+  debitNoteSuffix: optional(20),
+  creditNotePrefix: optional(20),
+  creditNoteLastNo: counter,
+  creditNoteSuffix: optional(20),
+  receiptLastNo: counter,
+  isActive: z.coerce.boolean().default(true),
+});
+
 function parse<T>(schema: z.ZodType<T>, body: unknown): T {
   const result = schema.safeParse(body);
   if (!result.success) {
@@ -118,7 +183,37 @@ export class MastersController {
     private readonly zones: ZoneService,
     private readonly destinations: DestinationService,
     private readonly destinationImport: DestinationImportService,
+    private readonly serviceCentres: ServiceCentreService,
   ) {}
+
+  // ── Service centres ──────────────────────────────────────────────────────
+  // Unpaged: a client runs a handful, not thousands. The moment that stops
+  // being true this moves to the paged pattern the destinations use.
+  @Get("service-centres")
+  @RequirePermission("masters.branch.view")
+  listServiceCentres(@Query("search") search?: string) {
+    return this.serviceCentres.list(search);
+  }
+
+  @Post("service-centres")
+  @RequirePermission("masters.branch.manage")
+  createServiceCentre(@Body() body: unknown) {
+    return this.serviceCentres.create(parse(serviceCentreSchema, body));
+  }
+
+  @Put("service-centres/:id")
+  @RequirePermission("masters.branch.manage")
+  @HttpCode(204)
+  async updateServiceCentre(@Param("id", ParseUUIDPipe) id: string, @Body() body: unknown) {
+    await this.serviceCentres.update(id, parse(serviceCentreSchema, body));
+  }
+
+  @Delete("service-centres/:id")
+  @RequirePermission("masters.branch.manage")
+  @HttpCode(204)
+  async deleteServiceCentre(@Param("id", ParseUUIDPipe) id: string) {
+    await this.serviceCentres.remove(id);
+  }
 
   // ── Destinations ─────────────────────────────────────────────────────────
   // Paged in the database rather than the browser. This master runs to a few

@@ -148,7 +148,11 @@ export const NAVIGATION: readonly NavigationSection[] = [
         permission: "masters.branch.view",
         children: [
           { label: "Branches", href: "/branches", permission: "masters.branch.view" },
-          soon("Service centres", "/network/service-centres", "masters.branch.view"),
+          {
+            label: "Service centres",
+            href: "/network/service-centres",
+            permission: "masters.branch.view",
+          },
           soon("Pin codes", "/network/pincodes", "masters.branch.view"),
           soon("Areas", "/network/areas", "masters.branch.view"),
           {

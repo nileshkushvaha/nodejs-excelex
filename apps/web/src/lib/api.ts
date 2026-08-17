@@ -287,6 +287,51 @@ export interface DestinationPage {
   pageCount: number;
 }
 
+export interface ServiceCentre {
+  id: string;
+  code: string;
+  name: string;
+  subName: string | null;
+  addressLine1: string | null;
+  addressLine2: string | null;
+  addressLine3: string | null;
+  addressLine4: string | null;
+  pinCode: string | null;
+  countryCode: string;
+  stateCode: string | null;
+  telephone: string | null;
+  email: string | null;
+  gstin: string | null;
+  gstTelephone: string | null;
+  pan: string | null;
+  icnNo: string | null;
+  stNo: string | null;
+  terms: string[];
+  bankName: string | null;
+  bankAccountNo: string | null;
+  bankAccountName: string | null;
+  bankAddress: string | null;
+  ifsc: string | null;
+  micr: string | null;
+  invoicePrefix: string | null;
+  invoiceLastNo: number;
+  invoiceSuffix: string | null;
+  freeFormPrefix: string | null;
+  freeFormLastNo: number;
+  freeFormSuffix: string | null;
+  debitNotePrefix: string | null;
+  debitNoteLastNo: number;
+  debitNoteSuffix: string | null;
+  creditNotePrefix: string | null;
+  creditNoteLastNo: number;
+  creditNoteSuffix: string | null;
+  receiptLastNo: number;
+  isActive: boolean;
+  companyLogoKey: string | null;
+  signatoryLogoKey: string | null;
+  destination: { id: string; code: string; name: string } | null;
+}
+
 export interface Profile {
   id: string;
   email: string;
@@ -355,6 +400,7 @@ export const getDestinations = (query: string) =>
   get<DestinationPage>(`/api/v1/masters/destinations?${query}`);
 export const getDestinationOptions = () =>
   get<Destination[]>("/api/v1/masters/destinations/options");
+export const getServiceCentres = () => get<ServiceCentre[]>("/api/v1/masters/service-centres");
 export const getZones = () => get<Zone[]>("/api/v1/masters/zones");
 export const getProducts = () => get<Product[]>("/api/v1/masters/products");
 export const getProductTypes = () => get<Classification[]>("/api/v1/masters/product-types");
