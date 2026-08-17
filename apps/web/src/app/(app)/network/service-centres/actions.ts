@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { apiMutate, type ActionResult } from "@/lib/api";
 
@@ -63,8 +64,12 @@ export async function saveServiceCentre(
     ? await apiMutate(`/api/v1/masters/service-centres/${id}`, "PUT", body)
     : await apiMutate("/api/v1/masters/service-centres", "POST", body);
 
-  if (result.ok) revalidatePath("/network/service-centres");
-  return result;
+  if (!result.ok) return result;
+
+  revalidatePath("/network/service-centres");
+  // Outside any try/catch: redirect() signals by throwing, and swallowing it
+  // would leave the user on a form that has already saved.
+  redirect("/network/service-centres");
 }
 
 export async function deleteServiceCentre(
@@ -72,6 +77,10 @@ export async function deleteServiceCentre(
   form: FormData,
 ): Promise<ActionResult> {
   const result = await apiMutate(`/api/v1/masters/service-centres/${text(form, "id")}`, "DELETE");
-  if (result.ok) revalidatePath("/network/service-centres");
-  return result;
+  if (!result.ok) return result;
+
+  revalidatePath("/network/service-centres");
+  // Outside any try/catch: redirect() signals by throwing, and swallowing it
+  // would leave the user on a form that has already saved.
+  redirect("/network/service-centres");
 }

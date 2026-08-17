@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { apiMutate, type ActionResult } from "@/lib/api";
 
@@ -21,8 +22,12 @@ export async function saveZone(
     ? await apiMutate(`/api/v1/masters/zones/${id}`, "PUT", body)
     : await apiMutate("/api/v1/masters/zones", "POST", body);
 
-  if (result.ok) revalidatePath("/geography/zones");
-  return result;
+  if (!result.ok) return result;
+
+  revalidatePath("/geography/zones");
+  // Outside any try/catch: redirect() signals by throwing, and swallowing it
+  // would leave the user on a form that has already saved.
+  redirect("/geography/zones");
 }
 
 export async function deleteZone(
@@ -30,6 +35,10 @@ export async function deleteZone(
   form: FormData,
 ): Promise<ActionResult> {
   const result = await apiMutate(`/api/v1/masters/zones/${text(form, "id")}`, "DELETE");
-  if (result.ok) revalidatePath("/geography/zones");
-  return result;
+  if (!result.ok) return result;
+
+  revalidatePath("/geography/zones");
+  // Outside any try/catch: redirect() signals by throwing, and swallowing it
+  // would leave the user on a form that has already saved.
+  redirect("/geography/zones");
 }

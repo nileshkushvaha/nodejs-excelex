@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { apiMutate, type ActionResult } from "@/lib/api";
 
@@ -29,8 +30,12 @@ export async function saveProduct(
     ? await apiMutate(`/api/v1/masters/products/${id}`, "PUT", body)
     : await apiMutate("/api/v1/masters/products", "POST", body);
 
-  if (result.ok) revalidatePath("/products");
-  return result;
+  if (!result.ok) return result;
+
+  revalidatePath("/products");
+  // Outside any try/catch: redirect() signals by throwing, and swallowing it
+  // would leave the user on a form that has already saved.
+  redirect("/products");
 }
 
 export async function deleteProduct(
@@ -38,6 +43,10 @@ export async function deleteProduct(
   form: FormData,
 ): Promise<ActionResult> {
   const result = await apiMutate(`/api/v1/masters/products/${text(form, "id")}`, "DELETE");
-  if (result.ok) revalidatePath("/products");
-  return result;
+  if (!result.ok) return result;
+
+  revalidatePath("/products");
+  // Outside any try/catch: redirect() signals by throwing, and swallowing it
+  // would leave the user on a form that has already saved.
+  redirect("/products");
 }

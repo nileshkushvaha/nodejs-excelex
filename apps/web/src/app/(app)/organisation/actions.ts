@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { apiMutate, type ActionResult } from "@/lib/api";
 
@@ -24,12 +25,12 @@ export async function saveDepartment(
     ? await apiMutate(`/api/v1/masters/departments/${id}`, "PUT", departmentBody(form))
     : await apiMutate("/api/v1/masters/departments", "POST", departmentBody(form));
 
-  if (result.ok) {
-    revalidatePath("/organisation/departments");
-    // Designations show their department, so a rename has to reach that page too.
-    revalidatePath("/organisation/designations");
-  }
-  return result;
+  if (!result.ok) return result;
+
+  revalidatePath("/organisation/departments");
+  // Designations show their department, so a rename has to reach that page too.
+  revalidatePath("/organisation/designations");
+  redirect("/organisation/departments");
 }
 
 export async function deleteDepartment(
@@ -56,8 +57,10 @@ export async function saveDesignation(
     ? await apiMutate(`/api/v1/masters/designations/${id}`, "PUT", body)
     : await apiMutate("/api/v1/masters/designations", "POST", body);
 
-  if (result.ok) revalidatePath("/organisation/designations");
-  return result;
+  if (!result.ok) return result;
+
+  revalidatePath("/organisation/designations");
+  redirect("/organisation/designations");
 }
 
 export async function deleteDesignation(
