@@ -864,3 +864,23 @@ model Product {
   @@index([clientId])
   @@map("products")
 }
+
+/// @scope(client)
+/// A rating zone. Destinations are grouped into zones, and a rate card prices
+/// origin-zone to destination-zone pairs rather than every city pair — which is
+/// what keeps a rate card a few dozen rows instead of a few million.
+model Zone {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  clientId  String    @map("client_id") @db.Uuid
+  code      String
+  name      String
+  isActive  Boolean   @default(true) @map("is_active")
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([clientId, id], name: "zone_client_id")
+  @@index([clientId, code])
+  @@index([clientId])
+  @@map("zones")
+}

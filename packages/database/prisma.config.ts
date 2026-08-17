@@ -26,8 +26,21 @@ export default defineConfig({
      * policies exist for the case where someone does.
      */
     seed: "bash scripts/apply-security.sh",
+    /**
+     * The shadow database is what makes drift detectable.
+     *
+     * Migrations here are generated with `migrate diff` and applied with
+     * `migrate deploy`, because `migrate dev` refuses to run non-interactively.
+     * That path diffs against the live database rather than the migration
+     * history, so it cannot notice if the two have diverged. Replaying the
+     * history into a scratch database and comparing it to the schema is the
+     * check `migrate dev` would have done, and it is run explicitly:
+     *
+     *   pnpm run db:check-drift
+     */
   },
   datasource: {
     url: env("DATABASE_MIGRATION_URL"),
+    shadowDatabaseUrl: env("DATABASE_SHADOW_URL"),
   },
 });
