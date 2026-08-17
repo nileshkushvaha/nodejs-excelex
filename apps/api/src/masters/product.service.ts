@@ -11,6 +11,12 @@ export interface ClassificationView {
   productCount: number;
 }
 
+export interface ClassificationInput {
+  code: string;
+  name: string;
+  isActive: boolean;
+}
+
 export interface ProductView {
   id: string;
   code: string;
@@ -75,6 +81,120 @@ export class ProductService {
         isActive: row.isActive,
         productCount: row._count.products,
       }));
+    });
+  }
+
+  async typeById(id: string): Promise<ClassificationView | null> {
+    const { clientId } = requireRequestContext();
+
+    return this.prisma.forClient(clientId!, async (tx) => {
+      const row = await tx.productType.findFirst({
+        where: { id, deletedAt: null },
+        include: { _count: { select: { products: true } } },
+      });
+      if (!row) return null;
+      return {
+        id: row.id,
+        code: row.code,
+        name: row.name,
+        isActive: row.isActive,
+        productCount: row._count.products,
+      };
+    });
+  }
+
+  async createType(input: ClassificationInput): Promise<{ id: string }> {
+    const { clientId, actor } = requireRequestContext();
+    const code = input.code.trim().toUpperCase();
+
+    return this.prisma.forClient(clientId!, async (tx) => {
+      const clash = await tx.productType.findFirst({ where: { code, deletedAt: null } });
+      if (clash) throw new BadRequestException(`A product type with code "${code}" already exists.`);
+
+      const row = await tx.productType.create({
+        data: { clientId: clientId!, code, name: input.name.trim(), isActive: input.isActive },
+      });
+
+      await tx.auditEvent.create({
+        data: {
+          clientId: clientId!,
+          actorId: actor?.userId ?? null,
+          action: "masters.product_type.created",
+          entity: "product_type",
+          entityId: row.id,
+          metadata: { code, name: input.name.trim() },
+        },
+      });
+
+      return { id: row.id };
+    });
+  }
+
+  async updateType(id: string, input: ClassificationInput): Promise<void> {
+    const { clientId, actor } = requireRequestContext();
+    const code = input.code.trim().toUpperCase();
+
+    await this.prisma.forClient(clientId!, async (tx) => {
+      const before = await tx.productType.findFirst({ where: { id, deletedAt: null } });
+      if (!before) throw new NotFoundException("Product type not found.");
+
+      const clash = await tx.productType.findFirst({
+        where: { code, deletedAt: null, NOT: { id } },
+      });
+      if (clash) throw new BadRequestException("Another product type already uses that code.");
+
+      await tx.productType.update({
+        where: { id },
+        data: { code, name: input.name.trim(), isActive: input.isActive },
+      });
+
+      await tx.auditEvent.create({
+        data: {
+          clientId: clientId!,
+          actorId: actor?.userId ?? null,
+          action: "masters.product_type.updated",
+          entity: "product_type",
+          entityId: id,
+          metadata: {
+            from: { code: before.code, name: before.name },
+            to: { code, name: input.name.trim() },
+          },
+        },
+      });
+    });
+  }
+
+  async removeType(id: string): Promise<void> {
+    const { clientId, actor } = requireRequestContext();
+
+    await this.prisma.forClient(clientId!, async (tx) => {
+      const row = await tx.productType.findFirst({
+        where: { id, deletedAt: null },
+        include: { _count: { select: { products: true } } },
+      });
+      if (!row) throw new NotFoundException("Product type not found.");
+
+      // Soft-deleting a type that products point at would leave those rows
+      // reading from a record nothing lists. Deactivate it instead — that
+      // keeps it off new products without rewriting history.
+      if (row._count.products > 0) {
+        throw new BadRequestException(
+          `${row.name} is used by ${row._count.products} product(s). Deactivate it instead.`,
+        );
+      }
+
+      await tx.productType.update({ where: { id }, data: { deletedAt: new Date() } });
+
+      await tx.auditEvent.create({
+        data: {
+          clientId: clientId!,
+          actorId: actor?.userId ?? null,
+          action: "masters.product_type.deleted",
+          entity: "product_type",
+          entityId: id,
+          metadata: { code: row.code, name: row.name },
+        },
+      });
     });
   }
 

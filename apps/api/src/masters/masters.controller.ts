@@ -63,6 +63,21 @@ const productSchema = z.object({
   isActive: z.coerce.boolean(),
 });
 
+/**
+ * Code and name, the two columns the legacy screen had. The code is short and
+ * upper-cased because it is what appears on rate cards and manifests.
+ */
+const productTypeSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .min(1, "A product type needs a code.")
+    .max(10)
+    .regex(/^[A-Za-z0-9-]+$/, "A code may use letters, numbers and hyphens only."),
+  name: z.string().trim().min(2, "A product type needs a name.").max(80),
+  isActive: z.coerce.boolean().default(true),
+});
+
 const zoneSchema = z.object({
   code: z
     .string()
@@ -460,6 +475,34 @@ export class MastersController {
   @RequirePermission("masters.product.view")
   listProductTypes() {
     return this.products.listTypes();
+  }
+
+  @Post("product-types")
+  @RequirePermission("masters.product.manage")
+  createProductType(@Body() body: unknown) {
+    return this.products.createType(parse(productTypeSchema, body));
+  }
+
+  @Get("product-types/:id")
+  @RequirePermission("masters.product.view")
+  async productTypeById(@Param("id", ParseUUIDPipe) id: string) {
+    const row = await this.products.typeById(id);
+    if (!row) throw new BadRequestException("Product type not found.");
+    return row;
+  }
+
+  @Put("product-types/:id")
+  @RequirePermission("masters.product.manage")
+  @HttpCode(204)
+  async updateProductType(@Param("id", ParseUUIDPipe) id: string, @Body() body: unknown) {
+    await this.products.updateType(id, parse(productTypeSchema, body));
+  }
+
+  @Delete("product-types/:id")
+  @RequirePermission("masters.product.manage")
+  @HttpCode(204)
+  async deleteProductType(@Param("id", ParseUUIDPipe) id: string) {
+    await this.products.removeType(id);
   }
 
   @Get("product-groups")
