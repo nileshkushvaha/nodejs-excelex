@@ -24,9 +24,10 @@ export type FilterDefinition<T> =
       /** Omit to render an "All" entry; give a label to name it. */
       allLabel?: string | null;
       /**
-       * Type to narrow the options. Worth it past a couple of dozen entries —
-       * a native select only jumps by first letter, which is no help finding
-       * "West Bengal" in a list of thirty-six.
+       * Force the type-to-search control on or off. Left out, it turns itself
+       * on once the list passes SEARCHABLE_ABOVE — which is the right rule,
+       * because how long these lists get is a property of the data, not of
+       * the screen that renders them.
        */
       searchable?: boolean;
     };
@@ -86,6 +87,14 @@ export function useFilterBar<T>(rows: readonly T[], definitions: ReadonlyArray<F
 
   return { values, setValues, filtered, active, reset };
 }
+
+/**
+ * Past this many options a native select stops being usable: it only jumps by
+ * first letter, so finding "West Bengal" among thirty-six states means
+ * scrolling. Below it, a native select is still the better control — it is
+ * lighter, and the whole list is already on screen.
+ */
+const SEARCHABLE_ABOVE = 10;
 
 export const filterControl =
   "w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent-soft";
@@ -149,7 +158,7 @@ export function FilterBar<T>({
                 placeholder={definition.placeholder}
                 className={filterControl}
               />
-            ) : definition.searchable ? (
+            ) : (definition.searchable ?? definition.options.length > SEARCHABLE_ABOVE) ? (
               <SearchableSelect
                 value={values[definition.key] ?? ""}
                 options={definition.options}
@@ -206,7 +215,7 @@ export function FilterBar<T>({
  * arrows move, Enter picks, Escape closes — and adds matching on any part of
  * the label.
  */
-function SearchableSelect({
+export function SearchableSelect({
   value,
   options,
   allLabel,

@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import {
   FilterBar,
-  filterControl,
+  SearchableSelect,
   useFilterBar,
   type FilterDefinition,
 } from "@/components/filter-bar";
@@ -69,17 +69,14 @@ export function StatesTable({
         before={
           <label className="block min-w-40 max-w-56 flex-1">
             <span className="mb-1 block text-xs font-medium text-muted">Country</span>
-            <select
+            <SearchableSelect
               value={selected}
-              onChange={(event) => chooseCountry(event.target.value)}
-              className={filterControl}
-            >
-              {countries.map((country) => (
-                <option key={country.code} value={country.code}>
-                  {country.name}
-                </option>
-              ))}
-            </select>
+              options={countries.map((country) => ({ value: country.code, label: country.name }))}
+              // Every subdivision belongs to some country, so there is no
+              // "All" to fall back to — one is always chosen.
+              allLabel={null}
+              onChange={chooseCountry}
+            />
           </label>
         }
       />

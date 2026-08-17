@@ -52,7 +52,6 @@ export function DestinationsManager({
       {
         kind: "select",
         key: "stateCode",
-        searchable: true,
         label: "State",
         options: states.map((state) => ({ value: state.code, label: state.name })),
         match: (row, value) => row.stateCode === value,
