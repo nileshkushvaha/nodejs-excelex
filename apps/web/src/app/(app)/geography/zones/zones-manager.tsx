@@ -3,15 +3,36 @@
 import Link from "next/link";
 import { useActionState } from "react";
 
+import { FilterBar, useFilterBar, type FilterDefinition } from "@/components/filter-bar";
 import { ActiveBadge, MasterTable } from "@/components/master-table";
 import type { Zone } from "@/lib/api";
 import { deleteZone } from "./actions";
 
-const field =
-  "w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent-soft";
+const DEFINITIONS: ReadonlyArray<FilterDefinition<Zone>> = [
+  {
+    kind: "text",
+    key: "search",
+    label: "Search",
+    placeholder: "Zone code or name…",
+    span: 3,
+    match: (row) => `${row.code} ${row.name}`,
+  },
+  {
+    kind: "select",
+    key: "status",
+    label: "Status",
+    options: [
+      { value: "active", label: "Active" },
+      { value: "inactive", label: "Inactive" },
+    ],
+    match: (row, value) => row.isActive === (value === "active"),
+  },
+];
+
 
 export function ZonesManager({ zones, canManage }: { zones: Zone[]; canManage: boolean }) {
   const [removeState, removeAction] = useActionState(deleteZone, null);
+  const { values, setValues, filtered, active, reset } = useFilterBar(zones, DEFINITIONS);
 
   return (
     <>
@@ -24,12 +45,15 @@ export function ZonesManager({ zones, canManage }: { zones: Zone[]; canManage: b
         </p>
       ) : null}
 
-      <MasterTable
-        rows={zones}
-        rowKey={(zone) => zone.id}
-        searchable={(zone) => `${zone.code} ${zone.name}`}
-        placeholder="Search zones…"
-        empty="No zones yet. Add the ones your rate cards price against."
+      <FilterBar
+        definitions={DEFINITIONS}
+        values={values}
+        onChange={setValues}
+        active={active}
+        onReset={reset}
+        total={zones.length}
+        shown={filtered.length}
+        noun={{ one: "zone", many: "zones" }}
         actions={
           canManage ? (
             <Link href="/geography/zones/new" className="btn-primary rounded-lg px-3 py-2 text-sm font-medium">
@@ -37,6 +61,12 @@ export function ZonesManager({ zones, canManage }: { zones: Zone[]; canManage: b
               </Link>
           ) : null
         }
+      />
+
+      <MasterTable
+        rows={filtered}
+        rowKey={(zone) => zone.id}
+        empty="No zones match these filters."
         columns={[
           {
             header: "Zone code",

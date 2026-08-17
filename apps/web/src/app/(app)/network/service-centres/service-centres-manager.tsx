@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useMemo } from "react";
 
+import { FilterBar, useFilterBar, type FilterDefinition } from "@/components/filter-bar";
 import { ActiveBadge, MasterTable } from "@/components/master-table";
 import type { Destination, ServiceCentre, StateRow } from "@/lib/api";
 import { deleteServiceCentre } from "./actions";
@@ -21,6 +22,46 @@ export function ServiceCentresManager({
 }) {
   const [removeState, removeAction] = useActionState(deleteServiceCentre, null);
 
+  const definitions = useMemo<ReadonlyArray<FilterDefinition<ServiceCentre>>>(
+    () => [
+      {
+        kind: "text",
+        key: "search",
+        label: "Search",
+        placeholder: "Code, name or GSTIN…",
+        span: 3,
+        match: (row) => `${row.code} ${row.name} ${row.subName ?? ""} ${row.gstin ?? ""}`,
+      },
+      {
+        kind: "select",
+        key: "destinationId",
+        label: "Branch",
+        options: destinations.map((row) => ({ value: row.id, label: `${row.code} — ${row.name}` })),
+        match: (row, value) => row.destination?.id === value,
+      },
+      {
+        kind: "select",
+        key: "stateCode",
+        label: "State",
+        options: states.map((state) => ({ value: state.code, label: state.name })),
+        match: (row, value) => row.stateCode === value,
+      },
+      {
+        kind: "select",
+        key: "status",
+        label: "Status",
+        options: [
+          { value: "active", label: "Active" },
+          { value: "inactive", label: "Inactive" },
+        ],
+        match: (row, value) => row.isActive === (value === "active"),
+      },
+    ],
+    [destinations, states],
+  );
+
+  const { values, setValues, filtered, active, reset } = useFilterBar(centres, definitions);
+
   return (
     <>
       {removeState && !removeState.ok ? (
@@ -32,12 +73,15 @@ export function ServiceCentresManager({
         </p>
       ) : null}
 
-      <MasterTable
-        rows={centres}
-        rowKey={(row) => row.id}
-        searchable={(row) => `${row.code} ${row.name} ${row.destination?.code ?? ""} ${row.gstin ?? ""}`}
-        placeholder="Search by code, name, branch or GSTIN…"
-        empty="No service centres yet."
+      <FilterBar
+        definitions={definitions}
+        values={values}
+        onChange={setValues}
+        active={active}
+        onReset={reset}
+        total={centres.length}
+        shown={filtered.length}
+        noun={{ one: "service centre", many: "service centres" }}
         actions={
           canManage ? (
             <Link href="/network/service-centres/new" className="btn-primary rounded-lg px-3 py-2 text-sm font-medium">
@@ -45,6 +89,12 @@ export function ServiceCentresManager({
               </Link>
           ) : null
         }
+      />
+
+      <MasterTable
+        rows={filtered}
+        rowKey={(row) => row.id}
+        empty="No service centres match these filters."
         columns={[
           {
             header: "Service Centre Code",

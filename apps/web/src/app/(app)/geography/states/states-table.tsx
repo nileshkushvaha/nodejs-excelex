@@ -2,8 +2,35 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 
+import {
+  FilterBar,
+  filterControl,
+  useFilterBar,
+  type FilterDefinition,
+} from "@/components/filter-bar";
 import { MasterTable } from "@/components/master-table";
 import type { Country, StateRow } from "@/lib/api";
+
+const DEFINITIONS: ReadonlyArray<FilterDefinition<StateRow>> = [
+  {
+    kind: "text",
+    key: "search",
+    label: "Search",
+    placeholder: "Name, code or GST code…",
+    span: 3,
+    match: (state) => `${state.name} ${state.code} ${state.gstCode ?? ""}`,
+  },
+  {
+    kind: "select",
+    key: "type",
+    label: "Type",
+    options: [
+      { value: "STATE", label: "State" },
+      { value: "UNION_TERRITORY", label: "Union territory" },
+    ],
+    match: (state, value) => state.type === value,
+  },
+];
 
 export function StatesTable({
   states,
@@ -16,63 +43,76 @@ export function StatesTable({
 }) {
   const router = useRouter();
   const params = useSearchParams();
+  const { values, setValues, filtered, active, reset } = useFilterBar(states, DEFINITIONS);
 
   function chooseCountry(code: string) {
     const next = new URLSearchParams(params.toString());
     next.set("country", code);
     // The country lives in the URL so a particular list can be linked and
     // bookmarked, and so the back button behaves the way the address bar says
-    // it will.
+    // it will. That is why it is a `before` control and not a filter: it
+    // changes which rows are loaded, not which of them are shown.
     router.push(`/geography/states?${next.toString()}`);
   }
 
   return (
-    <MasterTable
-      rows={states}
-      rowKey={(state) => state.code}
-      searchable={(state) => `${state.name} ${state.code} ${state.gstCode ?? ""} ${state.type}`}
-      placeholder="Search by name, code or GST code…"
-      empty="No subdivisions are recorded for this country yet."
-      actions={
-        <label className="flex items-center gap-2 text-sm">
-          <span className="text-muted">Country</span>
-          <select
-            value={selected}
-            onChange={(event) => chooseCountry(event.target.value)}
-            className="rounded-lg border border-line-strong bg-surface px-2.5 py-2 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft"
-          >
-            {countries.map((country) => (
-              <option key={country.code} value={country.code}>
-                {country.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      }
-      columns={[
-        {
-          header: "Name",
-          cell: (state) => <span className="font-medium text-fg">{state.name}</span>,
-        },
-        {
-          header: "Code",
-          cell: (state) => <span className="font-mono text-xs text-muted">{state.code}</span>,
-        },
-        {
-          header: "Type",
-          cell: (state) => (
-            <span className="text-xs text-muted">
-              {state.type === "UNION_TERRITORY" ? "Union territory" : "State"}
-            </span>
-          ),
-        },
-        {
-          header: "GST code",
-          cell: (state) => (
-            <span className="font-mono text-xs tabular-nums text-muted">{state.gstCode ?? "—"}</span>
-          ),
-        },
-      ]}
-    />
+    <>
+      <FilterBar
+        definitions={DEFINITIONS}
+        values={values}
+        onChange={setValues}
+        active={active}
+        onReset={reset}
+        total={states.length}
+        shown={filtered.length}
+        noun={{ one: "subdivision", many: "subdivisions" }}
+        before={
+          <label className="block min-w-40 max-w-56 flex-1">
+            <span className="mb-1 block text-xs font-medium text-muted">Country</span>
+            <select
+              value={selected}
+              onChange={(event) => chooseCountry(event.target.value)}
+              className={filterControl}
+            >
+              {countries.map((country) => (
+                <option key={country.code} value={country.code}>
+                  {country.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        }
+      />
+
+      <MasterTable
+        rows={filtered}
+        rowKey={(state) => state.code}
+        empty="No subdivisions match these filters."
+        columns={[
+          {
+            header: "Name",
+            cell: (state) => <span className="font-medium text-fg">{state.name}</span>,
+          },
+          {
+            header: "Code",
+            cell: (state) => <span className="font-mono text-xs text-muted">{state.code}</span>,
+          },
+          {
+            header: "Type",
+            cell: (state) => (
+              <span className="text-xs text-muted">
+                {state.type === "UNION_TERRITORY" ? "Union territory" : "State"}
+              </span>
+            ),
+          },
+          {
+            header: "GST code",
+            cell: (state) => (
+              <span className="font-mono text-xs tabular-nums text-muted">{state.gstCode ?? "—"}</span>
+            ),
+          },
+        ]}
+      />
+    </>
   );
 }

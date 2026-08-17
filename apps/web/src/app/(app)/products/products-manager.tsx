@@ -1,15 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { useActionState, useMemo, useState } from "react";
 
+import { FilterBar, useFilterBar, type FilterDefinition } from "@/components/filter-bar";
 import { ActiveBadge, MasterTable } from "@/components/master-table";
 import type { Classification, Product } from "@/lib/api";
 import { deleteProduct } from "./actions";
 import { ImportDialog } from "@/components/import-dialog";
 
-const field =
-  "w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent-soft";
 
 export function ProductsManager({
   products,
@@ -25,6 +24,56 @@ export function ProductsManager({
   const [importing, setImporting] = useState(false);
   const [removeState, removeAction] = useActionState(deleteProduct, null);
 
+  const definitions = useMemo<ReadonlyArray<FilterDefinition<Product>>>(
+    () => [
+      {
+        kind: "text",
+        key: "search",
+        label: "Search",
+        placeholder: "Code, name or service…",
+        span: 3,
+        match: (row) => `${row.code} ${row.name} ${row.service ?? ""}`,
+      },
+      {
+        kind: "select",
+        key: "productTypeId",
+        label: "Type",
+        options: types.map((type) => ({ value: type.id, label: type.name })),
+        match: (row, value) => row.productType?.id === value,
+      },
+      {
+        kind: "select",
+        key: "productGroupId",
+        label: "Group",
+        options: groups.map((group) => ({ value: group.id, label: group.name })),
+        match: (row, value) => row.productGroup?.id === value,
+      },
+      {
+        kind: "select",
+        key: "contentKind",
+        label: "Content",
+        options: [
+          { value: "DOX", label: "Documents" },
+          { value: "NDOX", label: "Non-documents" },
+        ],
+        match: (row, value) => row.contentKind === value,
+      },
+      {
+        kind: "select",
+        key: "status",
+        label: "Status",
+        options: [
+          { value: "active", label: "Active" },
+          { value: "inactive", label: "Inactive" },
+        ],
+        match: (row, value) => row.isActive === (value === "active"),
+      },
+    ],
+    [groups, types],
+  );
+
+  const { values, setValues, filtered, active, reset } = useFilterBar(products, definitions);
+
   return (
     <>
       {removeState && !removeState.ok ? (
@@ -36,14 +85,15 @@ export function ProductsManager({
         </p>
       ) : null}
 
-      <MasterTable
-        rows={products}
-        rowKey={(product) => product.id}
-        searchable={(product) =>
-          `${product.code} ${product.name} ${product.productType?.name ?? ""} ${product.service ?? ""} ${product.contentKind}`
-        }
-        placeholder="Search by code, name, type or service…"
-        empty="No products yet."
+      <FilterBar
+        definitions={definitions}
+        values={values}
+        onChange={setValues}
+        active={active}
+        onReset={reset}
+        total={products.length}
+        shown={filtered.length}
+        noun={{ one: "product", many: "products" }}
         actions={
           canManage ? (
             <span className="flex gap-2">
@@ -60,6 +110,12 @@ export function ProductsManager({
             </span>
           ) : null
         }
+      />
+
+      <MasterTable
+        rows={filtered}
+        rowKey={(product) => product.id}
+        empty="No products match these filters."
         columns={[
           {
             header: "Code",

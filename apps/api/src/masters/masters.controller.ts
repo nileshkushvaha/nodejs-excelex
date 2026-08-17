@@ -243,15 +243,6 @@ export class MastersController {
     await this.salesExecutives.remove(id);
   }
 
-  /** One destination by id, for its edit page. */
-  @Get("destinations/:id")
-  @RequirePermission("masters.destination.view")
-  async destinationById(@Param("id", ParseUUIDPipe) id: string) {
-    const row = await this.destinations.byId(id);
-    if (!row) throw new BadRequestException("Destination not found.");
-    return row;
-  }
-
   // ── Service centres ──────────────────────────────────────────────────────
   // Unpaged: a client runs a handful, not thousands. The moment that stops
   // being true this moves to the paged pattern the destinations use.
@@ -400,6 +391,15 @@ export class MastersController {
     }
 
     return `${lines.join("\n")}\n`;
+  }
+
+  /** One destination by id, for its edit page. */
+  @Get("destinations/:id")
+  @RequirePermission("masters.destination.view")
+  async destinationById(@Param("id", ParseUUIDPipe) id: string) {
+    const row = await this.destinations.byId(id);
+    if (!row) throw new BadRequestException("Destination not found.");
+    return row;
   }
 
   @Get("destinations/import/template")

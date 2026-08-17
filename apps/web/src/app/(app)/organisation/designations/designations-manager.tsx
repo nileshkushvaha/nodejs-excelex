@@ -1,14 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useMemo } from "react";
 
+import { FilterBar, useFilterBar, type FilterDefinition } from "@/components/filter-bar";
 import { ActiveBadge, MasterTable } from "@/components/master-table";
 import type { Department, Designation } from "@/lib/api";
 import { deleteDesignation } from "../actions";
 
-const field =
-  "w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent-soft";
 
 export function DesignationsManager({
   designations,
@@ -21,6 +20,45 @@ export function DesignationsManager({
 }) {
   const [removeState, removeAction] = useActionState(deleteDesignation, null);
 
+  const definitions = useMemo<ReadonlyArray<FilterDefinition<Designation>>>(
+    () => [
+      {
+        kind: "text",
+        key: "search",
+        label: "Search",
+        placeholder: "Code, title or description…",
+        span: 3,
+        match: (row) => `${row.code} ${row.name} ${row.description ?? ""}`,
+      },
+      {
+        kind: "select",
+        key: "departmentId",
+        label: "Department",
+        options: [
+          // A title that sits above any one department is a real answer here,
+          // not a blank, so it gets its own entry rather than being unreachable.
+          { value: "none", label: "Company-wide" },
+          ...departments.map((department) => ({ value: department.id, label: department.name })),
+        ],
+        match: (row, value) =>
+          value === "none" ? row.department === null : row.department?.id === value,
+      },
+      {
+        kind: "select",
+        key: "status",
+        label: "Status",
+        options: [
+          { value: "active", label: "Active" },
+          { value: "inactive", label: "Inactive" },
+        ],
+        match: (row, value) => row.isActive === (value === "active"),
+      },
+    ],
+    [departments],
+  );
+
+  const { values, setValues, filtered, active, reset } = useFilterBar(designations, definitions);
+
   return (
     <>
       {removeState && !removeState.ok ? (
@@ -32,14 +70,15 @@ export function DesignationsManager({
         </p>
       ) : null}
 
-      <MasterTable
-        rows={designations}
-        rowKey={(designation) => designation.id}
-        searchable={(designation) =>
-          `${designation.code} ${designation.name} ${designation.department?.name ?? ""} ${designation.description ?? ""}`
-        }
-        placeholder="Search designations…"
-        empty="No designations yet."
+      <FilterBar
+        definitions={definitions}
+        values={values}
+        onChange={setValues}
+        active={active}
+        onReset={reset}
+        total={designations.length}
+        shown={filtered.length}
+        noun={{ one: "designation", many: "designations" }}
         actions={
           canManage ? (
             <Link href="/organisation/designations/new" className="btn-primary rounded-lg px-3 py-2 text-sm font-medium">
@@ -47,6 +86,12 @@ export function DesignationsManager({
               </Link>
           ) : null
         }
+      />
+
+      <MasterTable
+        rows={filtered}
+        rowKey={(designation) => designation.id}
+        empty="No designations match these filters."
         columns={[
           {
             header: "Code",

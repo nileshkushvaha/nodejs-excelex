@@ -279,14 +279,6 @@ export interface Destination {
   manifestBranch: { id: string; code: string; name: string } | null;
 }
 
-export interface DestinationPage {
-  rows: Destination[];
-  total: number;
-  page: number;
-  pageSize: number;
-  pageCount: number;
-}
-
 export interface ServiceCentre {
   id: string;
   code: string;
@@ -407,8 +399,6 @@ export const getStates = (country: string) =>
   get<StateRow[]>(`/api/v1/masters/states?country=${encodeURIComponent(country)}`);
 export const getDepartments = () => get<Department[]>("/api/v1/masters/departments");
 export const getDesignations = () => get<Designation[]>("/api/v1/masters/designations");
-export const getDestinations = (query: string) =>
-  get<DestinationPage>(`/api/v1/masters/destinations?${query}`);
 export const getDestinationOptions = () =>
   get<Destination[]>("/api/v1/masters/destinations/options");
 export const getServiceCentres = () => get<ServiceCentre[]>("/api/v1/masters/service-centres");

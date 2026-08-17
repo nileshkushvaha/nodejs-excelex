@@ -3,12 +3,32 @@
 import Link from "next/link";
 import { useActionState } from "react";
 
+import { FilterBar, useFilterBar, type FilterDefinition } from "@/components/filter-bar";
 import { ActiveBadge, MasterTable } from "@/components/master-table";
 import type { Department } from "@/lib/api";
 import { deleteDepartment } from "../actions";
 
-const field =
-  "w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent-soft";
+const DEFINITIONS: ReadonlyArray<FilterDefinition<Department>> = [
+  {
+    kind: "text",
+    key: "search",
+    label: "Search",
+    placeholder: "Code, name or description…",
+    span: 3,
+    match: (row) => `${row.code} ${row.name} ${row.description ?? ""}`,
+  },
+  {
+    kind: "select",
+    key: "status",
+    label: "Status",
+    options: [
+      { value: "active", label: "Active" },
+      { value: "inactive", label: "Inactive" },
+    ],
+    match: (row, value) => row.isActive === (value === "active"),
+  },
+];
+
 
 export function DepartmentsManager({
   departments,
@@ -18,6 +38,7 @@ export function DepartmentsManager({
   canManage: boolean;
 }) {
   const [removeState, removeAction] = useActionState(deleteDepartment, null);
+  const { values, setValues, filtered, active, reset } = useFilterBar(departments, DEFINITIONS);
 
   return (
     <>
@@ -30,12 +51,15 @@ export function DepartmentsManager({
         </p>
       ) : null}
 
-      <MasterTable
-        rows={departments}
-        rowKey={(department) => department.id}
-        searchable={(department) => `${department.code} ${department.name} ${department.description ?? ""}`}
-        placeholder="Search departments…"
-        empty="No departments yet."
+      <FilterBar
+        definitions={DEFINITIONS}
+        values={values}
+        onChange={setValues}
+        active={active}
+        onReset={reset}
+        total={departments.length}
+        shown={filtered.length}
+        noun={{ one: "department", many: "departments" }}
         actions={
           canManage ? (
             <Link href="/organisation/departments/new" className="btn-primary rounded-lg px-3 py-2 text-sm font-medium">
@@ -43,6 +67,12 @@ export function DepartmentsManager({
               </Link>
           ) : null
         }
+      />
+
+      <MasterTable
+        rows={filtered}
+        rowKey={(department) => department.id}
+        empty="No departments match these filters."
         columns={[
           {
             header: "Code",

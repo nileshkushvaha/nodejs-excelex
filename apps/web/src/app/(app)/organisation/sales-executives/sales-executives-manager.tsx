@@ -3,9 +3,31 @@
 import Link from "next/link";
 import { useActionState } from "react";
 
+import { FilterBar, useFilterBar, type FilterDefinition } from "@/components/filter-bar";
 import { ActiveBadge, MasterTable } from "@/components/master-table";
 import type { SalesExecutive } from "@/lib/api";
 import { deleteSalesExecutive } from "./actions";
+
+const DEFINITIONS: ReadonlyArray<FilterDefinition<SalesExecutive>> = [
+  {
+    kind: "text",
+    key: "search",
+    label: "Search",
+    placeholder: "Code, name, email or mobile…",
+    span: 3,
+    match: (row) => `${row.code} ${row.name} ${row.email ?? ""} ${row.mobile ?? ""}`,
+  },
+  {
+    kind: "select",
+    key: "status",
+    label: "Status",
+    options: [
+      { value: "active", label: "Active" },
+      { value: "inactive", label: "Inactive" },
+    ],
+    match: (row, value) => row.isActive === (value === "active"),
+  },
+];
 
 export function SalesExecutivesManager({
   executives,
@@ -15,6 +37,7 @@ export function SalesExecutivesManager({
   canManage: boolean;
 }) {
   const [removeState, removeAction] = useActionState(deleteSalesExecutive, null);
+  const { values, setValues, filtered, active, reset } = useFilterBar(executives, DEFINITIONS);
 
   return (
     <>
@@ -27,12 +50,15 @@ export function SalesExecutivesManager({
         </p>
       ) : null}
 
-      <MasterTable
-        rows={executives}
-        rowKey={(row) => row.id}
-        searchable={(row) => `${row.code} ${row.name} ${row.email ?? ""}`}
-        placeholder="Search by code, name or email…"
-        empty="No sales executives yet."
+      <FilterBar
+        definitions={DEFINITIONS}
+        values={values}
+        onChange={setValues}
+        active={active}
+        onReset={reset}
+        total={executives.length}
+        shown={filtered.length}
+        noun={{ one: "sales executive", many: "sales executives" }}
         actions={
           canManage ? (
             <Link
@@ -43,6 +69,12 @@ export function SalesExecutivesManager({
             </Link>
           ) : null
         }
+      />
+
+      <MasterTable
+        rows={filtered}
+        rowKey={(row) => row.id}
+        empty="No sales executives match these filters."
         columns={[
           {
             header: "Sales Ex. Code",

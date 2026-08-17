@@ -1,46 +1,94 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useActionState, useState } from "react";
+import { useActionState, useMemo, useState } from "react";
 
+import { FilterBar, useFilterBar, type FilterDefinition } from "@/components/filter-bar";
 import { ImportDialog } from "@/components/import-dialog";
-import { ActiveBadge } from "@/components/master-table";
-import { PagedTable } from "@/components/paged-table";
-import type { Destination, DestinationPage, StateRow, Zone } from "@/lib/api";
+import { ActiveBadge, MasterTable } from "@/components/master-table";
+import type { Destination, StateRow, Zone } from "@/lib/api";
 import { deleteDestination } from "./actions";
 
-const field =
-  "w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent-soft";
-
-const SERVICE_TYPES = ["REGULAR", "METRO", "REMOTE"] as const;
-
 export function DestinationsManager({
-  data,
-  branches,
+  destinations,
   zones,
   states,
   canManage,
 }: {
-  data: DestinationPage;
-  branches: Destination[];
+  destinations: Destination[];
   zones: Zone[];
   states: StateRow[];
   canManage: boolean;
 }) {
-  const router = useRouter();
-  const params = useSearchParams();
   const [importing, setImporting] = useState(false);
   const [removeState, removeAction] = useActionState(deleteDestination, null);
 
-  const kind = params.get("kind") ?? "DOMESTIC";
+  // The fields people actually narrow destinations by. Country, main branch and
+  // manifest branch are on the row to be read, not to be filtered on — giving
+  // every column a box is what made the legacy grid a wall of empty inputs.
+  const definitions = useMemo<ReadonlyArray<FilterDefinition<Destination>>>(
+    () => [
+      {
+        kind: "text",
+        key: "search",
+        label: "Search",
+        placeholder: "Code or name…",
+        span: 3,
+        match: (row) => `${row.code} ${row.name}`,
+      },
+      {
+        kind: "select",
+        key: "kind",
+        label: "Type",
+        // Domestic and international are different enough that nobody works on
+        // both at once, so this one starts set rather than showing everything.
+        initial: "DOMESTIC",
+        options: [
+          { value: "DOMESTIC", label: "Domestic" },
+          { value: "INTERNATIONAL", label: "International" },
+        ],
+        match: (row, value) => row.kind === value,
+      },
+      {
+        kind: "select",
+        key: "stateCode",
+        label: "State",
+        options: states.map((state) => ({ value: state.code, label: state.name })),
+        match: (row, value) => row.stateCode === value,
+      },
+      {
+        kind: "select",
+        key: "zoneId",
+        label: "Zone",
+        options: zones.map((zone) => ({ value: zone.id, label: `${zone.code} — ${zone.name}` })),
+        match: (row, value) => row.zone?.id === value,
+      },
+      {
+        kind: "select",
+        key: "serviceType",
+        label: "Service type",
+        options: [
+          { value: "REGULAR", label: "Regular" },
+          { value: "METRO", label: "Metro" },
+          { value: "REMOTE", label: "Remote" },
+        ],
+        match: (row, value) => row.serviceType === value,
+      },
+      {
+        kind: "select",
+        key: "status",
+        label: "Status",
+        options: [
+          { value: "active", label: "Active" },
+          { value: "inactive", label: "Inactive" },
+        ],
+        match: (row, value) => row.isActive === (value === "active"),
+      },
+    ],
+    [states, zones],
+  );
 
-  function setKind(next: string) {
-    const search = new URLSearchParams(params.toString());
-    search.set("kind", next);
-    search.delete("page");
-    router.push(`/network/destinations?${search.toString()}`);
-  }
+  const { values, setValues, filtered, active, reset } = useFilterBar(destinations, definitions);
 
   return (
     <>
@@ -53,34 +101,23 @@ export function DestinationsManager({
         </p>
       ) : null}
 
-      <PagedTable
-        rows={data.rows}
-        total={data.total}
-        page={data.page}
-        pageSize={data.pageSize}
-        pageCount={data.pageCount}
-        basePath="/network/destinations"
-        rowKey={(row) => row.id}
-        empty="No destinations match. Clear the filters, or import your master."
-        toolbar={
+      <FilterBar
+        definitions={definitions}
+        values={values}
+        onChange={setValues}
+        active={active}
+        onReset={reset}
+        total={destinations.length}
+        shown={filtered.length}
+        noun={{ one: "destination", many: "destinations" }}
+        actions={
           <>
-            <label className="flex items-center gap-2 text-sm">
-              <span className="text-muted">Type</span>
-              <select value={kind} onChange={(event) => setKind(event.target.value)} className={`${field} w-44`}>
-                <option value="DOMESTIC">Domestic</option>
-                <option value="INTERNATIONAL">International</option>
-              </select>
-            </label>
-
-            <span className="flex-1" />
-
             <a
-              href={`/api/v1/masters/destinations/export?kind=${kind}`}
+              href={`/api/v1/masters/destinations/export?kind=${values["kind"] ?? ""}`}
               className="btn-secondary rounded-lg px-3 py-2 text-sm font-medium"
             >
               Export
             </a>
-
             {canManage ? (
               <>
                 <button
@@ -90,35 +127,34 @@ export function DestinationsManager({
                 >
                   Import
                 </button>
-                <Link href="/network/destinations/new" className="btn-primary rounded-lg px-3 py-2 text-sm font-medium">
-                New destination
-              </Link>
+                <Link
+                  href="/network/destinations/new"
+                  className="btn-primary rounded-lg px-3 py-2 text-sm font-medium"
+                >
+                  New destination
+                </Link>
               </>
             ) : null}
           </>
         }
+      />
+
+      <MasterTable
+        rows={filtered}
+        rowKey={(row) => row.id}
+        empty="No destinations match these filters."
         columns={[
           {
             header: "Destination Code",
-            sortKey: "code",
-            filterKey: "code",
             cell: (row) => <span className="font-mono text-xs font-medium text-fg">{row.code}</span>,
           },
-          {
-            header: "Destination Name",
-            sortKey: "name",
-            filterKey: "name",
-            cell: (row) => <span className="text-fg">{row.name}</span>,
-          },
+          { header: "Destination Name", cell: (row) => <span className="text-fg">{row.name}</span> },
           {
             header: "Country",
-            filterKey: "countryCode",
             cell: (row) => <span className="text-xs text-muted">{row.countryCode}</span>,
           },
           {
             header: "State",
-            sortKey: "stateCode",
-            filterKey: "stateCode",
             cell: (row) => <span className="text-xs text-muted">{row.stateCode ?? "—"}</span>,
           },
           {
@@ -131,18 +167,8 @@ export function DestinationsManager({
               <span className="font-mono text-xs text-muted">{row.mainBranch?.code ?? "—"}</span>
             ),
           },
-          {
-            header: "Service Type",
-            sortKey: "serviceType",
-            filterKey: "serviceType",
-            cell: (row) => <ServiceBadge type={row.serviceType} />,
-          },
-          {
-            header: "Status",
-            sortKey: "isActive",
-            filterKey: "status",
-            cell: (row) => <ActiveBadge active={row.isActive} />,
-          },
+          { header: "Service Type", cell: (row) => <ServiceBadge type={row.serviceType} /> },
+          { header: "Status", cell: (row) => <ActiveBadge active={row.isActive} /> },
           {
             header: "Action",
             className: "text-right",
