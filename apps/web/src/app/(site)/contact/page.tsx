@@ -20,13 +20,13 @@ export default function ContactPage() {
         intro="A shipment, a regular account, or a destination you are not sure we cover — all of it starts here."
       />
 
-      <Section tone="surface">
+      <Section tone="lit">
         <div className="grid gap-10 lg:grid-cols-5">
           <Reveal className="lg:col-span-3">
             {/* No action yet: this posts nowhere until the enquiry endpoint
                 exists, and a form that silently discards what somebody typed is
                 worse than one that says it is not ready. */}
-            <form className="card rounded-xl p-6">
+            <form className="glass rounded-2xl p-7">
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block">
                   <span className="mb-1 block text-xs font-medium text-muted">Your name</span>
@@ -65,7 +65,7 @@ export default function ContactPage() {
           </Reveal>
 
           <Reveal delay={100} className="lg:col-span-2">
-            <div className="card rounded-xl p-6">
+            <div className="glass rounded-2xl p-7">
               <h2 className="text-lg font-semibold text-fg">Head office</h2>
               <address className="mt-3 not-italic text-sm leading-relaxed text-muted">
                 {CONTACT.addressLines.map((line) => (

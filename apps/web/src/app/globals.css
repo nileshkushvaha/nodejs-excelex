@@ -344,3 +344,317 @@ body {
     transform: none;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * PUBLIC SITE
+ *
+ * The admin is deliberately flat — people work in it all day and glass costs
+ * legibility. The public site is the opposite problem: it has one chance to
+ * look like a company worth trusting with a consignment. So it gets depth,
+ * built from four layers that always appear in this order:
+ *
+ *   1. a coloured field (.aurora)      — soft brand light, out of focus
+ *   2. structure (.grid-field)         — a faint grid, masked so it fades out
+ *   3. grain (.grain)                  — kills the banding large blurs cause
+ *   4. content, on glass (.glass)      — the only layer with sharp edges
+ *
+ * Everything below is one of those four, or a treatment applied to content
+ * sitting on top of them.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+@layer components {
+  /**
+   * Frosted panel.
+   *
+   * The border is where cheap glass gives itself away: a flat 1px line reads
+   * as a box drawn on top rather than a pane lit from somewhere. Two things
+   * fix it — a hairline highlight along the inside of the top edge, which is
+   * how a real edge catches light, and a border colour with alpha so whatever
+   * is behind tints it.
+   */
+  .glass {
+    background-color: color-mix(in oklab, var(--surface) 55%, transparent);
+    @apply backdrop-blur-xl backdrop-saturate-150;
+    border: 1px solid color-mix(in oklab, var(--fg) 8%, transparent);
+    box-shadow:
+      inset 0 1px 0 0 color-mix(in oklab, #ffffff 55%, transparent),
+      0 20px 45px -25px color-mix(in oklab, var(--brand-navy) 60%, transparent);
+  }
+
+  .dark .glass {
+    background-color: color-mix(in oklab, var(--surface) 45%, transparent);
+    border-color: color-mix(in oklab, #ffffff 10%, transparent);
+    box-shadow:
+      inset 0 1px 0 0 color-mix(in oklab, #ffffff 10%, transparent),
+      0 24px 60px -30px #000000;
+  }
+
+  /** Denser, for panels that carry small text and cannot afford the blur. */
+  .glass-solid {
+    background-color: color-mix(in oklab, var(--surface) 88%, transparent);
+    @apply backdrop-blur-2xl backdrop-saturate-150;
+    border: 1px solid color-mix(in oklab, var(--fg) 9%, transparent);
+  }
+
+  .dark .glass-solid {
+    border-color: color-mix(in oklab, #ffffff 9%, transparent);
+  }
+
+  /**
+   * Glass that lights up under the pointer.
+   *
+   * The glow is a pseudo-element rather than a box-shadow so it can be a
+   * gradient rather than a single colour, and so it sits behind the content
+   * instead of over it.
+   */
+  .glass-lift {
+    position: relative;
+    transition:
+      transform 300ms cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 300ms ease;
+  }
+
+  .glass-lift::after {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: var(--brand-gradient);
+    /* Draws the gradient as a ring: fill everything, then punch out the middle
+       so only the 1px padding band survives. */
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 300ms ease;
+    pointer-events: none;
+  }
+
+  .glass-lift:hover {
+    transform: translateY(-4px);
+  }
+
+  .glass-lift:hover::after {
+    opacity: 0.9;
+  }
+
+  /**
+   * The coloured field behind a section.
+   *
+   * Three blurred blobs, not an image: it scales to any viewport, weighs
+   * nothing, changes with the theme, and never ships a 400kb JPEG of a lens
+   * flare. The blur is enormous on purpose — anything sharp here competes with
+   * the headline.
+   */
+  .aurora {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .aurora::before,
+  .aurora::after {
+    content: "";
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(90px);
+    opacity: 0.5;
+  }
+
+  .aurora::before {
+    width: 46rem;
+    height: 46rem;
+    top: -18rem;
+    left: -12rem;
+    background: radial-gradient(circle, var(--brand-blue) 0%, transparent 70%);
+    animation: excelex-drift 22s ease-in-out infinite alternate;
+  }
+
+  .aurora::after {
+    width: 40rem;
+    height: 40rem;
+    top: -6rem;
+    right: -14rem;
+    background: radial-gradient(circle, var(--brand-cyan) 0%, transparent 70%);
+    animation: excelex-drift 28s ease-in-out infinite alternate-reverse;
+  }
+
+  .dark .aurora::before,
+  .dark .aurora::after {
+    opacity: 0.35;
+  }
+
+  /** A third blob, placed by whatever needs an off-centre accent. */
+  .aurora-mint {
+    position: absolute;
+    width: 34rem;
+    height: 34rem;
+    border-radius: 9999px;
+    filter: blur(100px);
+    opacity: 0.28;
+    background: radial-gradient(circle, var(--brand-mint) 0%, transparent 70%);
+    animation: excelex-drift 34s ease-in-out infinite alternate;
+    pointer-events: none;
+  }
+
+  /** Structure under the colour. Masked, or it tiles to the horizon. */
+  .grid-field {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(to right, color-mix(in oklab, var(--fg) 7%, transparent) 1px, transparent 1px),
+      linear-gradient(to bottom, color-mix(in oklab, var(--fg) 7%, transparent) 1px, transparent 1px);
+    background-size: 72px 72px;
+    -webkit-mask-image: radial-gradient(ellipse 90% 60% at 50% 0%, #000 30%, transparent 75%);
+    mask-image: radial-gradient(ellipse 90% 60% at 50% 0%, #000 30%, transparent 75%);
+  }
+
+  /**
+   * Grain.
+   *
+   * A large blurred gradient on an 8-bit display bands into visible steps.
+   * A little noise breaks the steps up, which is why every gradient that looks
+   * expensive has some. Inline SVG so it costs no request.
+   */
+  .grain {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.035;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .dark .grain {
+    opacity: 0.06;
+  }
+
+  /**
+   * Headline gradient.
+   *
+   * Animated across a 200% background so the sweep moves through the letters.
+   * Slow — 8 seconds — because a headline that shimmers is a headline nobody
+   * finishes reading.
+   */
+  .headline-gradient {
+    background-image: linear-gradient(
+      100deg,
+      var(--fg) 0%,
+      var(--fg) 30%,
+      var(--brand-bright) 50%,
+      var(--brand-cyan) 65%,
+      var(--fg) 85%
+    );
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: excelex-sweep 8s linear infinite;
+  }
+
+  /** A glass button, for use over the aurora where a white fill would shout. */
+  .btn-glass {
+    background-color: color-mix(in oklab, var(--surface) 40%, transparent);
+    @apply backdrop-blur-lg;
+    border: 1px solid color-mix(in oklab, var(--fg) 14%, transparent);
+    color: var(--fg);
+    transition:
+      background-color 200ms ease,
+      border-color 200ms ease,
+      transform 200ms ease;
+  }
+
+  .btn-glass:hover {
+    background-color: color-mix(in oklab, var(--surface) 70%, transparent);
+    border-color: color-mix(in oklab, var(--brand-cyan) 60%, transparent);
+    transform: translateY(-1px);
+  }
+
+  /** The tile a section icon sits in. */
+  .icon-tile {
+    background-image: var(--brand-gradient);
+    box-shadow: 0 10px 24px -12px color-mix(in oklab, var(--brand-blue) 80%, transparent);
+  }
+}
+
+@layer utilities {
+  @keyframes excelex-drift {
+    from {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    to {
+      transform: translate3d(4rem, 2.5rem, 0) scale(1.15);
+    }
+  }
+
+  @keyframes excelex-sweep {
+    to {
+      background-position: 200% center;
+    }
+  }
+
+  @keyframes excelex-float {
+    from {
+      transform: translateY(0);
+    }
+    to {
+      transform: translateY(-14px);
+    }
+  }
+
+  @keyframes excelex-dash {
+    to {
+      stroke-dashoffset: -400;
+    }
+  }
+
+  @keyframes excelex-pulse-ring {
+    0% {
+      transform: scale(0.85);
+      opacity: 0.55;
+    }
+    70% {
+      transform: scale(1.35);
+      opacity: 0;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+
+  .animate-float {
+    animation: excelex-float 6s ease-in-out infinite alternate;
+  }
+
+  .animate-dash {
+    animation: excelex-dash 9s linear infinite;
+  }
+}
+
+/* The reduced-motion block above shortens transitions; these are ambient
+   animations that should not merely be fast, they should not run at all. */
+@media (prefers-reduced-motion: reduce) {
+  .aurora::before,
+  .aurora::after,
+  .aurora-mint,
+  .headline-gradient,
+  .animate-float,
+  .animate-dash {
+    animation: none !important;
+  }
+
+  .headline-gradient {
+    background-position: 0 center;
+  }
+
+  .glass-lift:hover {
+    transform: none;
+  }
+}

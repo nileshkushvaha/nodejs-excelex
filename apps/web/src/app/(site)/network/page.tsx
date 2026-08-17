@@ -1,8 +1,7 @@
-import Link from "next/link";
 
 import { PageHeader } from "@/components/site/page-header";
 import { Reveal } from "@/components/site/reveal";
-import { CallToAction, Section } from "@/components/site/section";
+import { CallToAction, CtaButton, Section } from "@/components/site/section";
 import { Stats } from "@/components/site/stats";
 
 export const metadata = {
@@ -33,7 +32,7 @@ export default function NetworkPage() {
         intro="A branch behind every pin code we serve, and a scheduled line-haul between the hubs that connect them."
       />
 
-      <Section tone="surface">
+      <Section tone="lit">
         <Stats />
       </Section>
 
@@ -46,7 +45,7 @@ export default function NetworkPage() {
         <div className="grid gap-5 sm:grid-cols-2">
           {REGIONS.map((region, index) => (
             <Reveal key={region.name} delay={index * 80}>
-              <div className="card card-interactive h-full rounded-xl p-6">
+              <div className="glass glass-lift h-full rounded-2xl p-7">
                 <h3 className="text-lg font-semibold text-fg">{region.name}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-muted">{region.body}</p>
               </div>
@@ -57,13 +56,13 @@ export default function NetworkPage() {
 
       <Section
         id="centres"
-        tone="surface"
+        tone="lit"
         eyebrow="Service centres"
         title="A named branch, not a queue."
         intro="Each service centre issues its own invoices and carries its own GST registration, so billing questions are answered by the people who raised the invoice."
       >
         <Reveal>
-          <div className="card rounded-xl p-6 text-sm leading-relaxed text-muted">
+          <div className="glass rounded-2xl p-7 text-sm leading-relaxed text-muted">
             Looking for the branch that covers your pin code? Call us on the number in the footer,
             or send the pin code through the contact form and we will tell you which centre serves
             it and what time it collects.
@@ -75,12 +74,7 @@ export default function NetworkPage() {
         title="Shipping somewhere we have not listed?"
         body="The network is larger than this page. Ask about a destination and we will tell you the transit time before you book."
       >
-        <Link
-          href="/contact"
-          className="rounded-lg bg-white px-5 py-2.5 text-sm font-medium text-[var(--brand-navy)] transition-transform hover:-translate-y-0.5"
-        >
-          Ask about a destination
-        </Link>
+        <CtaButton href="/contact">Ask about a destination</CtaButton>
       </CallToAction>
     </>
   );

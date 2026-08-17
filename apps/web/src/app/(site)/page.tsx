@@ -1,8 +1,9 @@
 import Link from "next/link";
 
+import { ServiceIcon } from "@/components/site/artwork";
 import { Hero } from "@/components/site/hero";
 import { Reveal } from "@/components/site/reveal";
-import { CallToAction, Section } from "@/components/site/section";
+import { CallToAction, CtaButton, CtaGhost, Section } from "@/components/site/section";
 import { Stats } from "@/components/site/stats";
 import { REASONS, SERVICES, STEPS } from "@/content/site";
 
@@ -11,38 +12,41 @@ export default function HomePage() {
     <>
       <Hero />
 
-      <Section tone="surface">
+      <Section tone="lit">
         <Stats />
       </Section>
 
       <Section
         eyebrow="What we move"
-        title="Four services, one network."
+        title="Four services. One network underneath them."
         intro="Every consignment runs on the same scans, the same tracking and the same billing, whichever of these it was booked as."
       >
-        <div className="grid gap-5 sm:grid-cols-2">
+        <div className="grid gap-6 sm:grid-cols-2">
           {SERVICES.map((service, index) => (
-            <Reveal key={service.id} delay={index * 80}>
+            <Reveal key={service.id} delay={index * 90}>
               <Link
                 href={`/services#${service.id}`}
-                className="card card-interactive group block h-full rounded-xl p-6"
+                className="glass glass-lift group flex h-full flex-col rounded-2xl p-7"
               >
-                <h3 className="text-lg font-semibold text-fg">{service.name}</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-muted">{service.summary}</p>
-                <ul className="mt-4 space-y-1.5">
+                <span className="icon-tile grid h-12 w-12 place-items-center rounded-xl text-white">
+                  <ServiceIcon name={service.id as "domestic"} className="h-6 w-6" />
+                </span>
+
+                <h3 className="mt-5 text-xl font-semibold text-fg">{service.name}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted">{service.summary}</p>
+
+                <ul className="mt-5 space-y-2">
                   {service.points.map((point) => (
-                    <li key={point} className="flex gap-2 text-sm text-muted">
+                    <li key={point} className="flex gap-2.5 text-sm text-muted">
                       <Tick />
                       {point}
                     </li>
                   ))}
                 </ul>
-                <span className="mt-5 inline-flex items-center gap-1 text-sm font-medium text-accent-text">
+
+                <span className="mt-auto inline-flex items-center gap-1.5 pt-6 text-sm font-medium text-accent-text">
                   Read more
-                  <span
-                    aria-hidden
-                    className="transition-transform duration-200 group-hover:translate-x-1"
-                  >
+                  <span aria-hidden className="transition-transform duration-200 group-hover:translate-x-1">
                     →
                   </span>
                 </span>
@@ -53,20 +57,27 @@ export default function HomePage() {
       </Section>
 
       <Section
-        tone="surface"
+        tone="lit"
         eyebrow="How it works"
         title="Book it, and know where it is."
         intro="Four steps, and a record of every one of them."
+        centered
       >
-        <ol className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <ol className="relative grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+          {/* The rule the steps sit on. Behind them, only on the widths where
+              they are actually in a row. */}
+          <span
+            aria-hidden
+            className="absolute left-0 right-0 top-6 hidden h-px bg-gradient-to-r from-transparent via-[var(--brand-cyan)] to-transparent opacity-40 lg:block"
+          />
           {STEPS.map((step, index) => (
-            <Reveal key={step.title} delay={index * 80}>
+            <Reveal key={step.title} delay={index * 90}>
               <li className="relative">
-                <span className="brand-gradient grid h-10 w-10 place-items-center rounded-full text-sm font-semibold text-white">
+                <span className="icon-tile relative grid h-12 w-12 place-items-center rounded-xl text-sm font-semibold text-white">
                   {index + 1}
                 </span>
-                <h3 className="mt-4 font-semibold text-fg">{step.title}</h3>
-                <p className="mt-1 text-sm leading-relaxed text-muted">{step.body}</p>
+                <h3 className="mt-5 font-semibold text-fg">{step.title}</h3>
+                <p className="mt-1.5 text-sm leading-relaxed text-muted">{step.body}</p>
               </li>
             </Reveal>
           ))}
@@ -78,12 +89,12 @@ export default function HomePage() {
         title="The boring things, done properly."
         intro="Nobody chooses a courier for its website. These are the four things that decide whether you keep one."
       >
-        <div className="grid gap-5 sm:grid-cols-2">
+        <div className="grid gap-6 sm:grid-cols-2">
           {REASONS.map((reason, index) => (
-            <Reveal key={reason.title} delay={index * 80}>
-              <div className="card h-full rounded-xl p-6">
-                <h3 className="text-lg font-semibold text-fg">{reason.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted">{reason.body}</p>
+            <Reveal key={reason.title} delay={index * 90}>
+              <div className="glass glass-lift h-full rounded-2xl p-7">
+                <h3 className="text-xl font-semibold text-fg">{reason.title}</h3>
+                <p className="mt-2.5 text-sm leading-relaxed text-muted">{reason.body}</p>
               </div>
             </Reveal>
           ))}
@@ -94,18 +105,8 @@ export default function HomePage() {
         title="Have something to send?"
         body="Track a shipment you have already booked, or talk to us about a regular account."
       >
-        <Link
-          href="/track"
-          className="rounded-lg bg-white px-5 py-2.5 text-sm font-medium text-[var(--brand-navy)] transition-transform hover:-translate-y-0.5"
-        >
-          Track a shipment
-        </Link>
-        <Link
-          href="/contact"
-          className="rounded-lg border border-white/40 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-white/10"
-        >
-          Talk to us
-        </Link>
+        <CtaButton href="/track">Track a shipment</CtaButton>
+        <CtaGhost href="/contact">Talk to us</CtaGhost>
       </CallToAction>
     </>
   );
@@ -117,7 +118,7 @@ function Tick() {
       aria-hidden
       viewBox="0 0 20 20"
       fill="currentColor"
-      className="mt-0.5 h-4 w-4 shrink-0 text-[var(--brand-cyan)]"
+      className="mt-0.5 h-4 w-4 shrink-0 text-[var(--brand-mint)]"
     >
       <path
         fillRule="evenodd"

@@ -1,8 +1,7 @@
-import Link from "next/link";
 
 import { PageHeader } from "@/components/site/page-header";
 import { Reveal } from "@/components/site/reveal";
-import { CallToAction, Section } from "@/components/site/section";
+import { CallToAction, CtaButton, Section } from "@/components/site/section";
 import { REASONS } from "@/content/site";
 
 export const metadata = {
@@ -26,7 +25,7 @@ export default function AboutPage() {
         <div className="grid gap-5 sm:grid-cols-2">
           {REASONS.map((reason, index) => (
             <Reveal key={reason.title} delay={index * 80}>
-              <div className="card h-full rounded-xl p-6">
+              <div className="glass glass-lift h-full rounded-2xl p-7">
                 <h3 className="text-lg font-semibold text-fg">{reason.title}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-muted">{reason.body}</p>
               </div>
@@ -39,12 +38,7 @@ export default function AboutPage() {
         title="Work with us."
         body="Regular accounts, franchise enquiries and partnerships all start the same way — a conversation."
       >
-        <Link
-          href="/contact"
-          className="rounded-lg bg-white px-5 py-2.5 text-sm font-medium text-[var(--brand-navy)] transition-transform hover:-translate-y-0.5"
-        >
-          Get in touch
-        </Link>
+        <CtaButton href="/contact">Get in touch</CtaButton>
       </CallToAction>
     </>
   );

@@ -16,10 +16,10 @@ export default function TrackPage() {
         intro="Enter the AWB number from your receipt. Tracking needs no account."
       />
 
-      <Section tone="surface">
+      <Section tone="lit">
         <div className="mx-auto max-w-2xl">
           <Reveal>
-            <form className="card rounded-xl p-6">
+            <form className="glass rounded-2xl p-7">
               <label className="block">
                 <span className="mb-1 block text-xs font-medium text-muted">AWB number</span>
                 <div className="flex flex-col gap-2 sm:flex-row">
@@ -55,7 +55,7 @@ export default function TrackPage() {
                 { title: "In transit", body: "Scanned at each hub along the route." },
                 { title: "Delivered", body: "Signed for, with proof captured at the door." },
               ].map((stage) => (
-                <div key={stage.title} className="card rounded-xl p-4">
+                <div key={stage.title} className="glass glass-lift rounded-2xl p-5">
                   <h2 className="text-sm font-semibold text-fg">{stage.title}</h2>
                   <p className="mt-1 text-xs leading-relaxed text-muted">{stage.body}</p>
                 </div>

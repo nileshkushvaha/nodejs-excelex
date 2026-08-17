@@ -1,11 +1,17 @@
 import Link from "next/link";
 
+import { ArcArt } from "./artwork";
+
 import { CONTACT, FOOTER } from "@/content/site";
 
 export function SiteFooter() {
   return (
-    <footer className="border-t border-line bg-surface-2">
-      <div className="mx-auto max-w-6xl px-5 py-14">
+    <footer className="relative isolate overflow-hidden border-t border-line bg-surface/40">
+      <div aria-hidden className="aurora -z-20 opacity-40" />
+      <div aria-hidden className="grain -z-10" />
+      <ArcArt className="pointer-events-none absolute -left-40 top-10 -z-10 h-[26rem] w-[26rem] rotate-180 opacity-40" />
+
+      <div className="mx-auto max-w-6xl px-5 py-16">
         <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-5">
           <div className="lg:col-span-2">
             <span className="flex items-center gap-2 font-semibold text-fg">

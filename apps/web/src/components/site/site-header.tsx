@@ -58,7 +58,9 @@ export function SiteHeader() {
   return (
     <header
       className={`fixed inset-x-0 top-0 z-50 transition-colors duration-300 ${
-        scrolled ? "border-b border-line bg-surface/90 backdrop-blur" : "border-b border-transparent"
+        scrolled
+          ? "border-b border-line/70 bg-surface/70 backdrop-blur-xl backdrop-saturate-150"
+          : "border-b border-transparent"
       }`}
     >
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-5">
@@ -99,7 +101,7 @@ export function SiteHeader() {
                       : "pointer-events-none -translate-y-1 opacity-0"
                   }`}
                 >
-                  <div className="card overflow-hidden rounded-xl p-2 shadow-lg">
+                  <div className="glass-solid overflow-hidden rounded-2xl p-2 shadow-xl">
                     {item.children.map((child) => (
                       <Link
                         key={child.href}
@@ -131,7 +133,7 @@ export function SiteHeader() {
           <ThemeToggle />
           <Link
             href="/login"
-            className="btn-primary hidden rounded-lg px-4 py-2 text-sm font-medium sm:inline-block"
+            className="btn-primary hidden rounded-xl px-5 py-2.5 text-sm font-medium sm:inline-block"
           >
             Sign in
           </Link>
@@ -140,7 +142,7 @@ export function SiteHeader() {
             onClick={() => setDrawer((open) => !open)}
             aria-label={drawer ? "Close menu" : "Open menu"}
             aria-expanded={drawer}
-            className="btn-secondary grid h-10 w-10 place-items-center rounded-lg lg:hidden"
+            className="btn-glass grid h-10 w-10 place-items-center rounded-xl lg:hidden"
           >
             <Burger open={drawer} />
           </button>
@@ -158,7 +160,7 @@ export function SiteHeader() {
       {/* Mobile drawer. Rendered always and translated out of the way, so it
           animates in both directions rather than only on open. */}
       <div
-        className={`fixed inset-x-0 top-16 bottom-0 z-40 overflow-y-auto border-t border-line bg-surface transition-transform duration-300 lg:hidden ${
+        className={`fixed inset-x-0 top-16 bottom-0 z-40 overflow-y-auto border-t border-line bg-canvas/95 backdrop-blur-xl transition-transform duration-300 lg:hidden ${
           drawer ? "translate-x-0" : "pointer-events-none translate-x-full"
         }`}
       >
@@ -191,7 +193,7 @@ export function SiteHeader() {
 
           <Link
             href="/login"
-            className="btn-primary mt-5 block rounded-lg px-4 py-3 text-center text-sm font-medium"
+            className="btn-primary mt-6 block rounded-xl px-4 py-3.5 text-center text-sm font-medium"
           >
             Sign in
           </Link>
