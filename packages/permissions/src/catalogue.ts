@@ -60,6 +60,8 @@ export const PERMISSION_DEFINITIONS = define([
   { key: "masters.branch.manage", group: "Masters", label: "Manage branches", description: "Create and amend branches." },
   { key: "masters.product.view", group: "Masters", label: "View products", description: "See products, product types and groups." },
   { key: "masters.product.manage", group: "Masters", label: "Manage products", description: "Create and amend products and their classifications." },
+  { key: "masters.destination.view", group: "Masters", label: "View destinations", description: "See the destination master." },
+  { key: "masters.destination.manage", group: "Masters", label: "Manage destinations", description: "Create, amend and import destinations." },
   { key: "masters.rate.view", group: "Masters", label: "View rates", description: "See rate cards, zones and surcharges." },
   { key: "masters.rate.manage", group: "Masters", label: "Manage rates", description: "Create and amend rate cards. Financially significant." },
   { key: "masters.rate.approve", group: "Masters", label: "Approve rate changes", description: "Second approval for a rate change. Never held by the same person who makes them." },

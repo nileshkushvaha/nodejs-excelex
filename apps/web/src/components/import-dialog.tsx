@@ -18,7 +18,19 @@ import type { ImportReport } from "@/lib/api";
  * back in component state, and routing a file upload through an action to
  * achieve that adds a hop without adding anything.
  */
-export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function ImportDialog({
+  open,
+  onClose,
+  title = "Import products",
+  endpoint = "/api/v1/masters/products/import",
+  templateHref = "/api/v1/masters/products/import/template",
+}: {
+  open: boolean;
+  onClose: () => void;
+  title?: string;
+  endpoint?: string;
+  templateHref?: string;
+}) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -43,7 +55,7 @@ export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => 
     body.append("file", file);
 
     try {
-      const response = await fetch(`/api/v1/masters/products/import?mode=${mode}`, {
+      const response = await fetch(`${endpoint}?mode=${mode}`, {
         method: "POST",
         body,
       });
@@ -79,7 +91,7 @@ export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => 
         reset();
         onClose();
       }}
-      title="Import products"
+      title={title}
       description="Upload an .xlsx or .csv. Nothing is written until you confirm the preview."
     >
       <div className="space-y-4">
@@ -110,7 +122,7 @@ export function ImportDialog({ open, onClose }: { open: boolean; onClose: () => 
                 Columns are matched by heading, so “Product Code”, “product_code” and “PRODUCT CODE”
                 are all accepted.{" "}
                 <a
-                  href="/api/v1/masters/products/import/template"
+                  href={templateHref}
                   className="text-accent-text underline"
                 >
                   Download a template

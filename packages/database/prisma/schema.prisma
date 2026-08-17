@@ -870,17 +870,86 @@ model Product {
 /// origin-zone to destination-zone pairs rather than every city pair — which is
 /// what keeps a rate card a few dozen rows instead of a few million.
 model Zone {
-  id        String    @id @default(uuid(7)) @db.Uuid
-  clientId  String    @map("client_id") @db.Uuid
-  code      String
-  name      String
-  isActive  Boolean   @default(true) @map("is_active")
-  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
-  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id           String        @id @default(uuid(7)) @db.Uuid
+  clientId     String        @map("client_id") @db.Uuid
+  code         String
+  name         String
+  isActive     Boolean       @default(true) @map("is_active")
+  deletedAt    DateTime?     @map("deleted_at") @db.Timestamptz(6)
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  destinations Destination[]
 
   @@unique([clientId, id], name: "zone_client_id")
   @@index([clientId, code])
   @@index([clientId])
   @@map("zones")
+}
+
+/// Where a destination sits relative to the client's home country.
+enum DestinationKind {
+  DOMESTIC
+  INTERNATIONAL
+}
+
+/// How a destination is served. Drives rating and delivery expectations:
+/// metro is priced and promised differently from remote, and remote usually
+/// carries a surcharge.
+enum ServiceType {
+  REGULAR
+  METRO
+  REMOTE
+}
+
+/// @scope(client)
+/// A place shipments are booked to — the servicing point behind a set of
+/// pincodes, and what a rate card ultimately resolves to through its zone.
+///
+/// This is the first master with real volume: a live client carries well over a
+/// thousand. Everything about it is therefore paged and filtered in the database
+/// rather than in the browser.
+model Destination {
+  id       String @id @default(uuid(7)) @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+
+  kind DestinationKind @default(DOMESTIC)
+  code String
+  name String
+
+  email  String?
+  mobile String?
+
+  countryCode String  @default("IN") @map("country_code")
+  /// ISO 3166-2 subdivision, validated against the states master for the country.
+  stateCode   String? @map("state_code")
+
+  zoneId      String?     @map("zone_id") @db.Uuid
+  serviceType ServiceType @default(REGULAR) @map("service_type")
+
+  /// Both point at other destinations: the servicing branch this place reports
+  /// to, and the branch its manifests are cut against. Self-referencing rather
+  /// than a separate branch table because in this business a servicing branch
+  /// *is* a destination — one that happens to have others hanging off it.
+  mainBranchId     String? @map("main_branch_id") @db.Uuid
+  manifestBranchId String? @map("manifest_branch_id") @db.Uuid
+
+  isActive  Boolean   @default(true) @map("is_active")
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  zone           Zone?         @relation(fields: [clientId, zoneId], references: [clientId, id], onDelete: Restrict)
+  mainBranch     Destination?  @relation("DestinationMainBranch", fields: [clientId, mainBranchId], references: [clientId, id], onDelete: Restrict)
+  servesAsMain   Destination[] @relation("DestinationMainBranch")
+  manifestBranch Destination?  @relation("DestinationManifestBranch", fields: [clientId, manifestBranchId], references: [clientId, id], onDelete: Restrict)
+  servesManifest Destination[] @relation("DestinationManifestBranch")
+
+  @@unique([clientId, id], name: "destination_client_id")
+  /// The list is filtered and sorted on these in the database, so they are
+  /// indexed rather than left to a sequential scan over a few thousand rows.
+  @@index([clientId, code])
+  @@index([clientId, name])
+  @@index([clientId, kind, isActive])
+  @@index([clientId, stateCode])
+  @@map("destinations")
 }

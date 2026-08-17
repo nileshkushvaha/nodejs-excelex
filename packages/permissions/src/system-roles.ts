@@ -45,6 +45,7 @@ export const SYSTEM_ROLES: readonly SystemRoleDefinition[] = [
       "masters.branch.view",
       "masters.organisation.view",
       "masters.product.view",
+      "masters.destination.view",
       "reports.operations.view",
     ],
   },

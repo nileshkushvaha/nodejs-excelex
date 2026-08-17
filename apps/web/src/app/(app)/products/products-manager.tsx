@@ -7,7 +7,7 @@ import { ActiveBadge, MasterTable } from "@/components/master-table";
 import { Toggle } from "@/components/toggle";
 import type { Classification, Product } from "@/lib/api";
 import { deleteProduct, saveProduct } from "./actions";
-import { ImportDialog } from "./import-dialog";
+import { ImportDialog } from "@/components/import-dialog";
 
 const field =
   "w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent-soft";

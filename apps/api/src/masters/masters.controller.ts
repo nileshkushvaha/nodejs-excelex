@@ -19,7 +19,9 @@ import { z } from "zod";
 
 import { RequirePermission } from "../auth/auth.guard";
 import { OrganisationService } from "./organisation.service";
+import { DestinationImportService } from "./import/destination-import.service";
 import { ProductImportService } from "./import/product-import.service";
+import { DestinationService } from "./destination.service";
 import { ProductService } from "./product.service";
 import { ZoneService } from "./zone.service";
 import { ReferenceService } from "./reference.service";
@@ -70,6 +72,34 @@ const zoneSchema = z.object({
   isActive: z.coerce.boolean().default(true),
 });
 
+const destinationSchema = z.object({
+  kind: z.enum(["DOMESTIC", "INTERNATIONAL"]).default("DOMESTIC"),
+  code: z
+    .string()
+    .trim()
+    .min(2, "A destination needs a code.")
+    .max(20)
+    .regex(/^[A-Za-z0-9-]+$/, "A code may use letters, numbers and hyphens only."),
+  name: z.string().trim().min(2, "A destination needs a name.").max(120),
+  email: z
+    .string()
+    .trim()
+    .max(320)
+    .nullish()
+    .transform((value) => (value ? value : null))
+    .refine((value) => value === null || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value), {
+      message: "That is not a valid email address.",
+    }),
+  mobile: z.string().trim().max(32).nullish().transform((value) => (value ? value : null)),
+  countryCode: z.string().trim().length(2).toUpperCase().default("IN"),
+  stateCode: z.string().trim().max(10).nullish().transform((value) => (value ? value.toUpperCase() : null)),
+  zoneId: z.string().uuid().nullish().transform((value) => value ?? null),
+  serviceType: z.enum(["REGULAR", "METRO", "REMOTE"]).default("REGULAR"),
+  mainBranchId: z.string().uuid().nullish().transform((value) => value ?? null),
+  manifestBranchId: z.string().uuid().nullish().transform((value) => value ?? null),
+  isActive: z.coerce.boolean().default(true),
+});
+
 function parse<T>(schema: z.ZodType<T>, body: unknown): T {
   const result = schema.safeParse(body);
   if (!result.success) {
@@ -86,7 +116,138 @@ export class MastersController {
     private readonly products: ProductService,
     private readonly productImport: ProductImportService,
     private readonly zones: ZoneService,
+    private readonly destinations: DestinationService,
+    private readonly destinationImport: DestinationImportService,
   ) {}
+
+  // ── Destinations ─────────────────────────────────────────────────────────
+  // Paged in the database rather than the browser. This master runs to a few
+  // thousand rows, so sending it whole to filter five of them wastes the trip
+  // and leaves the browser unable to count what it was not sent.
+  @Get("destinations")
+  @RequirePermission("masters.destination.view")
+  listDestinations(@Query() query: Record<string, string>) {
+    const sortable = ["code", "name", "stateCode", "serviceType", "isActive"] as const;
+    const sort = sortable.find((field) => field === query["sort"]) ?? "code";
+
+    return this.destinations.list({
+      kind: query["kind"] === "INTERNATIONAL" ? "INTERNATIONAL" : query["kind"] === "DOMESTIC" ? "DOMESTIC" : undefined,
+      page: Number(query["page"] ?? 1) || 1,
+      pageSize: Number(query["pageSize"] ?? 10) || 10,
+      sort,
+      direction: query["direction"] === "desc" ? "desc" : "asc",
+      code: query["code"],
+      name: query["name"],
+      countryCode: query["countryCode"],
+      stateCode: query["stateCode"],
+      serviceType: query["serviceType"],
+      status: query["status"],
+      search: query["search"],
+    });
+  }
+
+  /** Unpaged, for the self-referencing branch pickers on the form. */
+  @Get("destinations/options")
+  @RequirePermission("masters.destination.view")
+  destinationOptions() {
+    return this.destinations.listAll();
+  }
+
+  @Post("destinations")
+  @RequirePermission("masters.destination.manage")
+  createDestination(@Body() body: unknown) {
+    return this.destinations.create(parse(destinationSchema, body));
+  }
+
+  @Put("destinations/:id")
+  @RequirePermission("masters.destination.manage")
+  @HttpCode(204)
+  async updateDestination(@Param("id", ParseUUIDPipe) id: string, @Body() body: unknown) {
+    await this.destinations.update(id, parse(destinationSchema, body));
+  }
+
+  @Delete("destinations/:id")
+  @RequirePermission("masters.destination.manage")
+  @HttpCode(204)
+  async deleteDestination(@Param("id", ParseUUIDPipe) id: string) {
+    await this.destinations.remove(id);
+  }
+
+  @Post("destinations/import")
+  @RequirePermission("masters.destination.manage")
+  @UseInterceptors(FileInterceptor("file", { limits: { fileSize: 10 * 1024 * 1024, files: 1 } }))
+  importDestinations(
+    @UploadedFile() file: { buffer: Buffer; originalname: string } | undefined,
+    @Query("mode") mode?: string,
+  ) {
+    if (!file) throw new BadRequestException("Attach a .xlsx or .csv file.");
+
+    const name = file.originalname.toLowerCase();
+    if (!name.endsWith(".xlsx") && !name.endsWith(".csv")) {
+      throw new BadRequestException("Only .xlsx and .csv files are accepted.");
+    }
+
+    return this.destinationImport.run(
+      file.buffer,
+      file.originalname,
+      mode === "commit" ? "commit" : "preview",
+    );
+  }
+
+  /**
+   * Export.
+   *
+   * Streams every row rather than the current page: the point of an export is
+   * to have the whole master, and someone who wanted one page already has it on
+   * screen. Values are CSV-escaped, and a leading =, +, - or @ is prefixed with
+   * an apostrophe — Excel treats those as formulas, which is how a spreadsheet
+   * export becomes a way to run something on the machine that opens it.
+   */
+  @Get("destinations/export")
+  @RequirePermission("masters.destination.view")
+  @Header("content-type", "text/csv; charset=utf-8")
+  @Header("content-disposition", 'attachment; filename="destinations.csv"')
+  async exportDestinations(@Query("kind") kind?: string): Promise<string> {
+    const rows = await this.destinations.listAll(
+      kind === "INTERNATIONAL" ? "INTERNATIONAL" : kind === "DOMESTIC" ? "DOMESTIC" : undefined,
+    );
+
+    const cell = (value: string | null | undefined): string => {
+      const text = value ?? "";
+      const guarded = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
+      return `"${guarded.replace(/"/g, '""')}"`;
+    };
+
+    const lines = [DestinationImportService.TEMPLATE_HEADERS.join(",")];
+    for (const row of rows) {
+      lines.push(
+        [
+          cell(row.code),
+          cell(row.name),
+          cell(row.kind === "DOMESTIC" ? "Domestic" : "International"),
+          cell(row.email),
+          cell(row.mobile),
+          cell(row.countryCode),
+          cell(row.stateCode),
+          cell(row.zone?.code),
+          cell(row.serviceType),
+          cell(row.mainBranch?.code),
+          cell(row.manifestBranch?.code),
+          cell(row.isActive ? "Active" : "Inactive"),
+        ].join(","),
+      );
+    }
+
+    return `${lines.join("\n")}\n`;
+  }
+
+  @Get("destinations/import/template")
+  @RequirePermission("masters.destination.view")
+  @Header("content-type", "text/csv; charset=utf-8")
+  @Header("content-disposition", 'attachment; filename="destination-import-template.csv"')
+  destinationTemplate(): string {
+    return `${DestinationImportService.TEMPLATE_HEADERS.join(",")}\nAAM,AMTALA,Domestic,,,IN,WB,,REGULAR,,,Active\n`;
+  }
 
   // ── Zones ────────────────────────────────────────────────────────────────
   @Get("zones")

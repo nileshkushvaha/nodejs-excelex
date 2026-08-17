@@ -260,6 +260,33 @@ export interface ImportReport {
   outcomes: ImportOutcome[];
 }
 
+export type DestinationKind = "DOMESTIC" | "INTERNATIONAL";
+export type ServiceType = "REGULAR" | "METRO" | "REMOTE";
+
+export interface Destination {
+  id: string;
+  kind: DestinationKind;
+  code: string;
+  name: string;
+  email: string | null;
+  mobile: string | null;
+  countryCode: string;
+  stateCode: string | null;
+  serviceType: ServiceType;
+  isActive: boolean;
+  zone: { id: string; code: string; name: string } | null;
+  mainBranch: { id: string; code: string; name: string } | null;
+  manifestBranch: { id: string; code: string; name: string } | null;
+}
+
+export interface DestinationPage {
+  rows: Destination[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+}
+
 export interface Profile {
   id: string;
   email: string;
@@ -324,6 +351,10 @@ export const getStates = (country: string) =>
   get<StateRow[]>(`/api/v1/masters/states?country=${encodeURIComponent(country)}`);
 export const getDepartments = () => get<Department[]>("/api/v1/masters/departments");
 export const getDesignations = () => get<Designation[]>("/api/v1/masters/designations");
+export const getDestinations = (query: string) =>
+  get<DestinationPage>(`/api/v1/masters/destinations?${query}`);
+export const getDestinationOptions = () =>
+  get<Destination[]>("/api/v1/masters/destinations/options");
 export const getZones = () => get<Zone[]>("/api/v1/masters/zones");
 export const getProducts = () => get<Product[]>("/api/v1/masters/products");
 export const getProductTypes = () => get<Classification[]>("/api/v1/masters/product-types");

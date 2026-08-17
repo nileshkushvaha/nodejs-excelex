@@ -151,7 +151,11 @@ export const NAVIGATION: readonly NavigationSection[] = [
           soon("Service centres", "/network/service-centres", "masters.branch.view"),
           soon("Pin codes", "/network/pincodes", "masters.branch.view"),
           soon("Areas", "/network/areas", "masters.branch.view"),
-          soon("Destinations", "/network/destinations", "masters.branch.view"),
+          {
+            label: "Destinations",
+            href: "/network/destinations",
+            permission: "masters.destination.view",
+          },
           soon("Serviceability", "/network/serviceability", "masters.branch.view"),
         ],
       },
