@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { FormPage } from "@/components/form-page";
-import { getDestinationOptions, getDestinations, getStates, getZones } from "@/lib/api";
+import { getDestination, getDestinationOptions, getStates, getZones } from "@/lib/api";
 import { DestinationForm } from "../destination-form";
 
 export const metadata = { title: "Edit destination · ExcelEx" };
@@ -9,15 +9,15 @@ export const metadata = { title: "Edit destination · ExcelEx" };
 export default async function EditDestinationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [branches, zones, states] = await Promise.all([
+  const [destination, branches, zones, states] = await Promise.all([
+    // One row by id rather than picking it out of the full list: that was fine
+    // at four destinations and wrong at four thousand.
+    getDestination(id),
     getDestinationOptions(),
     getZones(),
     getStates("IN"),
   ]);
 
-  // The options list is already every destination, so the row is found there
-  // rather than by a second query for one record.
-  const destination = branches?.find((row) => row.id === id);
   if (!destination) notFound();
 
   return (

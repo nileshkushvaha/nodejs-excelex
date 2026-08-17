@@ -155,6 +155,25 @@ export class DestinationService {
     });
   }
 
+  /**
+   * One destination by id.
+   *
+   * The edit page previously found its row inside the full options list, which
+   * is fine at four rows and wrong at four thousand: rendering one record
+   * should not read the whole master.
+   */
+  async byId(id: string): Promise<DestinationView | null> {
+    const { clientId } = requireRequestContext();
+
+    return this.prisma.forClient(clientId!, async (tx) => {
+      const row = await tx.destination.findFirst({
+        where: { id, deletedAt: null },
+        include: { zone: true, mainBranch: true, manifestBranch: true },
+      });
+      return row ? toView(row) : null;
+    });
+  }
+
   /** Every destination, for the self-referencing branch pickers and for export. */
   async listAll(kind?: DestinationKind): Promise<DestinationView[]> {
     const { clientId } = requireRequestContext();

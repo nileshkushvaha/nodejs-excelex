@@ -332,6 +332,17 @@ export interface ServiceCentre {
   destination: { id: string; code: string; name: string } | null;
 }
 
+export interface SalesExecutive {
+  id: string;
+  code: string;
+  name: string;
+  /** Exact decimal as a string — see the API for why it is not a number. */
+  commissionPercent: string;
+  email: string | null;
+  mobile: string | null;
+  isActive: boolean;
+}
+
 export interface Profile {
   id: string;
   email: string;
@@ -401,6 +412,10 @@ export const getDestinations = (query: string) =>
 export const getDestinationOptions = () =>
   get<Destination[]>("/api/v1/masters/destinations/options");
 export const getServiceCentres = () => get<ServiceCentre[]>("/api/v1/masters/service-centres");
+export const getSalesExecutives = () =>
+  get<SalesExecutive[]>("/api/v1/masters/sales-executives");
+export const getDestination = (id: string) =>
+  get<Destination>(`/api/v1/masters/destinations/${id}`);
 export const getZones = () => get<Zone[]>("/api/v1/masters/zones");
 export const getProducts = () => get<Product[]>("/api/v1/masters/products");
 export const getProductTypes = () => get<Classification[]>("/api/v1/masters/product-types");

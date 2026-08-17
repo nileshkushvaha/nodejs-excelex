@@ -23,6 +23,7 @@ import { DestinationImportService } from "./import/destination-import.service";
 import { ProductImportService } from "./import/product-import.service";
 import { DestinationService } from "./destination.service";
 import { ProductService } from "./product.service";
+import { SalesExecutiveService } from "./sales-executive.service";
 import { ServiceCentreService } from "./service-centre.service";
 import { ZoneService } from "./zone.service";
 import { ReferenceService } from "./reference.service";
@@ -165,6 +166,34 @@ const serviceCentreSchema = z.object({
   isActive: z.coerce.boolean().default(true),
 });
 
+const salesExecutiveSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .min(2, "A sales executive needs a code.")
+    .max(20)
+    .regex(/^[A-Za-z0-9-]+$/, "A code may use letters, numbers and hyphens only."),
+  name: z.string().trim().min(2, "A sales executive needs a name.").max(120),
+  /**
+   * Validated as a decimal string rather than coerced to a number: the column is
+   * exact decimal because it multiplies invoice amounts, and passing it through
+   * a JavaScript number on the way in would defeat that before it was stored.
+   */
+  commissionPercent: z
+    .string()
+    .trim()
+    .default("0")
+    .refine((value) => /^\d{1,3}(\.\d{1,4})?$/.test(value), {
+      message: "Commission must be a number with up to four decimal places.",
+    })
+    .refine((value) => Number(value) <= 100, {
+      message: "Commission cannot exceed 100% — it is a share of the sale.",
+    }),
+  email: z.string().trim().max(320).nullish().transform((value) => (value ? value : null)),
+  mobile: z.string().trim().max(32).nullish().transform((value) => (value ? value : null)),
+  isActive: z.coerce.boolean().default(true),
+});
+
 function parse<T>(schema: z.ZodType<T>, body: unknown): T {
   const result = schema.safeParse(body);
   if (!result.success) {
@@ -184,7 +213,44 @@ export class MastersController {
     private readonly destinations: DestinationService,
     private readonly destinationImport: DestinationImportService,
     private readonly serviceCentres: ServiceCentreService,
+    private readonly salesExecutives: SalesExecutiveService,
   ) {}
+
+  // ── Sales executives ─────────────────────────────────────────────────────
+  @Get("sales-executives")
+  @RequirePermission("masters.customer.view")
+  listSalesExecutives() {
+    return this.salesExecutives.list();
+  }
+
+  @Post("sales-executives")
+  @RequirePermission("masters.customer.manage")
+  createSalesExecutive(@Body() body: unknown) {
+    return this.salesExecutives.create(parse(salesExecutiveSchema, body));
+  }
+
+  @Put("sales-executives/:id")
+  @RequirePermission("masters.customer.manage")
+  @HttpCode(204)
+  async updateSalesExecutive(@Param("id", ParseUUIDPipe) id: string, @Body() body: unknown) {
+    await this.salesExecutives.update(id, parse(salesExecutiveSchema, body));
+  }
+
+  @Delete("sales-executives/:id")
+  @RequirePermission("masters.customer.manage")
+  @HttpCode(204)
+  async deleteSalesExecutive(@Param("id", ParseUUIDPipe) id: string) {
+    await this.salesExecutives.remove(id);
+  }
+
+  /** One destination by id, for its edit page. */
+  @Get("destinations/:id")
+  @RequirePermission("masters.destination.view")
+  async destinationById(@Param("id", ParseUUIDPipe) id: string) {
+    const row = await this.destinations.byId(id);
+    if (!row) throw new BadRequestException("Destination not found.");
+    return row;
+  }
 
   // ── Service centres ──────────────────────────────────────────────────────
   // Unpaged: a client runs a handful, not thousands. The moment that stops

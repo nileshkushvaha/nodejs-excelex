@@ -1050,3 +1050,36 @@ model ServiceCentre {
   @@index([clientId])
   @@map("service_centres")
 }
+
+/// @scope(client)
+/// A sales executive — the person who owns a customer relationship and, later,
+/// earns commission on what that customer ships.
+model SalesExecutive {
+  id       String @id @default(uuid(7)) @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+
+  code String
+  name String
+
+  /// Commission percentage, exact.
+  ///
+  /// Decimal, not a float: this multiplies invoice amounts, and binary floating
+  /// point cannot represent 2.5% exactly. Four decimal places because brokerage
+  /// splits are quoted in basis points, and the ceiling of 100 is enforced in
+  /// the migration — a commission above the sale is a data-entry error, not a
+  /// business model.
+  commissionPercent Decimal @default(0) @map("commission_percent") @db.Decimal(7, 4)
+
+  email  String?
+  mobile String?
+
+  isActive  Boolean   @default(true) @map("is_active")
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([clientId, code])
+  @@index([clientId, name])
+  @@index([clientId])
+  @@map("sales_executives")
+}

@@ -224,7 +224,11 @@ export const NAVIGATION: readonly NavigationSection[] = [
             href: "/organisation/designations",
             permission: "masters.organisation.view",
           },
-          soon("Sales executives", "/organisation/sales-executives", "settings.user.view"),
+          {
+            label: "Sales executives",
+            href: "/organisation/sales-executives",
+            permission: "masters.customer.view",
+          },
           soon("Field executives", "/organisation/field-executives", "settings.user.view"),
           soon("Industries", "/organisation/industries"),
         ],
