@@ -71,7 +71,7 @@ function RolesSection({
   const [removeState, removeAction] = useActionState(unassignRole, null);
 
   return (
-    <section className="rounded-lg border border-line bg-surface">
+    <section className="card rounded-xl">
       <h2 className="border-b border-line px-4 py-3 text-sm font-semibold text-fg">
         Roles
       </h2>
@@ -185,7 +185,7 @@ function DirectSection({
   const [clearState, clearAction] = useActionState(clearDirectPermission, null);
 
   return (
-    <section className="rounded-lg border border-line bg-surface">
+    <section className="card rounded-xl">
       <div className="border-b border-line px-4 py-3">
         <h2 className="text-sm font-semibold text-fg">Direct permissions</h2>
         <p className="mt-0.5 text-xs text-muted">

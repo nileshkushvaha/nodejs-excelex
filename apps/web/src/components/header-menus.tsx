@@ -57,7 +57,7 @@ function Dropdown({
       {open ? (
         <div
           role="menu"
-          className={`absolute ${align === "right" ? "right-0" : "left-0"} z-50 mt-1 w-60 overflow-hidden rounded-lg border border-line bg-surface py-1 shadow-lg`}
+          className={`absolute ${align === "right" ? "right-0" : "left-0"} z-50 mt-1 w-60 overflow-hidden card rounded-xl py-1 shadow-lg`}
           onClick={() => setOpen(false)}
         >
           {children}

@@ -4,7 +4,7 @@ export const metadata = { title: "Dashboard · ExcelEx" };
 
 function StatCard({ label, value, hint }: { label: string; value: number; hint: string }) {
   return (
-    <div className="rounded-lg border border-line bg-surface p-4">
+    <div className="card rounded-xl p-4">
       <p className="text-xs font-medium uppercase tracking-wide text-muted">{label}</p>
       <p className="mt-1.5 text-2xl font-semibold tabular-nums text-fg">{value}</p>
       <p className="mt-0.5 text-xs text-faint">{hint}</p>
@@ -40,7 +40,7 @@ export default async function DashboardPage() {
             />
           </section>
 
-          <section className="mt-6 rounded-lg border border-line bg-surface">
+          <section className="mt-6 card rounded-xl">
             <h2 className="border-b border-line px-4 py-3 text-sm font-semibold text-fg">
               Recent activity
             </h2>

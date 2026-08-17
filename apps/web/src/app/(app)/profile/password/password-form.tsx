@@ -108,7 +108,7 @@ export function PasswordForm({ policy }: { policy: PasswordPolicy | null }) {
         <button
           type="submit"
           disabled={pending}
-          className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-strong disabled:opacity-60"
+          className="btn-primary rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-60"
         >
           {pending ? "Changing…" : "Change password"}
         </button>

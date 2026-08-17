@@ -85,7 +85,7 @@ export function CommandPalette({ permissions }: { permissions: string[] }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex h-10 w-full max-w-lg items-center gap-2.5 rounded-lg border border-line bg-surface px-3 text-left text-sm text-faint transition-colors hover:border-line-strong focus-visible:outline-2 focus-visible:outline-accent"
+        className="flex h-10 w-full max-w-lg items-center gap-2.5 card rounded-xl px-3 text-left text-sm text-faint transition-colors hover:border-line-strong focus-visible:outline-2 focus-visible:outline-accent"
       >
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="h-4 w-4 shrink-0">
           <path d="M10 2a8 8 0 105.3 14l4.4 4.3 1.4-1.4-4.3-4.3A8 8 0 0010 2zm0 2a6 6 0 110 12 6 6 0 010-12z" />
@@ -103,7 +103,7 @@ export function CommandPalette({ permissions }: { permissions: string[] }) {
           role="presentation"
         >
           <div
-            className="w-full max-w-lg overflow-hidden rounded-xl border border-line bg-surface shadow-2xl"
+            className="w-full max-w-lg overflow-hidden card rounded-xl shadow-2xl"
             onClick={(event) => event.stopPropagation()}
             role="dialog"
             aria-modal="true"

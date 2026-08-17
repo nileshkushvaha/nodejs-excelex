@@ -1,64 +1,90 @@
 @import "tailwindcss";
 
 /**
- * Theme tokens.
+ * ExcelEx theme.
  *
- * Every surface, border and text colour in the application is named by role —
- * surface, line, fg, muted — never by a literal shade. That is what makes a
- * second theme possible at all: the alternative is 15 screens of hard-coded
- * bg-white, each of which has to be found and paired with a dark: variant, and
- * the one that gets missed is invisible until someone with dark mode on opens
- * that screen.
+ * The palette is taken from the brand: deep navy through royal blue into cyan
+ * and mint. Those four are the identity; everything else on screen is a neutral
+ * that stays out of their way.
  *
- * Dark mode is class-based rather than prefers-color-scheme, because the user
- * chooses it explicitly in the header and that choice has to survive a machine
- * whose OS says otherwise.
+ * Every surface, border and text colour is named by role — surface, line, fg,
+ * muted — never by a literal shade. That is what makes a second theme possible
+ * at all: the alternative is fifteen screens of hard-coded colours, and the one
+ * that gets missed is invisible until someone opens that screen in dark mode.
  */
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  /* Page background, and the raised surfaces on top of it. */
-  --canvas: #f8fafc; /* slate-50  */
+  /* ── Brand ─────────────────────────────────────────────────────────────── */
+  --brand-navy: #0f2f7f;
+  --brand-blue: #1e48d6;
+  --brand-bright: #2f6bff;
+  --brand-cyan: #17a9c9;
+  --brand-mint: #4fd6c0;
+
+  /* Used for the logo tile, primary buttons and the active nav pill. The angle
+     matches the sweep on the brand card rather than a default 90deg. */
+  --brand-gradient: linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-blue) 45%, var(--brand-cyan) 100%);
+  --brand-gradient-soft: linear-gradient(135deg, rgba(30, 72, 214, 0.1) 0%, rgba(23, 169, 201, 0.1) 100%);
+
+  /* ── Neutrals ──────────────────────────────────────────────────────────── */
+  --canvas: #f6f8fc;
   --surface: #ffffff;
-  --surface-2: #f8fafc; /* inset panels, table headers, chips */
-  --surface-3: #f1f5f9; /* slate-100 — hover states */
+  --surface-2: #f4f7fb;
+  --surface-3: #e8eef7;
 
-  --line: #e2e8f0; /* slate-200 — card and table borders */
-  --line-soft: #f1f5f9; /* slate-100 — row dividers */
-  --line-strong: #cbd5e1; /* slate-300 — input borders */
+  --line: #dfe7f2;
+  --line-soft: #eef3f9;
+  --line-strong: #c7d4e6;
 
-  --fg: #0f172a; /* slate-900 — body text and headings */
-  --fg-muted: #64748b; /* slate-500 — secondary text */
-  --fg-faint: #94a3b8; /* slate-400 — placeholders, disabled */
+  --fg: #0c1c3d;
+  --fg-muted: #5a6b88;
+  --fg-faint: #90a0b8;
 
-  --accent: #0284c7; /* sky-600 */
-  --accent-strong: #0369a1; /* sky-700 — hover */
+  /* ── Accent, derived from the brand ────────────────────────────────────── */
+  --accent: var(--brand-blue);
+  --accent-strong: var(--brand-navy);
   --accent-fg: #ffffff;
-  --accent-soft: #e0f2fe; /* sky-100 — focus rings, active nav */
-  --accent-text: #0369a1;
+  --accent-soft: #e3ecff;
+  --accent-text: #1a3fc0;
+
+  --ring: rgba(30, 72, 214, 0.18);
+  --shadow-brand: 0 8px 24px -8px rgba(15, 47, 127, 0.35);
 
   color-scheme: light;
 }
 
 .dark {
-  --canvas: #020617; /* slate-950 */
-  --surface: #0f172a; /* slate-900 */
-  --surface-2: #1e293b; /* slate-800 */
-  --surface-3: #334155; /* slate-700 */
+  --brand-navy: #0a2360;
+  --brand-blue: #2f5ce8;
+  --brand-bright: #4d84ff;
+  --brand-cyan: #22bcd8;
+  --brand-mint: #63e0c8;
 
-  --line: #1e293b;
-  --line-soft: #1e293b;
-  --line-strong: #334155;
+  --brand-gradient: linear-gradient(135deg, #0a2360 0%, #2f5ce8 50%, #22bcd8 100%);
+  --brand-gradient-soft: linear-gradient(135deg, rgba(47, 92, 232, 0.16) 0%, rgba(34, 188, 216, 0.16) 100%);
 
-  --fg: #e2e8f0;
-  --fg-muted: #94a3b8;
-  --fg-faint: #64748b;
+  --canvas: #060d1f;
+  --surface: #0d1730;
+  --surface-2: #142042;
+  --surface-3: #1e2d54;
 
-  --accent: #0284c7;
-  --accent-strong: #0369a1;
+  --line: #1c2a4d;
+  --line-soft: #16223f;
+  --line-strong: #2a3b63;
+
+  --fg: #e6edf9;
+  --fg-muted: #93a3c0;
+  --fg-faint: #6a7b9c;
+
+  --accent: #3b6bf0;
+  --accent-strong: #2f5ce8;
   --accent-fg: #ffffff;
-  --accent-soft: #0c4a6e;
-  --accent-text: #38bdf8; /* sky-400 — needs to lift off a dark surface */
+  --accent-soft: #16305e;
+  --accent-text: #7fb0ff;
+
+  --ring: rgba(77, 132, 255, 0.28);
+  --shadow-brand: 0 8px 28px -10px rgba(0, 0, 0, 0.7);
 
   color-scheme: dark;
 }
@@ -82,6 +108,11 @@
   --color-accent-fg: var(--accent-fg);
   --color-accent-soft: var(--accent-soft);
   --color-accent-text: var(--accent-text);
+
+  --color-brand-navy: var(--brand-navy);
+  --color-brand-blue: var(--brand-blue);
+  --color-brand-cyan: var(--brand-cyan);
+  --color-brand-mint: var(--brand-mint);
 
   --font-sans:
     ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
@@ -118,8 +149,6 @@ body {
     -webkit-text-fill-color: var(--fg-muted); /* Safari ignores colour when disabled. */
   }
 
-  /* Chrome repaints autofilled fields with its own background and text colour,
-     which no ordinary rule overrides. */
   input:-webkit-autofill,
   input:-webkit-autofill:hover,
   input:-webkit-autofill:focus {
@@ -129,10 +158,157 @@ body {
   }
 
   :focus-visible {
+    outline: 2px solid var(--accent);
     outline-offset: 1px;
   }
+}
 
-  /* Theme switches instantly. A transition here would make every surface on the
-     page cross-fade at once, which reads as a rendering fault rather than a
-     deliberate change. */
+@layer components {
+  /* The brand sweep, for the logo tile and anything that should read as
+     identity rather than as a control. */
+  .brand-gradient {
+    background-image: var(--brand-gradient);
+  }
+
+  .brand-gradient-soft {
+    background-image: var(--brand-gradient-soft);
+  }
+
+  /* Gradient text for headline numbers. -webkit-background-clip is still the
+     only form Safari accepts, so both are set. */
+  .brand-text {
+    background-image: var(--brand-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /**
+   * Primary action.
+   *
+   * The lift on hover is 1px. Anything more makes a dense admin screen feel
+   * unstable when the pointer crosses a toolbar, and this product is used all
+   * day by people who are not looking at the button they are about to press.
+   */
+  .btn-primary {
+    background-image: var(--brand-gradient);
+    color: #ffffff;
+    box-shadow: var(--shadow-brand);
+    transition:
+      transform 150ms ease,
+      box-shadow 150ms ease,
+      filter 150ms ease;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+    filter: saturate(1.15) brightness(1.05);
+  }
+
+  .btn-primary:active:not(:disabled) {
+    transform: translateY(0);
+    filter: brightness(0.95);
+  }
+
+  .btn-primary:disabled {
+    filter: grayscale(0.4);
+    opacity: 0.6;
+    box-shadow: none;
+  }
+
+  .btn-secondary {
+    border: 1px solid var(--line-strong);
+    background-color: var(--surface);
+    color: var(--fg);
+    transition:
+      border-color 150ms ease,
+      background-color 150ms ease,
+      transform 150ms ease;
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    border-color: var(--accent);
+    background-color: var(--surface-2);
+  }
+
+  /** A raised panel that responds to the pointer without moving under it. */
+  .card {
+    background-color: var(--surface);
+    border: 1px solid var(--line);
+    transition:
+      border-color 200ms ease,
+      box-shadow 200ms ease;
+  }
+
+  .card-interactive:hover {
+    border-color: var(--line-strong);
+    box-shadow: 0 4px 16px -6px rgba(15, 47, 127, 0.18);
+  }
+
+  /* The active navigation item: a soft brand wash with a solid brand rule down
+     the leading edge, so the current page is identifiable at a glance and not
+     only by colour. */
+  .nav-active {
+    background-image: var(--brand-gradient-soft);
+    box-shadow: inset 2px 0 0 0 var(--brand-cyan);
+  }
+
+  .row-hover {
+    transition: background-color 120ms ease;
+  }
+}
+
+@layer utilities {
+  @keyframes excelex-fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes excelex-scale-in {
+    from {
+      opacity: 0;
+      transform: scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .animate-fade-up {
+    animation: excelex-fade-up 220ms ease-out both;
+  }
+
+  .animate-scale-in {
+    animation: excelex-scale-in 160ms ease-out both;
+  }
+}
+
+/**
+ * Motion is a preference, not a decoration.
+ *
+ * Reduced motion is set by people who get migraines or nausea from movement,
+ * and an admin tool used all day is exactly where that matters. Transitions
+ * are not removed — a colour change still needs to read as a change — they are
+ * shortened to the point of being instant, and transforms are dropped.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .btn-primary:hover:not(:disabled),
+  .btn-primary:active:not(:disabled) {
+    transform: none;
+  }
 }

@@ -31,7 +31,7 @@ export function Card({
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} className="scroll-mt-6 rounded-xl border border-line bg-surface">
+    <section id={id} className="scroll-mt-6 card rounded-xl">
       <div className="border-b border-line px-5 py-3.5">
         <h2 className="text-sm font-semibold text-fg">{title}</h2>
         {description ? <p className="mt-0.5 text-xs text-muted">{description}</p> : null}

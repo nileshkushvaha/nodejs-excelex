@@ -48,14 +48,14 @@ export function RolesManager({
                 setCreating(true);
                 setSelectedId(null);
               }}
-              className="rounded bg-accent px-2 py-1 text-xs font-medium text-white hover:bg-accent-strong"
+              className="btn-primary rounded px-2 py-1 text-xs font-medium"
             >
               New role
             </button>
           ) : null}
         </div>
 
-        <ul className="overflow-hidden rounded-lg border border-line bg-surface">
+        <ul className="overflow-hidden card rounded-xl">
           {roles.map((role) => (
             <li key={role.id}>
               <button
@@ -116,7 +116,7 @@ function CreateRoleForm({
   const [state, action, pending] = useActionState(createRole, null);
 
   return (
-    <form action={action} className="space-y-4 rounded-lg border border-line bg-surface p-5">
+    <form action={action} className="space-y-4 card rounded-xl p-5">
       <h2 className="text-base font-semibold text-fg">New role</h2>
       <Feedback state={state} />
 
@@ -152,14 +152,14 @@ function CreateRoleForm({
         <button
           type="submit"
           disabled={pending}
-          className="rounded bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-strong disabled:opacity-60"
+          className="btn-primary rounded-lg px-3 py-2 text-sm font-medium disabled:opacity-60"
         >
           {pending ? "Creating…" : "Create role"}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="rounded border border-line-strong px-3 py-2 text-sm font-medium text-fg hover:bg-surface-2"
+          className="btn-secondary rounded-lg px-3 py-2 text-sm font-medium"
         >
           Cancel
         </button>
@@ -182,7 +182,7 @@ function EditRoleForm({
 
   return (
     <div className="space-y-4">
-      <form action={action} className="space-y-4 rounded-lg border border-line bg-surface p-5">
+      <form action={action} className="space-y-4 card rounded-xl p-5">
         <input type="hidden" name="roleId" value={role.id} />
 
         <div className="flex items-start justify-between gap-4">
@@ -210,7 +210,7 @@ function EditRoleForm({
           <button
             type="submit"
             disabled={pending}
-            className="rounded bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-strong disabled:opacity-60"
+            className="btn-primary rounded-lg px-3 py-2 text-sm font-medium disabled:opacity-60"
           >
             {pending ? "Saving…" : "Save permissions"}
           </button>

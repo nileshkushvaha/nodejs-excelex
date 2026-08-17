@@ -236,6 +236,30 @@ export interface Product {
   productGroup: { id: string; name: string } | null;
 }
 
+export interface Zone {
+  id: string;
+  code: string;
+  name: string;
+  isActive: boolean;
+}
+
+export interface ImportOutcome {
+  row: number;
+  status: "create" | "update" | "error";
+  code: string;
+  message?: string;
+}
+
+export interface ImportReport {
+  mode: "preview" | "commit";
+  total: number;
+  created: number;
+  updated: number;
+  failed: number;
+  aborted: boolean;
+  outcomes: ImportOutcome[];
+}
+
 export interface Profile {
   id: string;
   email: string;
@@ -300,6 +324,7 @@ export const getStates = (country: string) =>
   get<StateRow[]>(`/api/v1/masters/states?country=${encodeURIComponent(country)}`);
 export const getDepartments = () => get<Department[]>("/api/v1/masters/departments");
 export const getDesignations = () => get<Designation[]>("/api/v1/masters/designations");
+export const getZones = () => get<Zone[]>("/api/v1/masters/zones");
 export const getProducts = () => get<Product[]>("/api/v1/masters/products");
 export const getProductTypes = () => get<Classification[]>("/api/v1/masters/product-types");
 export const getProductGroups = () => get<Classification[]>("/api/v1/masters/product-groups");

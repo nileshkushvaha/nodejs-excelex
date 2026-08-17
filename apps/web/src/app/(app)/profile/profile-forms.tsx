@@ -103,7 +103,7 @@ function DetailsCard({ profile }: { profile: Profile }) {
         <button
           type="submit"
           disabled={pending}
-          className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-strong disabled:opacity-60"
+          className="btn-primary rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-60"
         >
           {pending ? "Saving…" : "Save changes"}
         </button>
@@ -158,7 +158,7 @@ function SessionsCard({ sessions }: { sessions: ActiveSession[] }) {
           <button
             type="submit"
             disabled={pending}
-            className="mt-2 rounded-lg border border-line-strong px-3 py-1.5 text-sm font-medium text-fg transition-colors hover:bg-surface-2 disabled:opacity-60"
+            className="mt-2 btn-secondary rounded-lg px-3 py-1.5 text-sm font-medium disabled:opacity-60"
           >
             {pending
               ? "Signing out…"

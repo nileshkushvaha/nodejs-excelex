@@ -48,7 +48,7 @@ export function DesignationsManager({
             <button
               type="button"
               onClick={() => setCreating(true)}
-              className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-strong"
+              className="btn-primary rounded-lg px-3 py-2 text-sm font-medium"
             >
               New designation
             </button>
@@ -262,14 +262,14 @@ function DesignationDialog({
           <button
             type="submit"
             disabled={pending}
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-strong disabled:opacity-60"
+            className="btn-primary rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-60"
           >
             {pending ? "Saving…" : designation ? "Save changes" : "Create designation"}
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-line-strong px-4 py-2 text-sm font-medium text-fg hover:bg-surface-2"
+            className="btn-secondary rounded-lg px-4 py-2 text-sm font-medium"
           >
             Cancel
           </button>

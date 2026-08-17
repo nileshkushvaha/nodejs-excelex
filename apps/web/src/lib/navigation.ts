@@ -161,7 +161,7 @@ export const NAVIGATION: readonly NavigationSection[] = [
         children: [
           { label: "Countries", href: "/geography/countries" },
           { label: "States", href: "/geography/states" },
-          soon("Zones", "/geography/zones", "masters.rate.view"),
+          { label: "Zones", href: "/geography/zones", permission: "masters.rate.view" },
         ],
       },
       {

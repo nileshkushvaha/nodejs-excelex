@@ -22,7 +22,7 @@ export default async function LoginPage() {
           <p className="mt-1 text-sm text-muted">Courier operations</p>
         </div>
 
-        <div className="rounded-lg border border-line bg-surface p-6 shadow-sm">
+        <div className="card rounded-xl p-6 shadow-sm">
           <LoginForm />
         </div>
 

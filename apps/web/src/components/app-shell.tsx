@@ -166,7 +166,7 @@ function Notifications() {
         <div
           role="dialog"
           aria-label="Notifications"
-          className="absolute right-0 z-50 mt-1 w-72 rounded-lg border border-line bg-surface p-4 shadow-lg"
+          className="absolute right-0 z-50 mt-1 w-72 card rounded-xl p-4 shadow-lg"
         >
           <p className="text-sm font-medium text-fg">No notifications</p>
           <p className="mt-1 text-xs text-muted">
@@ -242,7 +242,7 @@ function UserMenu({ user }: { user: { fullName: string; email: string } }) {
       {open ? (
         <div
           role="menu"
-          className="absolute right-0 z-50 mt-1 w-56 overflow-hidden rounded-lg border border-line bg-surface py-1 shadow-lg"
+          className="absolute right-0 z-50 mt-1 w-56 overflow-hidden card rounded-xl py-1 shadow-lg"
         >
           <div className="border-b border-line-soft px-3 py-2">
             <p className="truncate text-sm font-medium text-fg">{user.fullName}</p>

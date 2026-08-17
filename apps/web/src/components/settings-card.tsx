@@ -10,7 +10,7 @@ export function SettingsCard({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-lg border border-line bg-surface">
+    <section className="card rounded-xl">
       <div className="border-b border-line px-5 py-3">
         <h2 className="text-sm font-semibold text-fg">{title}</h2>
         <p className="mt-0.5 text-xs text-muted">{description}</p>
@@ -61,7 +61,7 @@ export function SaveBar({
       <button
         type="submit"
         disabled={pending}
-        className="rounded bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-strong disabled:opacity-60"
+        className="btn-primary rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-60"
       >
         {pending ? "Saving…" : "Save settings"}
       </button>

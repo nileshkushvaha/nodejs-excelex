@@ -7,6 +7,7 @@ import { ActiveBadge, MasterTable } from "@/components/master-table";
 import { Toggle } from "@/components/toggle";
 import type { Classification, Product } from "@/lib/api";
 import { deleteProduct, saveProduct } from "./actions";
+import { ImportDialog } from "./import-dialog";
 
 const field =
   "w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent-soft";
@@ -24,6 +25,7 @@ export function ProductsManager({
 }) {
   const [editing, setEditing] = useState<Product | null>(null);
   const [creating, setCreating] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [removeState, removeAction] = useActionState(deleteProduct, null);
 
   return (
@@ -47,13 +49,22 @@ export function ProductsManager({
         empty="No products yet."
         actions={
           canManage ? (
-            <button
-              type="button"
-              onClick={() => setCreating(true)}
-              className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-strong"
-            >
-              New product
-            </button>
+            <span className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setImporting(true)}
+                className="btn-secondary rounded-lg px-3 py-2 text-sm font-medium"
+              >
+                Import
+              </button>
+              <button
+                type="button"
+                onClick={() => setCreating(true)}
+                className="btn-primary rounded-lg px-3 py-2 text-sm font-medium"
+              >
+                New product
+              </button>
+            </span>
           ) : null
         }
         columns={[
@@ -148,6 +159,8 @@ export function ProductsManager({
           },
         ]}
       />
+
+      <ImportDialog open={importing} onClose={() => setImporting(false)} />
 
       <ProductDialog
         key={editing?.id ?? "new"}
@@ -335,14 +348,14 @@ function ProductDialog({
           <button
             type="submit"
             disabled={pending}
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-strong disabled:opacity-60"
+            className="btn-primary rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-60"
           >
             {pending ? "Saving…" : product ? "Save changes" : "Create product"}
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-line-strong px-4 py-2 text-sm font-medium text-fg hover:bg-surface-2"
+            className="btn-secondary rounded-lg px-4 py-2 text-sm font-medium"
           >
             Close
           </button>

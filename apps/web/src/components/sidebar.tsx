@@ -229,7 +229,7 @@ function GroupNode({
           onMouseEnter={openFlyout}
           onMouseLeave={closeFlyoutSoon}
         >
-          <div className="min-w-52 overflow-hidden rounded-lg border border-line bg-surface py-1 shadow-xl">
+          <div className="min-w-52 overflow-hidden card rounded-xl py-1 shadow-xl">
             <p className="px-3 pb-1 pt-1.5 text-[10px] font-semibold uppercase tracking-wider text-faint">
               {section} · {group.label}
             </p>

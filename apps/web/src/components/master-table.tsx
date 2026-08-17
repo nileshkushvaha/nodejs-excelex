@@ -68,7 +68,7 @@ export function MasterTable<T>({
         {actions}
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-line bg-surface">
+      <div className="overflow-hidden card rounded-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="border-b border-line bg-surface-2 text-left text-xs uppercase tracking-wide text-muted">

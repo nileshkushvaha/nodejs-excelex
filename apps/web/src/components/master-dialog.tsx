@@ -46,7 +46,7 @@ export function MasterDialog({
       // m-auto is not decoration: a native <dialog> is centred by its UA
       // `margin: auto`, which Tailwind's preflight resets to 0 — leaving every
       // modal pinned to the top-left corner.
-      className="m-auto w-full max-w-lg rounded-xl border border-line bg-surface p-0 text-fg backdrop:bg-slate-950/60"
+      className="m-auto w-full max-w-lg card rounded-xl p-0 text-fg backdrop:bg-slate-950/60"
     >
       <div className="border-b border-line px-5 py-3.5">
         <h2 className="text-sm font-semibold text-fg">{title}</h2>

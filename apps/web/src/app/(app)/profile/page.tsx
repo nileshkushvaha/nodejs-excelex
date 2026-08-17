@@ -32,7 +32,7 @@ export default async function ProfilePage() {
         </div>
         <Link
           href="/profile/password"
-          className="shrink-0 rounded-lg border border-line-strong px-3 py-2 text-sm font-medium text-fg transition-colors hover:bg-surface-2"
+          className="shrink-0 btn-secondary rounded-lg px-3 py-2 text-sm font-medium"
         >
           Change password
         </Link>
