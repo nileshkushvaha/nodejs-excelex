@@ -23,7 +23,7 @@ export default async function DashboardPage() {
   const [session, summary] = await Promise.all([getCurrentSession(), getDashboardSummary()]);
 
   return (
-    <div className="mx-auto max-w-5xl animate-fade-up">
+    <div className="animate-fade-up">
       <header className="mb-6">
         <h1 className="text-2xl font-semibold tracking-tight text-fg">
           Good to see you, {session?.user.fullName.split(" ")[0]}

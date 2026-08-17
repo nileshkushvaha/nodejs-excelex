@@ -24,7 +24,7 @@ export function FormPage({
   children: ReactNode;
 }) {
   return (
-    <div className="mx-auto max-w-5xl animate-fade-up">
+    <div className="animate-fade-up">
       <Link
         href={backHref}
         className="inline-flex items-center gap-1 text-xs text-muted transition-colors hover:text-fg"

@@ -17,7 +17,7 @@ export default async function UsersPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl animate-fade-up">
+    <div className="animate-fade-up">
       <header className="mb-5">
         <h1 className="text-2xl font-semibold tracking-tight text-fg">Users</h1>
         <p className="mt-0.5 text-sm text-muted">

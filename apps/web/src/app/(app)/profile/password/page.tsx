@@ -9,7 +9,7 @@ export default async function ChangePasswordPage() {
   const policy = await getPasswordPolicy();
 
   return (
-    <div className="mx-auto max-w-2xl animate-fade-up">
+    <div className="animate-fade-up">
       <Link href="/profile" className="text-xs text-muted hover:underline">
         ← My profile
       </Link>

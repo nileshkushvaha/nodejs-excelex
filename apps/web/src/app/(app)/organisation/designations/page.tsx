@@ -19,7 +19,7 @@ export default async function DesignationsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl animate-fade-up">
+    <div className="animate-fade-up">
       <header className="mb-5">
         <h1 className="text-2xl font-semibold tracking-tight text-fg">Designations</h1>
         <p className="mt-0.5 text-sm text-muted">

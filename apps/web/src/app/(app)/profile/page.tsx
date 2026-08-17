@@ -21,7 +21,7 @@ export default async function ProfilePage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl animate-fade-up">
+    <div className="animate-fade-up">
       <header className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-fg">My profile</h1>

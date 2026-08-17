@@ -96,7 +96,13 @@ export function AppShell({
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6">{children}</main>
+        {/* One content width for every page. Lists and forms previously chose
+            their own — four different values between them — so moving from a
+            list to its edit form visibly shifted the page under the pointer.
+            Setting it here means a new page inherits it rather than guessing. */}
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
+          <div className="mx-auto w-full max-w-7xl">{children}</div>
+        </main>
       </div>
     </div>
   );
