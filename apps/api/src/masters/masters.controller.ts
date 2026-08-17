@@ -4,18 +4,24 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   HttpCode,
   Param,
   ParseUUIDPipe,
   Post,
   Put,
   Query,
+  UploadedFile,
+  UseInterceptors,
 } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
 import { z } from "zod";
 
 import { RequirePermission } from "../auth/auth.guard";
 import { OrganisationService } from "./organisation.service";
+import { ProductImportService } from "./import/product-import.service";
 import { ProductService } from "./product.service";
+import { ZoneService } from "./zone.service";
 import { ReferenceService } from "./reference.service";
 
 const departmentSchema = z.object({
@@ -53,6 +59,17 @@ const productSchema = z.object({
   isActive: z.coerce.boolean(),
 });
 
+const zoneSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .min(1, "A zone needs a code.")
+    .max(20)
+    .regex(/^[A-Za-z0-9-]+$/, "A code may use letters, numbers and hyphens only."),
+  name: z.string().trim().min(2, "A zone needs a name.").max(80),
+  isActive: z.coerce.boolean().default(true),
+});
+
 function parse<T>(schema: z.ZodType<T>, body: unknown): T {
   const result = schema.safeParse(body);
   if (!result.success) {
@@ -67,7 +84,36 @@ export class MastersController {
     private readonly reference: ReferenceService,
     private readonly organisation: OrganisationService,
     private readonly products: ProductService,
+    private readonly productImport: ProductImportService,
+    private readonly zones: ZoneService,
   ) {}
+
+  // ── Zones ────────────────────────────────────────────────────────────────
+  @Get("zones")
+  @RequirePermission("masters.rate.view")
+  listZones() {
+    return this.zones.list();
+  }
+
+  @Post("zones")
+  @RequirePermission("masters.rate.manage")
+  createZone(@Body() body: unknown) {
+    return this.zones.create(parse(zoneSchema, body));
+  }
+
+  @Put("zones/:id")
+  @RequirePermission("masters.rate.manage")
+  @HttpCode(204)
+  async updateZone(@Param("id", ParseUUIDPipe) id: string, @Body() body: unknown) {
+    await this.zones.update(id, parse(zoneSchema, body));
+  }
+
+  @Delete("zones/:id")
+  @RequirePermission("masters.rate.manage")
+  @HttpCode(204)
+  async deleteZone(@Param("id", ParseUUIDPipe) id: string) {
+    await this.zones.remove(id);
+  }
 
   // ── Reference data ───────────────────────────────────────────────────────
   // No permission required. Every address form in the product needs these, and
@@ -129,6 +175,50 @@ export class MastersController {
       productGroupId: data.productGroupId ?? null,
       service: data.service ?? null,
     });
+  }
+
+  /**
+   * Preview or commit a spreadsheet import.
+   *
+   * The mode is explicit rather than inferred: an import that writes because a
+   * query parameter was omitted is the kind of default nobody wants to discover
+   * afterwards. Preview is the default for the same reason.
+   */
+  @Post("products/import")
+  @RequirePermission("masters.product.manage")
+  @UseInterceptors(
+    FileInterceptor("file", {
+      // Held in memory rather than written to disk: nothing here needs to
+      // outlive the request, and a temp file is one more thing to clean up and
+      // one more place a client's data can be left behind.
+      limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+    }),
+  )
+  importProducts(
+    @UploadedFile() file: { buffer: Buffer; originalname: string } | undefined,
+    @Query("mode") mode?: string,
+  ) {
+    if (!file) throw new BadRequestException("Attach a .xlsx or .csv file.");
+
+    const name = file.originalname.toLowerCase();
+    if (!name.endsWith(".xlsx") && !name.endsWith(".csv")) {
+      throw new BadRequestException("Only .xlsx and .csv files are accepted.");
+    }
+
+    return this.productImport.run(
+      file.buffer,
+      file.originalname,
+      mode === "commit" ? "commit" : "preview",
+    );
+  }
+
+  /** A blank file with the accepted headings, so nobody has to guess them. */
+  @Get("products/import/template")
+  @RequirePermission("masters.product.view")
+  @Header("content-type", "text/csv; charset=utf-8")
+  @Header("content-disposition", 'attachment; filename="product-import-template.csv"')
+  productTemplate(): string {
+    return `${ProductImportService.TEMPLATE_HEADERS.join(",")}\nSFC,Surface,Domestic,Surface,,NDOX,Yes,No,Active\n`;
   }
 
   @Delete("products/:id")
