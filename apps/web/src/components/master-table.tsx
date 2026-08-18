@@ -12,12 +12,34 @@ export function MasterTable<T>({
   columns,
   empty,
   rowKey,
+  stickyLastColumn = true,
 }: {
   rows: readonly T[];
   columns: ReadonlyArray<{ header: string; cell: (row: T) => ReactNode; className?: string }>;
   empty: string;
   rowKey: (row: T) => string;
+  /**
+   * Pins the last column to the right edge while the rest scrolls.
+   *
+   * On by default because every list here ends with Edit and Delete, and a
+   * wide table scrolls them out of view — the most-used column being the
+   * first to disappear. Caught in the browser: a seven-column fuel surcharge
+   * table was 763px inside a 641px card, and the actions were simply gone.
+   *
+   * Off for a table whose last column is data rather than controls.
+   */
+  stickyLastColumn?: boolean;
 }) {
+  const lastIndex = columns.length - 1;
+
+  // The pinned cell needs its own background, or the scrolling content shows
+  // through it. It matches the row underneath, hover included.
+  const pinned = (index: number, tone: "head" | "body") =>
+    stickyLastColumn && index === lastIndex
+      ? tone === "head"
+        ? "sticky right-0 z-10 bg-surface-3 shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.25)]"
+        : "sticky right-0 z-10 bg-surface shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.25)] group-hover:bg-surface-2"
+      : "";
 
   return (
     <div>
@@ -26,8 +48,11 @@ export function MasterTable<T>({
           <table className="w-full text-sm">
             <thead className="brand-gradient-soft border-b border-line text-left text-xs font-semibold uppercase tracking-wide text-muted">
               <tr>
-                {columns.map((column) => (
-                  <th key={column.header} className={`px-4 py-2.5 font-medium ${column.className ?? ""}`}>
+                {columns.map((column, index) => (
+                  <th
+                    key={column.header}
+                    className={`px-4 py-2.5 font-medium ${column.className ?? ""} ${pinned(index, "head")}`}
+                  >
                     {column.header}
                   </th>
                 ))}
@@ -42,9 +67,12 @@ export function MasterTable<T>({
                 </tr>
               ) : (
                 rows.map((row) => (
-                  <tr key={rowKey(row)} className="row-hover hover:bg-surface-2">
-                    {columns.map((column) => (
-                      <td key={column.header} className={`px-4 py-2.5 ${column.className ?? ""}`}>
+                  <tr key={rowKey(row)} className="group row-hover hover:bg-surface-2">
+                    {columns.map((column, index) => (
+                      <td
+                        key={column.header}
+                        className={`px-4 py-2.5 ${column.className ?? ""} ${pinned(index, "body")}`}
+                      >
                         {column.cell(row)}
                       </td>
                     ))}
