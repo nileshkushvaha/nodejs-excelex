@@ -34,9 +34,11 @@ export function BoundaryError({
   actions?: ReactNode;
 }) {
   useEffect(() => {
-    // Until an error reporter is wired up, the console is the log. Kept out
-    // of render so it fires once rather than on every re-render.
+    // The console is always the local log; the reporter, when configured
+    // (instrumentation-client.ts), gets the same error under the same
+    // reference the person sees. Kept out of render so it fires once.
     console.error(error);
+    window.__excelexReport?.(error, error.digest);
   }, [error]);
 
   const development = process.env.NODE_ENV !== "production";

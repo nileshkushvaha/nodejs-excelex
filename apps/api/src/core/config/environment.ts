@@ -106,6 +106,18 @@ const environmentSchema = z
      * development. Structured JSON output follows NODE_ENV, not this.
      */
     LOG_LEVEL: z.enum(["fatal", "error", "warn", "log", "debug", "verbose"]).optional(),
+
+    /**
+     * Where server-side failures are reported besides the log. Unset, nothing
+     * is sent anywhere. The environment name defaults to NODE_ENV; the
+     * release to the git SHA the deployment sets, so a report says which
+     * build it came from.
+     */
+    SENTRY_DSN: z.string().url().optional(),
+    SENTRY_ENVIRONMENT: z.string().min(1).optional(),
+    SENTRY_RELEASE: z.string().min(1).optional(),
+    /** 0 by default: error reporting, not performance tracing. */
+    SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== "production") return;

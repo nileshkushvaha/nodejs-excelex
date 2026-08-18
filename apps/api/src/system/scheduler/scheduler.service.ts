@@ -4,6 +4,7 @@ import { Inject, Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } f
 
 import { ENVIRONMENT, type Environment } from "../../core/config/environment";
 import { PrismaService } from "../../core/database/prisma.service";
+import { ErrorReporter } from "../../core/observability/error-reporter";
 import { logEvent } from "../../core/observability/log-event";
 import { RedisService } from "../../core/redis/redis.service";
 import type { JobName, QueueName } from "../../jobs/job.types";
@@ -55,6 +56,7 @@ export class SchedulerService implements OnApplicationBootstrap, OnModuleDestroy
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
     private readonly queues: QueueService,
+    private readonly reporter: ErrorReporter,
   ) {}
 
   get enabled(): boolean {
@@ -118,6 +120,12 @@ export class SchedulerService implements OnApplicationBootstrap, OnModuleDestroy
         try {
           if (await this.dispatch(schedule, now)) dispatched += 1;
         } catch (error) {
+          this.reporter.captureException(error, {
+            event: "scheduler.dispatch_failed",
+            clientId: schedule.clientId,
+            code: `schedule:${schedule.jobName}`,
+            extra: { scheduleId: schedule.id, schedule: schedule.name },
+          });
           logEvent(
             this.logger,
             "error",

@@ -10,6 +10,14 @@ A reference looks like `9aa49961-f760-4659-85c6-89d5a88d3c4f`. It appears on err
 2. **What the request did before it failed.** The Activity Log (`/system/activity`) and Login History (`/system/login-history`) screens store the same id on their rows (`requestId`); filter or search by it to see any audit event the request wrote.
 3. **Whether it is a pattern.** Application Performance (`/system/performance`) lists the most recent server-side failures with their code and reference, and `excelex_http_errors_total{code,status}` in Prometheus counts them.
 
+## Error reporting (Sentry)
+
+The log is the record; the reporter is what notices. With `SENTRY_DSN` set on the API, every 5xx (`http.error`), every final job failure (`job.failed`), every schedule that could not be dispatched and every process-level fatal is reported with `requestId`, `clientId`, `route`, `code` and `status` as tags — search Sentry by the reference a person quoted. Reports are grouped by code first, so an outage is one issue with many events, not many issues. Nothing personal is sent: PII capture is off, request bodies and headers are stripped, and every extra passes the same redaction as the log. 4xx refusals are counted (`excelex_http_errors_total`) but not reported.
+
+The web app reports separately and lightly: `SENTRY_DSN` for the Next server (`instrumentation.ts`, `onRequestError`), `NEXT_PUBLIC_SENTRY_DSN` for the browser (`instrumentation-client.ts`, loaded lazily). A boundary that shows an API failure does not re-report it as a new error — it records, under the same reference, that a person saw it.
+
+Unset both and nothing changes except that nobody is alerted. `SENTRY_TRACES_SAMPLE_RATE` is 0 by default: this is error reporting, not tracing; raise it deliberately.
+
 ## Reading an error code
 
 Every failed response carries a `code`. The stable ones:

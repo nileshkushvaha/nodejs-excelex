@@ -3,6 +3,7 @@ import { Worker, type Job as BullJob } from "bullmq";
 
 import { ENVIRONMENT, type Environment } from "../core/config/environment";
 import { PrismaService } from "../core/database/prisma.service";
+import { ErrorReporter } from "../core/observability/error-reporter";
 import { logEvent } from "../core/observability/log-event";
 import { MetricsService } from "../core/metrics/metrics.service";
 import { QUEUES, type JobEnvelope, type QueueName } from "./job.types";
@@ -47,6 +48,7 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
     private readonly prisma: PrismaService,
     private readonly queues: QueueService,
     private readonly registry: JobRegistry,
+    private readonly reporter: ErrorReporter,
     private readonly metrics: MetricsService,
   ) {}
 
@@ -85,6 +87,16 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
           error.stack,
         );
         if (job) this.observe(name, job, "failed");
+        // Reported on the last attempt only: a retry that succeeds was not
+        // an incident, and the row records every attempt regardless.
+        if (job && job.attemptsMade >= (job.opts.attempts ?? 1)) {
+          this.reporter.captureException(error, {
+            event: "job.failed",
+            clientId: job.data?.clientId,
+            code: `job:${job.name}`,
+            extra: { queue: name, jobId: job.data?.jobId, attempts: job.attemptsMade },
+          });
+        }
       });
       worker.on("completed", (job) => this.observe(name, job, "succeeded"));
 

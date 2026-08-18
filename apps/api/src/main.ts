@@ -8,7 +8,9 @@ import helmet from "helmet";
 import { AppModule } from "./app.module";
 import { ENVIRONMENT, loadEnvironment, type Environment } from "./core/config/environment";
 import { createAppLogger } from "./core/observability/app-logger";
+import { ErrorReporter } from "./core/observability/error-reporter";
 import { installProcessHandlers } from "./core/observability/process-handlers";
+import { createSentryReporter } from "./core/observability/sentry.reporter";
 
 async function bootstrap(): Promise<void> {
   // The environment is read once here, before the container exists, because
@@ -22,6 +24,22 @@ async function bootstrap(): Promise<void> {
 
   const app = await NestFactory.create(AppModule, { logger, bufferLogs: false });
   const environment = app.get<Environment>(ENVIRONMENT);
+
+  // Error reporting: an adapter behind one seam, chosen by the environment.
+  // Nothing else in the code base knows which vendor, or whether there is one.
+  const reporter = app.get(ErrorReporter);
+  if (environment.SENTRY_DSN) {
+    reporter.use(
+      createSentryReporter({
+        dsn: environment.SENTRY_DSN,
+        environment: environment.SENTRY_ENVIRONMENT ?? environment.NODE_ENV,
+        release: environment.SENTRY_RELEASE,
+        tracesSampleRate: environment.SENTRY_TRACES_SAMPLE_RATE,
+      }),
+    );
+  } else {
+    new Logger("Bootstrap").log("Error reporting disabled (SENTRY_DSN is not set); the log is the record.");
+  }
 
   // Which address a request "comes from". Without this Express reports the
   // socket peer — nginx, or the web app's proxy — for every request, so
@@ -43,7 +61,7 @@ async function bootstrap(): Promise<void> {
   // onModuleDestroy — which only runs on SIGTERM if the hooks are enabled.
   // Without this a rolling deploy kills a worker mid-job.
   app.enableShutdownHooks();
-  installProcessHandlers(app);
+  installProcessHandlers(app, reporter);
 
   app.setGlobalPrefix("api");
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: "1" });

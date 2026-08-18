@@ -1,5 +1,7 @@
 import { Logger, type INestApplication } from "@nestjs/common";
 
+import type { ErrorReporterPort } from "./error-reporter";
+
 /**
  * What happens when something fails outside any request.
  *
@@ -17,21 +19,24 @@ import { Logger, type INestApplication } from "@nestjs/common";
  */
 const SHUTDOWN_GRACE_MS = 5_000;
 
-export function installProcessHandlers(app: INestApplication): void {
+export function installProcessHandlers(app: INestApplication, reporter?: ErrorReporterPort): void {
   const logger = new Logger("Process");
   let exiting = false;
 
   const fail = (event: string, reason: unknown): void => {
     const error = reason instanceof Error ? reason : new Error(String(reason));
     logger.fatal({ event, name: error.name, message: error.message }, error.stack);
+    reporter?.captureException(error, { event });
 
     if (exiting) return; // A second failure while closing: the timer below still fires.
     exiting = true;
 
     const timer = setTimeout(() => process.exit(1), SHUTDOWN_GRACE_MS);
     timer.unref();
-    void app
-      .close()
+    // The report leaves first — a process that exits before its last report
+    // is sent has told nobody why it died — then the application closes.
+    void (reporter?.flush(2_000) ?? Promise.resolve())
+      .then(() => app.close())
       .catch(() => undefined)
       .finally(() => process.exit(1));
   };

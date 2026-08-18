@@ -48,7 +48,7 @@ The application will grow in features, integrations and traffic; each of these g
 - **`instanceof` on Prisma error classes.** Missed silently in the running application because two class copies exist; matching on `name` and `code` was verified against a stopped database.
 - **A third-party logger (pino, winston) now.** Nest 11's `ConsoleLogger` already emits JSON and levels; adding a dependency buys transports the deployment does not yet need. `logEvent` is the seam — swapping the logger later touches one file.
 - **Rendering an outage as `null` with smarter copy in every page.** Twenty-six edits that would drift, and it still could not redirect-vs-explain correctly in the layout. Throwing to the boundary is one change and covers pages that do not exist yet.
-- **A hosted error tracker (Sentry) as the primary mechanism.** Wanted, and the structured `http.error` event with `requestId` is exactly what one ingests — but the operator screen and the correlation must not depend on a third party being configured.
+- **A hosted error tracker (Sentry) as the primary mechanism.** Wanted, and now present — behind an `ErrorReporter` seam (`core/observability/error-reporter.ts`) with a Sentry adapter enabled only by `SENTRY_DSN`; the filter, worker, scheduler and process handlers report through it with the same correlation tags. But it is a *second* channel: the operator screen, the log and the reference work with it unset.
 
 ## Consequences
 

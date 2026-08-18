@@ -6,6 +6,7 @@ import { ENVIRONMENT, loadEnvironment } from "./config/environment";
 import { AllExceptionsFilter } from "./http/exception.filter";
 import { PrismaService } from "./database/prisma.service";
 import { MetricsModule } from "./metrics/metrics.module";
+import { ErrorReporter } from "./observability/error-reporter";
 import { RateLimitGuard } from "./rate-limit/rate-limit.guard";
 import { RateLimiterService } from "./rate-limit/rate-limiter.service";
 import { RedisService } from "./redis/redis.service";
@@ -30,10 +31,11 @@ import { RedisService } from "./redis/redis.service";
     // refused before it costs a session lookup.
     { provide: APP_GUARD, useClass: RateLimitGuard },
     RateLimiterService,
+    ErrorReporter,
     PrismaService,
     RedisService,
     CacheService,
   ],
-  exports: [ENVIRONMENT, PrismaService, RedisService, CacheService, RateLimiterService],
+  exports: [ENVIRONMENT, PrismaService, RedisService, CacheService, RateLimiterService, ErrorReporter],
 })
 export class CoreModule {}
