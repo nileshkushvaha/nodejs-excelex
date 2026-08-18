@@ -11,6 +11,7 @@ import request from "supertest";
 
 import { AppModule } from "../../src/app.module";
 import { PrismaService } from "../../src/core/database/prisma.service";
+import { RateLimiterService } from "../../src/core/rate-limit/rate-limiter.service";
 
 /**
  * The application, against a real database.
@@ -67,6 +68,12 @@ export const TEST_ADMIN = {
 export async function ensureTestAdmin(app: INestApplication): Promise<{ id: string }> {
   const prisma = app.get(PrismaService);
   const passwordHash = await hashPassword(TEST_ADMIN.password);
+
+  // Every suite signs in from the same loopback address; a second run inside
+  // the same minute would otherwise inherit the first run's count against
+  // the per-address sign-in limit.
+  const limiter = app.get(RateLimiterService);
+  await Promise.all(["::1", "127.0.0.1", "::ffff:127.0.0.1"].map((ip) => limiter.reset(`login:ip:${ip}`)));
 
   return prisma.forClient(TEST_ADMIN.clientId, async (tx) => {
     const role = await tx.role.findFirst({ where: { name: "Administrator", isSystem: true } });

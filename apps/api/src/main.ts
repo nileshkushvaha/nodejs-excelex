@@ -23,6 +23,16 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { logger, bufferLogs: false });
   const environment = app.get<Environment>(ENVIRONMENT);
 
+  // Which address a request "comes from". Without this Express reports the
+  // socket peer — nginx, or the web app's proxy — for every request, so
+  // login history shows one address for everyone and a per-address limit
+  // throttles the whole deployment at once. With it, X-Forwarded-For is
+  // walked TRUST_PROXY_HOPS entries from the right, which is the one the
+  // trusted proxies wrote rather than the one a caller could have supplied.
+  if (environment.TRUST_PROXY_HEADERS) {
+    app.getHttpAdapter().getInstance().set("trust proxy", environment.TRUST_PROXY_HOPS);
+  }
+
   app.use(helmet({ contentSecurityPolicy: environment.NODE_ENV === "production" }));
   app.use(cookieParser());
 

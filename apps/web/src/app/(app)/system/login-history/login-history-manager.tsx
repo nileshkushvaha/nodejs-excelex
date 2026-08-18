@@ -18,6 +18,7 @@ const OUTCOMES: ReadonlyArray<{ value: LoginOutcome; label: string; tone: PillTo
   { value: "LOCKED_OUT", label: "Locked out", tone: "red" },
   { value: "INACTIVE", label: "Inactive", tone: "slate" },
   { value: "UNKNOWN_USER", label: "Unknown user", tone: "slate" },
+  { value: "THROTTLED", label: "Throttled", tone: "amber" },
 ];
 
 const outcomeOf = (value: LoginOutcome) => OUTCOMES.find((row) => row.value === value) ?? OUTCOMES[5]!;

@@ -7,6 +7,7 @@ import { AuthController } from "./auth/auth.controller";
 import { AuthGuard } from "./auth/auth.guard";
 import { ActorCache } from "./auth/actor-cache";
 import { AuthService } from "./auth/auth.service";
+import { LoginThrottleService } from "./auth/login-throttle.service";
 import { SessionService } from "./auth/session.service";
 import { ClientResolutionMiddleware } from "./core/context/client-resolution.middleware";
 import { OriginCheckMiddleware } from "./core/http/origin-check.middleware";
@@ -88,6 +89,7 @@ import { SettingsController } from "./settings/settings.controller";
     SessionService,
     ActorCache,
     AuthService,
+    LoginThrottleService,
     AccessService,
     ReferenceService,
     OrganisationService,

@@ -16,6 +16,7 @@ export const LOGIN_OUTCOMES = [
   "LOCKED",
   "LOCKED_OUT",
   "UNKNOWN_USER",
+  "THROTTLED",
 ] as const;
 
 export type LoginOutcome = (typeof LOGIN_OUTCOMES)[number];

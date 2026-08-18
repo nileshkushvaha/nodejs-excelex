@@ -2210,6 +2210,9 @@ enum LoginOutcome {
   /// No account with that address. Recorded so a spray shows up as a spray;
   /// the address itself is kept so the pattern can be seen.
   UNKNOWN_USER
+  /// Refused by the sign-in rate limit before the password was looked at.
+  /// Recorded so a blocked spray is visible as one, not as silence.
+  THROTTLED
 }
 
 /// @scope(client)

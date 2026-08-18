@@ -35,6 +35,26 @@ const environmentSchema = z
       .default("false")
       .transform((value) => value === "true"),
 
+    /**
+     * How many proxies sit between the client and this process when
+     * TRUST_PROXY_HEADERS is on: nginx and the web app's proxy make two.
+     * Express walks X-Forwarded-For that many hops from the right to find the
+     * client, which is what stops a caller naming their own address by
+     * putting it first. Ignored when TRUST_PROXY_HEADERS is off.
+     */
+    TRUST_PROXY_HOPS: z.coerce.number().int().min(1).max(10).default(2),
+
+    /**
+     * Requests per minute one address may make across the whole API. 0
+     * disables. Generous, because behind an untrusted proxy every user shares
+     * one address; the sign-in route has its own, tighter limits below.
+     */
+    RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(0).default(600),
+    /** Sign-in attempts per address per minute. 0 disables. */
+    LOGIN_RATE_LIMIT_PER_IP: z.coerce.number().int().min(0).default(60),
+    /** Sign-in attempts per email address per five minutes. 0 disables. */
+    LOGIN_RATE_LIMIT_PER_EMAIL: z.coerce.number().int().min(0).default(10),
+
     SESSION_COOKIE_NAME: z.string().default("__Host-excelex_session"),
     SESSION_IDLE_MINUTES: z.coerce.number().int().positive().default(60),
     SESSION_ABSOLUTE_HOURS: z.coerce.number().int().positive().default(12),

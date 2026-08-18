@@ -12,6 +12,7 @@ import { z } from "zod";
 
 import { requireRequestContext } from "../core/context/request-context";
 import { AuthService } from "./auth.service";
+import { LoginThrottleService } from "./login-throttle.service";
 import { PublicRoute } from "./auth.guard";
 import { SessionService } from "./session.service";
 import { parseOrThrow } from "../core/errors/validation";
@@ -26,6 +27,7 @@ export class AuthController {
   constructor(
     private readonly auth: AuthService,
     private readonly sessions: SessionService,
+    private readonly throttle: LoginThrottleService,
   ) {}
 
   @Post("login")
@@ -41,6 +43,16 @@ export class AuthController {
     if (!context.clientId) {
       throw new BadRequestException("Sign-in is only available on a client host.");
     }
+
+    // Before the password is looked at: a spray should cost a round trip,
+    // not a hash, and a throttled attempt must not reveal anything.
+    await this.throttle.assertAllowed({
+      clientId: context.clientId,
+      host: context.host,
+      email: parsed.email,
+      ip: context.ip,
+      userAgent: context.userAgent,
+    });
 
     const result = await this.auth.signIn(
       context.clientId,

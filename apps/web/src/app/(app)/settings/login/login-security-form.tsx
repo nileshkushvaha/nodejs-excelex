@@ -108,17 +108,24 @@ export function LoginSecurityForm({
       >
         <Toggle
           name="loginThrottleEnabled"
-          label="Throttle sign-in attempts per address"
+          label="Throttle sign-in attempts per email address"
           defaultChecked={settings.loginThrottleEnabled}
           disabled={!canManage}
         />
+        <p className="text-xs text-muted">
+          Enforced. With this on, more than ten attempts against one email address in five minutes
+          are refused for the rest of the window — including addresses that do not exist, which the
+          lockout above can never protect. Refused attempts appear in Login history as
+          &ldquo;Throttled&rdquo;. A per-address limit for the whole deployment applies regardless of
+          this switch.
+        </p>
         <Toggle
           name="resetThrottleEnabled"
           label="Throttle password-reset requests"
           defaultChecked={settings.resetThrottleEnabled}
           disabled={!canManage}
         />
-        <NotEnforced reason="rate limiting needs Redis, which is in the stack but not yet wired to the API. Account lockout above is enforced and covers the same attack from a different angle." />
+        <NotEnforced reason="there is no password-reset endpoint yet; the switch will apply to it when it lands." />
       </SettingsCard>
 
       <SettingsCard

@@ -22,7 +22,7 @@ Every failed response carries a `code`. The stable ones:
 | `forbidden` / `origin_rejected` | 403 | Missing permission / a cross-origin write. | Roles; or the page's origin. |
 | `not_found` | 404 | No such record — or no such client host. | The URL and, for a whole host, `client_hostnames`. |
 | `already_exists`, `referenced_elsewhere`, `write_conflict`, `conflict` | 409 | A database constraint or a concurrent edit. | Reload and retry; if it repeats, the data. |
-| `rate_limited` | 429 | Too many attempts; `Retry-After` is set. | Wait. |
+| `rate_limited` | 429 | Too many attempts; `Retry-After` is set. Every response also carries `RateLimit-Limit/-Remaining/-Reset`. | Wait. If a whole office is throttled, `TRUST_PROXY_HEADERS`/`TRUST_PROXY_HOPS` are probably wrong and every user shares the proxy's address. Limits: `RATE_LIMIT_PER_MINUTE`, `LOGIN_RATE_LIMIT_PER_IP`, `LOGIN_RATE_LIMIT_PER_EMAIL`. |
 | `database_unavailable` | 503 | PostgreSQL is not reachable or dropped the connection. | Is Postgres up? Connections exhausted? See below. |
 | `database_pool_unavailable` | 503 | Prisma's pool timed out. | Slow queries (`/system/performance` → DB per model), pool size. |
 | `redis_unavailable` | 503 | Redis (queue and cache) is not reachable. | Is Redis up? |
@@ -40,6 +40,10 @@ In development the response also carries `exception` (class name), `detail` (the
 `LOG_LEVEL` (`fatal`, `error`, `warn`, `log`, `debug`, `verbose`) — `log` in production, `debug` in development by default. Production writes JSON; development writes coloured text. Secret-shaped keys (`password`, `token`, `authorization`, `cookie`, …) are redacted before they are written.
 
 Event names to search for: `http.error`, `http.refused`, `http.client_error` (debug), `job.failed`, `scheduler.tick_failed`, `scheduler.dispatch_failed`, `process.unhandled_rejection`, `process.uncaught_exception`, `process.warning`.
+
+## When sign-ins are being throttled
+
+Login history (`/system/login-history`) shows refused attempts as **Throttled**, with the address and the email tried. Per-address and per-email counters live in Redis under `excelex:<env>:ratelimit:login:*` and expire on their own (one minute / five minutes). To clear one by hand: `redis-cli DEL excelex:production:ratelimit:login:email:<clientId>:<email>`. The per-email half is the client's own switch on Settings › Login security; the per-address half is the deployment's. If Redis is down, limits fail open and `ratelimit.degraded` is logged — sign-in still works and the account lockout still applies.
 
 ## When the database is down
 

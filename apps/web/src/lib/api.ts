@@ -44,11 +44,17 @@ async function apiFetch(
     .map((entry) => `${entry.name}=${entry.value}`)
     .join("; ");
 
+  // The address the browser came from, passed along so the API's login
+  // history and rate limits see the person rather than this server. The API
+  // only believes it when it is told how many proxies to trust.
+  const forwardedFor = headerStore.get("x-forwarded-for");
+
   return fetch(`${API_ORIGIN}${path}`, {
     method: init.method ?? "GET",
     headers: {
       cookie: cookieHeader,
       host: headerStore.get("host") ?? "localhost",
+      ...(forwardedFor ? { "x-forwarded-for": forwardedFor } : {}),
       ...(init.body === undefined ? {} : { "content-type": "application/json" }),
     },
     ...(init.body === undefined ? {} : { body: JSON.stringify(init.body) }),
@@ -1019,7 +1025,8 @@ export type LoginOutcome =
   | "INACTIVE"
   | "LOCKED"
   | "LOCKED_OUT"
-  | "UNKNOWN_USER";
+  | "UNKNOWN_USER"
+  | "THROTTLED";
 
 export interface LoginDevice {
   browser: string | null;

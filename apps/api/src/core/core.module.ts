@@ -1,11 +1,13 @@
 import { Global, Module } from "@nestjs/common";
-import { APP_FILTER } from "@nestjs/core";
+import { APP_FILTER, APP_GUARD } from "@nestjs/core";
 
 import { CacheService } from "./cache/cache.service";
 import { ENVIRONMENT, loadEnvironment } from "./config/environment";
 import { AllExceptionsFilter } from "./http/exception.filter";
 import { PrismaService } from "./database/prisma.service";
 import { MetricsModule } from "./metrics/metrics.module";
+import { RateLimitGuard } from "./rate-limit/rate-limit.guard";
+import { RateLimiterService } from "./rate-limit/rate-limiter.service";
 import { RedisService } from "./redis/redis.service";
 
 /**
@@ -24,10 +26,14 @@ import { RedisService } from "./redis/redis.service";
     // Registered here rather than with useGlobalFilters() so it is built by
     // the container and can be given the metrics service and the environment.
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
+    // First guard registered, so it runs before authentication: a flood is
+    // refused before it costs a session lookup.
+    { provide: APP_GUARD, useClass: RateLimitGuard },
+    RateLimiterService,
     PrismaService,
     RedisService,
     CacheService,
   ],
-  exports: [ENVIRONMENT, PrismaService, RedisService, CacheService],
+  exports: [ENVIRONMENT, PrismaService, RedisService, CacheService, RateLimiterService],
 })
 export class CoreModule {}
