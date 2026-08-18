@@ -73,7 +73,12 @@ export async function ensureTestAdmin(app: INestApplication): Promise<{ id: stri
   // the same minute would otherwise inherit the first run's count against
   // the per-address sign-in limit.
   const limiter = app.get(RateLimiterService);
-  await Promise.all(["::1", "127.0.0.1", "::ffff:127.0.0.1"].map((ip) => limiter.reset(`login:ip:${ip}`)));
+  await Promise.all([
+    ...["::1", "127.0.0.1", "::ffff:127.0.0.1"].map((ip) => limiter.reset(`login:ip:${ip}`)),
+    // Thirteen suites each sign in as this account; the per-email limit is
+    // for a spray, not for a test run.
+    limiter.reset(`login:email:${TEST_ADMIN.clientId}:${TEST_ADMIN.email}`),
+  ]);
 
   return prisma.forClient(TEST_ADMIN.clientId, async (tx) => {
     const role = await tx.role.findFirst({ where: { name: "Administrator", isSystem: true } });
