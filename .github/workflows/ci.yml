@@ -28,6 +28,8 @@ env:
   # Tests boot the API in-process; nothing here is a real deployment secret.
   NODE_ENV: test
   RUN_SCHEDULER: "false"
+  # No mail server in CI: render without sending.
+  SMTP_URL: json
 
 jobs:
   verify:

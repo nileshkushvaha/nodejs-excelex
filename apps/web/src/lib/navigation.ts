@@ -333,6 +333,12 @@ export const NAVIGATION: readonly NavigationSection[] = [
         ],
       },
       {
+        label: "Email",
+        icon: "settings",
+        href: "/settings/mail",
+        permission: "settings.mail.view",
+      },
+      {
         label: "Security",
         icon: "role",
         permission: "settings.security.view",

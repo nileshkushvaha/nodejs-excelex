@@ -13,6 +13,7 @@ import { ClientResolutionMiddleware } from "./core/context/client-resolution.mid
 import { OriginCheckMiddleware } from "./core/http/origin-check.middleware";
 import { CoreModule } from "./core/core.module";
 import { DashboardController } from "./dashboard/dashboard.controller";
+import { MailModule } from "./core/mail/mail.module";
 import { JobsModule } from "./jobs/jobs.module";
 import { SystemModule } from "./system/system.module";
 import { HealthController } from "./health/health.controller";
@@ -57,11 +58,12 @@ import { ProfileController } from "./profile/profile.controller";
 import { ProfileService } from "./profile/profile.service";
 import { PasswordPolicyService } from "./settings/password-policy.service";
 import { ClientSettingsService } from "./settings/client-settings.service";
+import { MailSettingsService } from "./settings/mail-settings.service";
 import { SecuritySettingsService } from "./settings/security-settings.service";
 import { SettingsController } from "./settings/settings.controller";
 
 @Module({
-  imports: [CoreModule, JobsModule, SystemModule],
+  imports: [CoreModule, JobsModule, MailModule, SystemModule],
   controllers: [
     AccessController,
     AuthController,
@@ -116,6 +118,7 @@ import { SettingsController } from "./settings/settings.controller";
     ProfileService,
     PasswordPolicyService,
     SecuritySettingsService,
+    MailSettingsService,
     ClientSettingsService,
     // Authentication is global and opted out of per route. A new endpoint is
     // protected by default; forgetting the decorator locks it rather than

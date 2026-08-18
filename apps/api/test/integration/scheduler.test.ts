@@ -8,6 +8,7 @@ import { JOB_NAMES, QUEUES } from "../../src/jobs/job.types";
 import { JobService } from "../../src/jobs/job.service";
 import { QueueService } from "../../src/jobs/queue.service";
 import { QueueMonitorService } from "../../src/system/queue/queue-monitor.service";
+import { DefaultSchedulesService } from "../../src/system/scheduler/default-schedules.service";
 import { SchedulerService } from "../../src/system/scheduler/scheduler.service";
 import { startApi } from "./harness";
 
@@ -209,7 +210,6 @@ describe("the scheduler", () => {
 
 describe("default schedules", () => {
   it("gives a client its nightly retention sweep once, and respects a deletion", async () => {
-    const { DefaultSchedulesService } = await import("../../src/system/scheduler/default-schedules.service");
     const app = await startApi();
     try {
       const defaults = app.get(DefaultSchedulesService);

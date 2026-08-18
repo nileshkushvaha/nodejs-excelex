@@ -43,5 +43,16 @@ services:
       timeout: 3s
       retries: 12
 
+  # Local mail: everything the API sends lands here, nothing leaves the
+  # machine. SMTP on 1025, the inbox at http://localhost:8025.
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"
+
 volumes:
   pgdata:

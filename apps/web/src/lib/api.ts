@@ -1235,3 +1235,46 @@ export const getSchedule = (id: string) =>
   get<ScheduleDetail>(`/api/v1/system/schedules/${encodeURIComponent(id)}`);
 export const getScheduleOptions = () => get<ScheduleOptions>("/api/v1/system/schedules/options");
 export const getSchedulerStatus = () => get<SchedulerStatus>("/api/v1/system/scheduler/status");
+
+// ── Settings: outgoing mail ─────────────────────────────────────────────────
+
+export interface MailSettings {
+  provider: "PLATFORM" | "SMTP";
+  smtpHost: string | null;
+  smtpPort: number | null;
+  smtpSecure: boolean;
+  smtpUsername: string | null;
+  hasPassword: boolean;
+  fromName: string | null;
+  fromEmail: string | null;
+  replyTo: string | null;
+  lastTestedAt: string | null;
+  lastTestOk: boolean | null;
+  lastTestError: string | null;
+  updatedAt: string | null;
+  platformFrom: { name: string; email: string };
+}
+
+export interface MailMessageRow {
+  id: string;
+  to: string;
+  subject: string;
+  template: string;
+  status: "QUEUED" | "SENT" | "FAILED";
+  attempts: number;
+  error: string | null;
+  reference: string | null;
+  createdAt: string;
+  sentAt: string | null;
+}
+
+export interface MailMessagePage {
+  rows: MailMessageRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+}
+
+export const getMailSettings = () => get<MailSettings>("/api/v1/settings/mail");
+export const getMailMessages = (query: string) => get<MailMessagePage>(`/api/v1/settings/mail/messages?${query}`);

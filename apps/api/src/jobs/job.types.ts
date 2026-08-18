@@ -13,6 +13,8 @@ export const JOB_NAMES = {
   RATE_COPY: "rate.copy",
   /** Removes expired sessions and old audit rows, per the retention policy. */
   RETENTION_SWEEP: "retention.sweep",
+  /** Sends one queued email and records what the mail server said. */
+  MAIL_SEND: "mail.send",
   /** Proves the queue runs end to end. Does nothing else. */
   HEARTBEAT: "system.heartbeat",
 } as const;
@@ -31,6 +33,7 @@ export const JOB_DESCRIPTIONS: Record<JobName, string> = {
   [JOB_NAMES.RATE_COPY]: "Copy a tariff forward in bulk.",
   [JOB_NAMES.RETENTION_SWEEP]:
     "Delete expired sessions, old finished jobs and old login attempts per the retention policy. Payload may set sessionDays, jobDays, loginAttemptDays.",
+  [JOB_NAMES.MAIL_SEND]: "Send one queued email through the client's transport. Payload: messageId.",
   [JOB_NAMES.HEARTBEAT]: "Prove the queue runs end to end. Does nothing else.",
 };
 

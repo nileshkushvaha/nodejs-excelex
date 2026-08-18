@@ -108,6 +108,24 @@ const environmentSchema = z
     LOG_LEVEL: z.enum(["fatal", "error", "warn", "log", "debug", "verbose"]).optional(),
 
     /**
+     * The deployment's own mail transport, used for every client that has
+     * not configured their own SMTP server. A nodemailer URL:
+     * smtp://user:pass@host:587, smtps://… for implicit TLS, or "json" to
+     * render without sending (tests). Development points at Mailpit.
+     */
+    SMTP_URL: z.string().min(1).default("smtp://localhost:1025"),
+    MAIL_FROM_NAME: z.string().min(1).default("ExcelEx"),
+    MAIL_FROM_EMAIL: z.string().email().default("no-reply@excelex.local"),
+
+    /**
+     * The key that encrypts secrets at rest — today a client's SMTP
+     * password. 32 bytes, base64. Required in production; a fixed
+     * development key is used otherwise so a fresh checkout works, and the
+     * boot assertion below refuses that key outside development.
+     */
+    SECRETS_KEY: z.string().min(1).default("ZGV2ZWxvcG1lbnQtb25seS1zZWNyZXRzLWtleS0wMDE="),
+
+    /**
      * Where server-side failures are reported besides the log. Unset, nothing
      * is sent anywhere. The environment name defaults to NODE_ENV; the
      * release to the git SHA the deployment sets, so a report says which
@@ -131,6 +149,14 @@ const environmentSchema = z
         message:
           "must use the __Host- prefix in production: the browser then enforces " +
           "Secure, Path=/ and no Domain, so host-only scoping does not depend on us",
+      });
+    }
+
+    if (env.SECRETS_KEY === "ZGV2ZWxvcG1lbnQtb25seS1zZWNyZXRzLWtleS0wMDE=") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["SECRETS_KEY"],
+        message: "is the development key. Generate one: openssl rand -base64 32",
       });
     }
 

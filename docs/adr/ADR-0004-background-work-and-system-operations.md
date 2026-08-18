@@ -26,7 +26,9 @@ The constraint that shapes all of it is ADR-0002: a client's rows are reachable 
 
 **6. Performance is measured in-process and exported in the standard shape.** An HTTP middleware, a Prisma timing extension and the worker feed both a Prometheus registry (`/api/metrics`, token-guarded in production) and a rolling in-memory window the UI reads without a metrics server. Route labels are patterns, never raw paths, and cardinality is capped. The screen is honest that its figures are for one instance; Prometheus is what aggregates.
 
-**7. Permissions.** A new `System` group: `system.queue`, `system.schedule`, `system.cache` (view/manage each), `system.login.view`, `system.performance.view`. The activity log reads the audit trail and keeps `settings.audit.view`. View and manage are split throughout because reading a queue is harmless and draining one is not.
+**7. Outgoing mail goes through the queue, from a per-client transport.** `MailService.send()` writes an outbox row (`mail_messages`) and enqueues `mail.send`; the job renders from a single layout, hands the message to the client's transport — their own SMTP server if configured (password sealed with AES-256-GCM under `SECRETS_KEY`, opened only in the sending process), else the deployment's `SMTP_URL` — and records the outcome on the row. A request never waits on a mail server; "did the email go out" is answered from the outbox. Settings live at `/settings/mail` with a test-send that records its result.
+
+**8. Permissions.** A new `System` group: `system.queue`, `system.schedule`, `system.cache` (view/manage each), `system.login.view`, `system.performance.view`. The activity log reads the audit trail and keeps `settings.audit.view`. View and manage are split throughout because reading a queue is harmless and draining one is not.
 
 ## Alternatives considered
 

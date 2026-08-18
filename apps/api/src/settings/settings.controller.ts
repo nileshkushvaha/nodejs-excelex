@@ -1,9 +1,11 @@
-import { Body, Controller, Get, HttpCode, Put } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Post, Put, Query } from "@nestjs/common";
 import { POLICY_LIMITS } from "@excelex/permissions";
 import { z } from "zod";
 
 import { Can, RequirePermission } from "../auth/auth.guard";
 import { ClientSettingsService } from "./client-settings.service";
+import { MailSettingsService, mailSettingsSchema } from "./mail-settings.service";
+import { readPageRequest } from "../masters/paged";
 import { PasswordPolicyService } from "./password-policy.service";
 import { SecuritySettingsService } from "./security-settings.service";
 import { parseOrThrow } from "../core/errors/validation";
@@ -100,7 +102,40 @@ export class SettingsController {
     private readonly passwordPolicy: PasswordPolicyService,
     private readonly security: SecuritySettingsService,
     private readonly general: ClientSettingsService,
+    private readonly mail: MailSettingsService,
   ) {}
+
+  @Get("mail")
+  @Can("mailSettings", "view")
+  viewMail() {
+    return this.mail.view();
+  }
+
+  @Put("mail")
+  @Can("mailSettings", "update")
+  @HttpCode(204)
+  async updateMail(@Body() body: unknown): Promise<void> {
+    await this.mail.update(parseOrThrow(mailSettingsSchema, body));
+  }
+
+  /** Sends a test message to the signed-in person through the saved settings. */
+  @Post("mail/test")
+  @Can("mailSettings", "update")
+  @HttpCode(200)
+  testMail() {
+    return this.mail.test();
+  }
+
+  @Get("mail/messages")
+  @Can("mailSettings", "view")
+  mailMessages(@Query() query: Record<string, string>) {
+    return this.mail.messages({
+      ...readPageRequest(query),
+      status: query["status"],
+      template: query["template"],
+      search: query["search"],
+    });
+  }
 
   @Get("general")
   @Can("clientSettings", "view")

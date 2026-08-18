@@ -145,6 +145,7 @@ describe("the routing table", () => {
       role: "roles",
       clientSettings: "settings/general",
       securitySettings: "settings/security",
+      mailSettings: "settings/mail",
       job: "system/jobs",
       jobSchedule: "system/schedules",
       cache: "system/cache",

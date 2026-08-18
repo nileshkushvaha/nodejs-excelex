@@ -60,6 +60,7 @@ export const POLICIES = {
   role: crud("settings.role"),
   clientSettings: crud("settings.general"),
   securitySettings: crud("settings.security"),
+  mailSettings: crud("settings.mail"),
 
   // The System screens. Most are read-only views over what the platform is
   // doing; the ones with a manage half name it, and the rest point their

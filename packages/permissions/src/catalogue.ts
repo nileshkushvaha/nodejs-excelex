@@ -94,6 +94,8 @@ export const PERMISSION_DEFINITIONS = define([
   { key: "settings.general.manage", group: "Settings", label: "Manage general settings", description: "Change the account's legal name, registrations, address and document defaults." },
   { key: "settings.security.view", group: "Settings", label: "View security settings", description: "See the password policy and other account security settings." },
   { key: "settings.security.manage", group: "Settings", label: "Manage security settings", description: "Change the password policy for everyone in this account." },
+  { key: "settings.mail.view", group: "Settings", label: "View email settings", description: "See how this account sends email and what it has sent." },
+  { key: "settings.mail.manage", group: "Settings", label: "Manage email settings", description: "Change the outgoing mail server and sender, and send test messages." },
   { key: "settings.audit.view", group: "Settings", label: "View audit trail", description: "Read this client's audit events." },
   { key: "settings.session.manage", group: "Settings", label: "Manage sessions", description: "See and revoke other people's sessions." },
 

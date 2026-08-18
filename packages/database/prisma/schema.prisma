@@ -2250,3 +2250,95 @@ model LoginAttempt {
   @@index([clientId])
   @@map("login_attempts")
 }
+
+// ─────────────────────────────────────────────────────────────
+// MAIL — client scope
+// ─────────────────────────────────────────────────────────────
+
+enum MailProvider {
+  /// The deployment's own transport (SMTP_URL). The default for every client.
+  PLATFORM
+  /// The client's own SMTP server, so mail leaves from their domain.
+  SMTP
+}
+
+enum MailStatus {
+  QUEUED
+  SENT
+  FAILED
+}
+
+/// @scope(client)
+/// How this client's outgoing email is sent.
+///
+/// One row per client, created on first save. The SMTP password is stored
+/// encrypted (AES-256-GCM under SECRETS_KEY) and is never returned by the
+/// API: the settings screen shows whether one is set, and a blank on save
+/// means "keep it". Everything else about the sender — name, address,
+/// reply-to — is the client's to decide, because it is their customers who
+/// receive it.
+model MailSettings {
+  id       String @id @default(uuid(7)) @db.Uuid
+  clientId String @unique @map("client_id") @db.Uuid
+
+  provider MailProvider @default(PLATFORM)
+
+  smtpHost              String?  @map("smtp_host")
+  smtpPort              Int?     @map("smtp_port")
+  smtpSecure            Boolean  @default(false) @map("smtp_secure")
+  smtpUsername          String?  @map("smtp_username")
+  smtpPasswordEncrypted String?  @map("smtp_password_encrypted")
+
+  fromName  String? @map("from_name")
+  fromEmail String? @map("from_email")
+  replyTo   String? @map("reply_to")
+
+  lastTestedAt DateTime? @map("last_tested_at") @db.Timestamptz(6)
+  lastTestOk   Boolean?  @map("last_test_ok")
+  lastTestError String?  @map("last_test_error")
+
+  updatedById String?  @map("updated_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("mail_settings")
+}
+
+/// @scope(client)
+/// The outbox: one row per message this client asked to send.
+///
+/// Sending happens in a job, so a slow or refusing mail server never holds a
+/// request; this row is what the request writes and what the job updates,
+/// and it is what the notifications screen and the support question "did
+/// the reset email go out" read. Bodies are not stored — a message is
+/// re-rendered from its template if it must be resent — only what identifies
+/// it and what happened to it.
+model MailMessage {
+  id       String @id @default(uuid(7)) @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+
+  toEmail  String  @map("to_email")
+  toName   String? @map("to_name")
+  subject  String
+  /// The template that rendered it: "auth.password_reset", "system.test".
+  template String
+  /// Why it was sent, for the operator: a user id, a shipment id.
+  referenceType String? @map("reference_type")
+  referenceId   String? @map("reference_id")
+
+  status            MailStatus @default(QUEUED)
+  attempts          Int        @default(0)
+  error             String?
+  providerMessageId String?    @map("provider_message_id")
+  jobId             String?    @map("job_id") @db.Uuid
+
+  requestedById String?   @map("requested_by_id") @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  sentAt        DateTime? @map("sent_at") @db.Timestamptz(6)
+
+  @@index([clientId, createdAt])
+  @@index([clientId, status, createdAt])
+  @@index([clientId, template, createdAt])
+  @@index([clientId])
+  @@map("mail_messages")
+}
