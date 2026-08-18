@@ -1,0 +1,97 @@
+name: CI
+
+# Every push and every pull request. The isolation proof is the most valuable
+# thing in this repository and the audit found that nothing forced it to run —
+# the day somebody adds a client-scoped table and forgets its RLS policy, this
+# is what catches it.
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+concurrency:
+  # A second push to the same branch cancels the first: the earlier result is
+  # about code nobody will merge.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Postgres 17 in a container, matching docker-compose. The database user
+  # here is the superuser only for creating the four runtime roles; every
+  # assertion below runs as the constrained roles the application uses.
+  POSTGRES_PASSWORD: ci_postgres_password
+  DATABASE_MIGRATION_URL: postgresql://excelex_owner:ci_owner@localhost:5432/excelex
+  DATABASE_URL: postgresql://excelex_app:ci_app@localhost:5432/excelex
+  DATABASE_PLATFORM_URL: postgresql://excelex_platform:ci_platform@localhost:5432/excelex
+  DATABASE_JOBS_URL: postgresql://excelex_jobs:ci_jobs@localhost:5432/excelex
+
+jobs:
+  verify:
+    name: Typecheck, build and test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: ci_postgres_password
+          POSTGRES_DB: excelex
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # The roles the application connects as. Created here rather than in the
+      # image so CI proves the same script that provisions a real database.
+      - name: Create runtime roles
+        run: |
+          psql "postgresql://postgres:${POSTGRES_PASSWORD}@localhost:5432/excelex" -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE excelex_owner    LOGIN PASSWORD 'ci_owner';
+          CREATE ROLE excelex_app      LOGIN PASSWORD 'ci_app';
+          CREATE ROLE excelex_platform LOGIN PASSWORD 'ci_platform';
+          CREATE ROLE excelex_jobs     LOGIN PASSWORD 'ci_jobs';
+          ALTER DATABASE excelex OWNER TO excelex_owner;
+          GRANT ALL ON SCHEMA public TO excelex_owner;
+          SQL
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Unit tests
+        run: pnpm run test:unit
+
+      - name: Apply migrations
+        run: pnpm --filter @excelex/database run migrate:deploy
+
+      # A schema that has drifted from its migrations means the next deploy
+      # applies something nobody reviewed.
+      - name: Check for schema drift
+        run: pnpm run db:check-drift
+
+      # The client isolation proof: 33 assertions that one client cannot see,
+      # write or reach another's rows. This is the job that must never be
+      # allowed to fail silently.
+      - name: Prove client isolation
+        run: pnpm run test:security
+
+      - name: Integration tests
+        run: pnpm run test:integration
