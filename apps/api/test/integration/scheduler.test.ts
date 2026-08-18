@@ -206,3 +206,51 @@ describe("the scheduler", () => {
     expect(gone).toBeNull();
   });
 });
+
+describe("default schedules", () => {
+  it("gives a client its nightly retention sweep once, and respects a deletion", async () => {
+    const { DefaultSchedulesService } = await import("../../src/system/scheduler/default-schedules.service");
+    const app = await startApi();
+    try {
+      const defaults = app.get(DefaultSchedulesService);
+      const prisma = app.get(PrismaService);
+      const clientId = "11111111-1111-4111-8111-111111111111";
+
+      // The scheduler seeds defaults at boot; let that pass settle before
+      // starting clean, or its create lands between our delete and assert.
+      await defaults.ensureForAllClients();
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      await prisma.forClient(clientId, async (tx) => {
+        await tx.jobSchedule.deleteMany({ where: { jobName: "retention.sweep" } });
+      });
+
+      expect(await defaults.ensureForClient(clientId)).toBe(1);
+      expect(await defaults.ensureForClient(clientId)).toBe(0);
+
+      const rows = await prisma.forClient(clientId, async (tx) =>
+        tx.jobSchedule.findMany({ where: { jobName: "retention.sweep" } }),
+      );
+      expect(rows).toHaveLength(1);
+      expect(rows[0]!.isActive).toBe(true);
+      expect(rows[0]!.nextRunAt).not.toBeNull();
+      expect(rows[0]!.cron).toBe("30 2 * * *");
+
+      // An administrator who deletes it has decided; it is not re-created.
+      await prisma.forClient(clientId, async (tx) => {
+        await tx.jobSchedule.update({
+          where: { id: rows[0]!.id },
+          data: { deletedAt: new Date(), isActive: false, nextRunAt: null },
+        });
+      });
+      expect(await defaults.ensureForClient(clientId)).toBe(0);
+
+      // Leave the client with its default in place, as a real boot would.
+      await prisma.forClient(clientId, async (tx) => {
+        await tx.jobSchedule.deleteMany({ where: { id: rows[0]!.id } });
+      });
+      expect(await defaults.ensureForClient(clientId)).toBe(1);
+    } finally {
+      await app.close();
+    }
+  });
+});

@@ -5,6 +5,7 @@ import { Inject, Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } f
 import { ENVIRONMENT, type Environment } from "../../core/config/environment";
 import { PrismaService } from "../../core/database/prisma.service";
 import { ErrorReporter } from "../../core/observability/error-reporter";
+import { DefaultSchedulesService } from "./default-schedules.service";
 import { logEvent } from "../../core/observability/log-event";
 import { RedisService } from "../../core/redis/redis.service";
 import type { JobName, QueueName } from "../../jobs/job.types";
@@ -57,6 +58,7 @@ export class SchedulerService implements OnApplicationBootstrap, OnModuleDestroy
     private readonly redis: RedisService,
     private readonly queues: QueueService,
     private readonly reporter: ErrorReporter,
+    private readonly defaults: DefaultSchedulesService,
   ) {}
 
   get enabled(): boolean {
@@ -83,6 +85,25 @@ export class SchedulerService implements OnApplicationBootstrap, OnModuleDestroy
     this.timer.unref();
     this.lastTickAt = new Date();
     this.logger.log(`Scheduler running, ticking every ${TICK_MS / 1000}s.`);
+
+    // Every client gets its defaults the first time a scheduler sees it —
+    // at boot, and again every hour for clients provisioned since.
+    void this.ensureDefaults();
+    const hourly = setInterval(() => void this.ensureDefaults(), 60 * 60 * 1000);
+    hourly.unref();
+  }
+
+  private async ensureDefaults(): Promise<void> {
+    try {
+      await this.defaults.ensureForAllClients();
+    } catch (error) {
+      logEvent(
+        this.logger,
+        "warn",
+        "scheduler.defaults_failed",
+        { message: error instanceof Error ? error.message : String(error) },
+      );
+    }
   }
 
   /** How many schedules are due right now. For the status card; not part of a tick. */
