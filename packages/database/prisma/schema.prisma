@@ -872,6 +872,8 @@ model Product {
   customerCharges        CustomerCharge[]
   customerVolumetrics    CustomerVolumetric[]
 
+  rateCards RateCard[]
+
   @@unique([clientId, id], name: "product_client_id")
   @@index([clientId, code])
   @@index([clientId])
@@ -894,6 +896,9 @@ model Zone {
   destinations Destination[]
 
   pinCodes PinCode[]
+
+  rateRowOrigins      RateCardRow[] @relation("RateRowOrigin")
+  rateRowDestinations RateCardRow[] @relation("RateRowDestination")
 
   @@unique([clientId, id], name: "zone_client_id")
   @@index([clientId, code])
@@ -1498,6 +1503,8 @@ model Customer {
   /// code has to remember to maintain it. Never written by the app.
   searchText     String?                 @default(dbgenerated("((((((((COALESCE(code, ''::text) || ' '::text) || COALESCE(name, ''::text)) || ' '::text) || COALESCE(contact_person, ''::text)) || ' '::text) || COALESCE(mobile, ''::text)) || ' '::text) || COALESCE(email, ''::text))")) @map("search_text")
 
+  rateCards RateCard[]
+
   @@unique([clientId, id], name: "customer_client_id")
   @@index([clientId, code])
   @@index([clientId, name])
@@ -1947,4 +1954,109 @@ model PinCode {
   @@index([clientId, destinationId])
   @@index([clientId])
   @@map("pin_codes")
+}
+
+// ─────────────────────────────────────────────────────────────
+// RATING — client scope
+// ─────────────────────────────────────────────────────────────
+
+/// Who a rate card is for.
+///
+/// A sell card prices what a customer pays; a buy card prices what a vendor
+/// charges us. They are the same shape and must never be confused, which is
+/// why the distinction is an enum on the row rather than a naming convention
+/// in the code.
+enum RateCardKind {
+  SELL
+  BUY
+}
+
+/// @scope(client)
+/// A priced agreement, effective between two dates.
+///
+/// Effective dating is the whole point. An invoice raised in April must still
+/// be explainable in September with the card that priced it, so a rate change
+/// is a new card rather than an edit to the old one. Nothing here is ever
+/// updated in place once it has priced a shipment.
+model RateCard {
+  id       String @id @default(uuid(7)) @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+
+  code String
+  name String
+  kind RateCardKind @default(SELL)
+
+  /// Null means the card applies to everyone it is not overridden for.
+  customerId String? @map("customer_id") @db.Uuid
+  /// Free text until the vendor lookup becomes a reference.
+  vendor     String?
+  productId  String? @map("product_id") @db.Uuid
+
+  effectiveFrom DateTime  @map("effective_from") @db.Date
+  /// Null is an open-ended card — the common case for a standard tariff.
+  effectiveTo   DateTime? @map("effective_to") @db.Date
+
+  /// The order cards are considered in when several could apply. Higher wins,
+  /// so a customer's own card can be given precedence over the standard one
+  /// without deactivating anything.
+  priority Int @default(0)
+
+  isActive  Boolean   @default(true) @map("is_active")
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  customer Customer?     @relation(fields: [clientId, customerId], references: [clientId, id], onDelete: Restrict)
+  product  Product?      @relation(fields: [clientId, productId], references: [clientId, id], onDelete: Restrict)
+  rows     RateCardRow[]
+
+  @@unique([clientId, id], name: "rate_card_client_id")
+  @@index([clientId, code])
+  @@index([clientId, customerId])
+  @@index([clientId, effectiveFrom, effectiveTo])
+  @@index([clientId])
+  @@map("rate_cards")
+}
+
+/// @scope(client)
+/// One lane on a rate card: a zone pair, and what it costs.
+///
+/// The shape is the one Indian courier tariffs actually use — a base weight
+/// with a base amount, then a rate for each additional step. "First 500g is
+/// ₹80, every further 500g is ₹40" is two numbers and two weights, not a
+/// table of slabs, and modelling it as slabs would mean generating hundreds
+/// of rows for a card somebody wrote on one line.
+model RateCardRow {
+  id         String @id @default(uuid(7)) @db.Uuid
+  clientId   String @map("client_id") @db.Uuid
+  rateCardId String @map("rate_card_id") @db.Uuid
+
+  /// Null on either side means "any zone", so a card can price one lane
+  /// specifically and everything else with a fallback row.
+  originZoneId      String? @map("origin_zone_id") @db.Uuid
+  destinationZoneId String? @map("destination_zone_id") @db.Uuid
+
+  /// Kilograms, to three places: couriers price in grams and 0.001 is the
+  /// smallest unit anybody quotes.
+  baseWeight Decimal @default(0.5) @map("base_weight") @db.Decimal(10, 3)
+  baseAmount Decimal @map("base_amount") @db.Decimal(14, 4)
+
+  /// The step above the base, and what each step costs.
+  additionalWeight Decimal @default(0.5) @map("additional_weight") @db.Decimal(10, 3)
+  additionalAmount Decimal @default(0) @map("additional_amount") @db.Decimal(14, 4)
+
+  /// A floor for the lane, applied after the weight calculation.
+  minimumAmount Decimal? @map("minimum_amount") @db.Decimal(14, 4)
+
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  rateCard        RateCard @relation(fields: [clientId, rateCardId], references: [clientId, id], onDelete: Cascade)
+  originZone      Zone?    @relation("RateRowOrigin", fields: [clientId, originZoneId], references: [clientId, id], onDelete: Restrict)
+  destinationZone Zone?    @relation("RateRowDestination", fields: [clientId, destinationZoneId], references: [clientId, id], onDelete: Restrict)
+
+  @@index([clientId, rateCardId])
+  @@index([clientId])
+  @@map("rate_card_rows")
 }

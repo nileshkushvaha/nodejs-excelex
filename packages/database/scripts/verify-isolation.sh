@@ -85,9 +85,9 @@ echo ""
 echo "Coverage: the policies actually exist"
 # Without this, a bare `prisma migrate reset` yields tables with no RLS and every
 # assertion below would still pass on an unprotected database.
-check "all 35 client tables have ENABLE + FORCE row level security" "35" \
-  "$(pg "$OWNER" -tA -q -c "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relname IN ('branches','users','user_branch_memberships','roles','user_roles','role_permissions','user_permissions','password_policies','password_history','security_settings','departments','designations','client_settings','product_types','product_groups','products','zones','destinations','service_centres','sales_executives','charges','charge_components','customers','customer_fuel_surcharges','customer_charges','customer_volumetrics','customer_contacts','consignees','shippers','account_groups','lookups','pin_codes','sessions','invitations','audit_events') AND c.relrowsecurity AND c.relforcerowsecurity;")"
-check "all 35 client tables carry the client_isolation policy" "35" \
+check "all 37 client tables have ENABLE + FORCE row level security" "37" \
+  "$(pg "$OWNER" -tA -q -c "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relname IN ('branches','users','user_branch_memberships','roles','user_roles','role_permissions','user_permissions','password_policies','password_history','security_settings','departments','designations','client_settings','product_types','product_groups','products','zones','destinations','service_centres','sales_executives','charges','charge_components','customers','customer_fuel_surcharges','customer_charges','customer_volumetrics','customer_contacts','consignees','shippers','account_groups','lookups','pin_codes','rate_cards','rate_card_rows','sessions','invitations','audit_events') AND c.relrowsecurity AND c.relforcerowsecurity;")"
+check "all 37 client tables carry the client_isolation policy" "37" \
   "$(pg "$OWNER" -tA -q -c "SELECT count(*) FROM pg_policies WHERE schemaname='public' AND policyname='client_isolation';")"
 
 echo ""
