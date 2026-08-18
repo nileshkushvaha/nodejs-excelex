@@ -24,6 +24,10 @@ env:
   DATABASE_URL: postgresql://excelex_app:ci_app@localhost:5432/excelex
   DATABASE_PLATFORM_URL: postgresql://excelex_platform:ci_platform@localhost:5432/excelex
   DATABASE_JOBS_URL: postgresql://excelex_jobs:ci_jobs@localhost:5432/excelex
+  REDIS_URL: redis://localhost:6379
+  # Tests boot the API in-process; nothing here is a real deployment secret.
+  NODE_ENV: test
+  RUN_SCHEDULER: "false"
 
 jobs:
   verify:
@@ -43,12 +47,23 @@ jobs:
           --health-timeout 5s
           --health-retries 10
 
+      # Redis holds the queue, the cache and the rate-limit counters; the
+      # integration tests exercise all three against the real thing.
+      redis:
+        image: redis:8-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
     steps:
       - uses: actions/checkout@v4
 
+      # No `version` here on purpose: package.json's `packageManager` field
+      # pins pnpm, and the action refuses to be told twice.
       - uses: pnpm/action-setup@v4
-        with:
-          version: 11
 
       - uses: actions/setup-node@v4
         with:
@@ -92,6 +107,11 @@ jobs:
       # allowed to fail silently.
       - name: Prove client isolation
         run: pnpm run test:security
+
+      # The integration suite signs in as a test-owned administrator that
+      # needs the seeded client and its system roles to exist.
+      - name: Seed the development client
+        run: pnpm run db:seed
 
       - name: Integration tests
         run: pnpm run test:integration
