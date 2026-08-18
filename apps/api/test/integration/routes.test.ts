@@ -145,6 +145,12 @@ describe("the routing table", () => {
       role: "roles",
       clientSettings: "settings/general",
       securitySettings: "settings/security",
+      job: "system/jobs",
+      jobSchedule: "system/schedules",
+      cache: "system/cache",
+      activityLog: "system/activity",
+      loginHistory: "system/login-history",
+      performance: "system/performance",
     };
 
     const paths = routes.map((route) => route.path).join(" ");

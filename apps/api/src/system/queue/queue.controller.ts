@@ -10,11 +10,11 @@ import {
 } from "@nestjs/common";
 import { z } from "zod";
 
-import { RequirePermission } from "../auth/auth.guard";
-import { JobRegistry } from "./job.registry";
-import { JOB_NAMES, QUEUES, type JobName, type QueueName } from "./job.types";
-import { JobService } from "./job.service";
-import { QueueService } from "./queue.service";
+import { RequirePermission } from "../../auth/auth.guard";
+import { JobRegistry } from "../../jobs/job.registry";
+import { JOB_NAMES, QUEUES, type JobName, type QueueName } from "../../jobs/job.types";
+import { JobService } from "../../jobs/job.service";
+import { QueueService } from "../../jobs/queue.service";
 
 const enqueueSchema = z.object({
   name: z.enum(Object.values(JOB_NAMES) as [JobName, ...JobName[]]),
@@ -30,7 +30,7 @@ const enqueueSchema = z.object({
  * flush, and is client-scoped so one client cannot see another's work.
  */
 @Controller({ path: "system", version: "1" })
-export class JobsController {
+export class QueueController {
   constructor(
     private readonly jobs: JobService,
     private readonly queues: QueueService,

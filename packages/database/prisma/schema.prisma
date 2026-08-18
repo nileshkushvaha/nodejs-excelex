@@ -2140,11 +2140,17 @@ model Job {
   /// personally.
   requestedById String? @map("requested_by_id") @db.Uuid
 
+  /// The schedule that fired it, when one did. Kept so the scheduler can show
+  /// the last run of each schedule and its outcome, and so a schedule's history
+  /// is a filter on this table rather than a second one.
+  scheduleId String? @map("schedule_id") @db.Uuid
+
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@index([clientId, status, createdAt])
   @@index([clientId, queue, createdAt])
+  @@index([clientId, scheduleId, createdAt])
   @@index([clientId])
   @@map("jobs")
 }
@@ -2185,4 +2191,59 @@ model JobSchedule {
   @@index([clientId, isActive])
   @@index([clientId])
   @@map("job_schedules")
+}
+
+// ─────────────────────────────────────────────────────────────
+// LOGIN HISTORY — client scope
+// ─────────────────────────────────────────────────────────────
+
+enum LoginOutcome {
+  SUCCEEDED
+  /// The address exists but the password did not match, or the account is
+  /// inactive. Collapsed on the wire, distinguished here for the operator.
+  BAD_PASSWORD
+  INACTIVE
+  /// Correct password, but the account was locked at the time.
+  LOCKED
+  /// The failed attempt that tripped the lock.
+  LOCKED_OUT
+  /// No account with that address. Recorded so a spray shows up as a spray;
+  /// the address itself is kept so the pattern can be seen.
+  UNKNOWN_USER
+}
+
+/// @scope(client)
+/// One row per sign-in attempt, whatever the outcome.
+///
+/// The audit trail records that a session was created; this records that
+/// somebody tried, from where, and what happened. They answer different
+/// questions: the audit trail is who-did-what, this is the login history an
+/// administrator reads when an account is locked or a password is sprayed.
+/// Append-only in practice: rows are written by the sign-in path and removed
+/// only by the retention sweep.
+model LoginAttempt {
+  id       String @id @default(uuid(7)) @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+
+  /// Null when no account matched. Not a relation, so an attempt outlives the
+  /// account it named — a deleted user's failed sign-ins are still history.
+  userId String? @map("user_id") @db.Uuid
+  /// As typed, normalised. Kept even when unknown, so a spray of guessed
+  /// addresses is visible as such.
+  email  String
+
+  outcome LoginOutcome
+  host    String
+  ip      String?
+  userAgent String? @map("user_agent")
+  /// The session issued on success, so a login row links to what it started.
+  sessionId String? @map("session_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([clientId, createdAt])
+  @@index([clientId, userId, createdAt])
+  @@index([clientId, outcome, createdAt])
+  @@index([clientId])
+  @@map("login_attempts")
 }

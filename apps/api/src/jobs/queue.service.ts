@@ -1,10 +1,10 @@
-import { Inject, Injectable, Logger, OnModuleDestroy } from "@nestjs/common";
+import { Injectable, Logger, OnModuleDestroy } from "@nestjs/common";
 import { Queue, type JobsOptions } from "bullmq";
-import IORedis from "ioredis";
+import type IORedis from "ioredis";
 
-import { ENVIRONMENT, type Environment } from "../core/config/environment";
 import { requireRequestContext } from "../core/context/request-context";
 import { PrismaService } from "../core/database/prisma.service";
+import { RedisService } from "../core/redis/redis.service";
 import { QUEUES, type JobName, type QueueName } from "./job.types";
 
 /**
@@ -22,19 +22,12 @@ import { QUEUES, type JobName, type QueueName } from "./job.types";
 @Injectable()
 export class QueueService implements OnModuleDestroy {
   private readonly logger = new Logger(QueueService.name);
-  private readonly connection: IORedis;
   private readonly queues = new Map<string, Queue>();
 
   constructor(
-    @Inject(ENVIRONMENT) private readonly environment: Environment,
+    private readonly redisService: RedisService,
     private readonly prisma: PrismaService,
-  ) {
-    this.connection = new IORedis(this.environment.REDIS_URL, {
-      // BullMQ requires this: a blocking command must not be retried by the
-      // client, or a worker can lose a job it had already claimed.
-      maxRetriesPerRequest: null,
-    });
-  }
+  ) {}
 
   /**
    * The Redis key namespace, so two deployments can share one Redis without
@@ -45,17 +38,17 @@ export class QueueService implements OnModuleDestroy {
    * with one.
    */
   get prefix(): string {
-    return `excelex:${this.environment.NODE_ENV}`;
+    return this.redisService.key("queue");
   }
 
   get redis(): IORedis {
-    return this.connection;
+    return this.redisService.connection;
   }
 
   queue(name: QueueName): Queue {
     let queue = this.queues.get(name);
     if (!queue) {
-      queue = new Queue(name, { connection: this.connection, prefix: this.prefix });
+      queue = new Queue(name, { connection: this.redis, prefix: this.prefix });
       this.queues.set(name, queue);
     }
     return queue;
@@ -126,7 +119,7 @@ export class QueueService implements OnModuleDestroy {
   }
 
   async onModuleDestroy(): Promise<void> {
+    // The connection itself belongs to RedisService and is closed there.
     for (const queue of this.queues.values()) await queue.close();
-    await this.connection.quit();
   }
 }

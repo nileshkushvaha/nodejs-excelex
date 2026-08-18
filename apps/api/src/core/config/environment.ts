@@ -15,6 +15,12 @@ const environmentSchema = z
     DATABASE_URL: z.string().min(1),
     /** Control plane. excelex_platform. */
     DATABASE_PLATFORM_URL: z.string().min(1),
+    /**
+     * Background runtime. excelex_jobs: cross-client reads on an enumerated
+     * handful of tables (sessions, job_schedules), so the scheduler can find
+     * every client's due work without a role that bypasses row-level security.
+     */
+    DATABASE_JOBS_URL: z.string().min(1),
 
     /** The host suffix a request must match to be served at all. */
     APP_BASE_DOMAIN: z.string().min(1).default("localhost"),
@@ -55,6 +61,24 @@ const environmentSchema = z
       .string()
       .default("true")
       .transform((value) => value === "true"),
+
+    /**
+     * Whether this process runs the schedule dispatcher. Independent of the
+     * workers because a deployment may want several worker processes and
+     * exactly one dispatcher — though the dispatcher takes a Redis lease
+     * anyway, so two of them is a waste rather than a double-fire.
+     */
+    RUN_SCHEDULER: z
+      .string()
+      .default("true")
+      .transform((value) => value === "true"),
+
+    /**
+     * Guards GET /metrics, the Prometheus scrape endpoint. Unset, the endpoint
+     * is served only outside production — a scrape target with no
+     * authentication is a free map of every route and its error rate.
+     */
+    METRICS_TOKEN: z.string().min(16).optional(),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== "production") return;

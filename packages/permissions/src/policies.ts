@@ -60,6 +60,16 @@ export const POLICIES = {
   role: crud("settings.role"),
   clientSettings: crud("settings.general"),
   securitySettings: crud("settings.security"),
+
+  // The System screens. Most are read-only views over what the platform is
+  // doing; the ones with a manage half name it, and the rest point their
+  // write actions at a permission nobody holds so the buttons hide.
+  job: crud("system.queue"),
+  jobSchedule: crud("system.schedule"),
+  cache: crud("system.cache"),
+  activityLog: readOnly("settings.audit"),
+  loginHistory: readOnly("system.login"),
+  performance: readOnly("system.performance"),
 } as const satisfies Record<string, Policy>;
 
 export type Resource = keyof typeof POLICIES;

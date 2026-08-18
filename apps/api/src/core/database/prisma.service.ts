@@ -1,10 +1,12 @@
 import { Inject, Injectable, OnModuleDestroy } from "@nestjs/common";
 import {
   createClientPrisma,
+  createJobsPrisma,
   createPlatformPrisma,
   resolveClientByHost,
   withClientContext,
   type ClientPrisma,
+  type JobsPrisma,
   type PlatformPrisma,
   type ResolvedClient,
 } from "@excelex/database";
@@ -23,10 +25,12 @@ import { ENVIRONMENT, type Environment } from "../config/environment";
 export class PrismaService implements OnModuleDestroy {
   private readonly clientPrisma: ClientPrisma;
   private readonly platformPrisma: PlatformPrisma;
+  private readonly jobsPrisma: JobsPrisma;
 
   constructor(@Inject(ENVIRONMENT) environment: Environment) {
     this.clientPrisma = createClientPrisma({ connectionString: environment.DATABASE_URL });
     this.platformPrisma = createPlatformPrisma(environment.DATABASE_PLATFORM_URL);
+    this.jobsPrisma = createJobsPrisma(environment.DATABASE_JOBS_URL);
   }
 
   /**
@@ -52,7 +56,23 @@ export class PrismaService implements OnModuleDestroy {
     return this.platformPrisma;
   }
 
+  /**
+   * The background runtime's cross-client handle.
+   *
+   * Only for the enumerated tables the excelex_jobs role may read across
+   * clients — the scheduler's dispatch scan and the session sweep. Anything
+   * else it touches is refused by the database, which is the point: a job
+   * that needs a client's data goes through forClient() like a request does.
+   */
+  get jobs(): JobsPrisma {
+    return this.jobsPrisma;
+  }
+
   async onModuleDestroy(): Promise<void> {
-    await Promise.all([this.clientPrisma.$disconnect(), this.platformPrisma.$disconnect()]);
+    await Promise.all([
+      this.clientPrisma.$disconnect(),
+      this.platformPrisma.$disconnect(),
+      this.jobsPrisma.$disconnect(),
+    ]);
   }
 }

@@ -32,7 +32,8 @@ export type PermissionGroup =
   | "Masters"
   | "Billing"
   | "Reports"
-  | "Settings";
+  | "Settings"
+  | "System";
 
 function define<const T extends readonly PermissionDefinition[]>(definitions: T): T {
   return definitions;
@@ -95,6 +96,20 @@ export const PERMISSION_DEFINITIONS = define([
   { key: "settings.security.manage", group: "Settings", label: "Manage security settings", description: "Change the password policy for everyone in this account." },
   { key: "settings.audit.view", group: "Settings", label: "View audit trail", description: "Read this client's audit events." },
   { key: "settings.session.manage", group: "Settings", label: "Manage sessions", description: "See and revoke other people's sessions." },
+
+  // ── System ───────────────────────────────────────────────────────────────
+  // Operating the account rather than using it: what is running, what is
+  // scheduled, what is cached, who did what, who signed in, and how the
+  // application itself is behaving. View and manage are split throughout
+  // because reading a queue is harmless and draining one is not.
+  { key: "system.queue.view", group: "System", label: "View job queue", description: "See queued, running and finished background jobs and their outcomes." },
+  { key: "system.queue.manage", group: "System", label: "Manage job queue", description: "Retry, cancel and re-queue jobs; pause and resume queues." },
+  { key: "system.schedule.view", group: "System", label: "View scheduler", description: "See scheduled jobs and when they last and next run." },
+  { key: "system.schedule.manage", group: "System", label: "Manage scheduler", description: "Create, amend, pause and run scheduled jobs." },
+  { key: "system.cache.view", group: "System", label: "View cache", description: "See cache namespaces, sizes and hit rates." },
+  { key: "system.cache.manage", group: "System", label: "Manage cache", description: "Flush cache namespaces or individual keys. Safe but disruptive under load." },
+  { key: "system.login.view", group: "System", label: "View login history", description: "See sign-in attempts — successes, failures and lockouts — for everyone in this account." },
+  { key: "system.performance.view", group: "System", label: "View application performance", description: "See request latency, error rates, event-loop and database health for this deployment." },
 ] as const satisfies readonly PermissionDefinition[]);
 
 /** Every permission key, as a union type. A typo is a compile error. */

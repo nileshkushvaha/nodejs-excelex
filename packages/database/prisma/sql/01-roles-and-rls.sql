@@ -105,6 +105,7 @@ DECLARE
     'rate_lines',
     'jobs',
     'job_schedules',
+    'login_attempts',
     'sessions',
     'invitations',
     'audit_events'
@@ -126,6 +127,10 @@ END $$;
 -- Audit trail is append-only for every runtime role.
 REVOKE UPDATE, DELETE, TRUNCATE ON audit_events FROM excelex_app, excelex_platform, excelex_jobs;
 
+-- Login history is written once and never edited: an attempt happened or it
+-- did not. Delete stays, so the retention sweep can age rows out.
+REVOKE UPDATE, TRUNCATE ON login_attempts FROM excelex_app, excelex_platform, excelex_jobs;
+
 -- ─────────────────────────────────────────────────────────────
 -- 4. Background jobs — narrow, enumerable cross-client reads
 -- ─────────────────────────────────────────────────────────────
@@ -135,6 +140,14 @@ REVOKE UPDATE, DELETE, TRUNCATE ON audit_events FROM excelex_app, excelex_platfo
 GRANT SELECT, UPDATE ON sessions TO excelex_jobs;
 DROP POLICY IF EXISTS jobs_global_read ON sessions;
 CREATE POLICY jobs_global_read ON sessions FOR ALL TO excelex_jobs USING (true) WITH CHECK (true);
+
+-- The scheduler's dispatcher must find every client's due schedules from one
+-- process, which is exactly the cross-client read this role exists for. Read
+-- and update only: it advances next_run_at and last_run_at, and enqueues the
+-- work under the client's own context. It cannot create or remove a schedule.
+GRANT SELECT, UPDATE ON job_schedules TO excelex_jobs;
+DROP POLICY IF EXISTS jobs_global_read ON job_schedules;
+CREATE POLICY jobs_global_read ON job_schedules FOR ALL TO excelex_jobs USING (true) WITH CHECK (true);
 
 -- ─────────────────────────────────────────────────────────────
 -- 5. Platform tables — NEVER granted to the client runtime role
@@ -290,7 +303,7 @@ BEGIN
                         'product_types','product_groups','products','zones','destinations','service_centres','sales_executives',
                         'charges','charge_components',
                         'customers','customer_fuel_surcharges','customer_charges',
-                        'customer_volumetrics','customer_contacts','consignees','shippers','account_groups','lookups','pin_codes','rate_cards','rate_lines','jobs','job_schedules',
+                        'customer_volumetrics','customer_contacts','consignees','shippers','account_groups','lookups','pin_codes','rate_cards','rate_lines','jobs','job_schedules','login_attempts',
                         'sessions','invitations','audit_events')
       AND NOT (c.relrowsecurity AND c.relforcerowsecurity);
   IF bad > 0 THEN RAISE EXCEPTION '% client table(s) missing ENABLE+FORCE RLS', bad; END IF;

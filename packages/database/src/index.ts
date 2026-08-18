@@ -1,12 +1,14 @@
 export {
   createClientPrisma,
   createPlatformPrisma,
+  createJobsPrisma,
   resolveClientByHost,
   withClientContext,
   type ClientContextOptions,
   type ClientPrisma,
   type ClientPrismaOptions,
   type PlatformPrisma,
+  type JobsPrisma,
   type ResolvedClient,
 } from "./client";
 

@@ -1,4 +1,4 @@
-import { MiddlewareConsumer, Module, NestModule, OnModuleInit } from "@nestjs/common";
+import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
 import { APP_GUARD } from "@nestjs/core";
 
 import { AccessController } from "./access/access.controller";
@@ -8,15 +8,11 @@ import { AuthGuard } from "./auth/auth.guard";
 import { ActorCache } from "./auth/actor-cache";
 import { AuthService } from "./auth/auth.service";
 import { SessionService } from "./auth/session.service";
-import { ENVIRONMENT, loadEnvironment } from "./core/config/environment";
 import { ClientResolutionMiddleware } from "./core/context/client-resolution.middleware";
-import { PrismaService } from "./core/database/prisma.service";
+import { CoreModule } from "./core/core.module";
 import { DashboardController } from "./dashboard/dashboard.controller";
-import { JobsController } from "./jobs/jobs.controller";
-import { JobRegistry, registerHeartbeat } from "./jobs/job.registry";
-import { JobService } from "./jobs/job.service";
-import { QueueService } from "./jobs/queue.service";
-import { WorkerService } from "./jobs/worker.service";
+import { JobsModule } from "./jobs/jobs.module";
+import { SystemModule } from "./system/system.module";
 import { HealthController } from "./health/health.controller";
 import { OrganisationService } from "./masters/organisation.service";
 import { DestinationImportService } from "./masters/import/destination-import.service";
@@ -63,12 +59,12 @@ import { SecuritySettingsService } from "./settings/security-settings.service";
 import { SettingsController } from "./settings/settings.controller";
 
 @Module({
+  imports: [CoreModule, JobsModule, SystemModule],
   controllers: [
     AccessController,
     AuthController,
     DashboardController,
     HealthController,
-    JobsController,
     AccountGroupsController,
     ChargesController,
     ConsigneesController,
@@ -88,14 +84,8 @@ import { SettingsController } from "./settings/settings.controller";
     DataController,
   ],
   providers: [
-    { provide: ENVIRONMENT, useFactory: () => loadEnvironment() },
-    PrismaService,
     SessionService,
     ActorCache,
-    QueueService,
-    JobService,
-    JobRegistry,
-    WorkerService,
     AuthService,
     AccessService,
     ReferenceService,
@@ -130,19 +120,7 @@ import { SettingsController } from "./settings/settings.controller";
     { provide: APP_GUARD, useClass: AuthGuard },
   ],
 })
-export class AppModule implements NestModule, OnModuleInit {
-  constructor(private readonly jobs: JobRegistry) {}
-
-  /**
-   * The handlers that are not owned by a feature.
-   *
-   * Registered here rather than in the registry's constructor so the list of
-   * what this system can run in the background is readable in one place.
-   */
-  onModuleInit(): void {
-    registerHeartbeat(this.jobs);
-  }
-
+export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
     // Every route, including health checks: the host allowlist is a transport
     // concern and a request for an unknown host should not reach any handler.

@@ -44,8 +44,21 @@ export function createPlatformPrisma(connectionString: string) {
   return new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
 }
 
+/**
+ * The background runtime's handle: connects as excelex_jobs, which may read
+ * and update a short, enumerated list of client tables across every client
+ * (see 01-roles-and-rls.sql §4) and nothing else. It exists for the two pieces
+ * of work that are inherently cross-client — sweeping expired sessions and
+ * dispatching due schedules — so that neither needs BYPASSRLS. Everything a
+ * dispatched job then does runs under the client's own context.
+ */
+export function createJobsPrisma(connectionString: string) {
+  return new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
+}
+
 export type ClientPrisma = ReturnType<typeof createClientPrisma>;
 export type PlatformPrisma = ReturnType<typeof createPlatformPrisma>;
+export type JobsPrisma = ReturnType<typeof createJobsPrisma>;
 
 export interface ClientContextOptions {
   readonly maxWaitMs?: number;
