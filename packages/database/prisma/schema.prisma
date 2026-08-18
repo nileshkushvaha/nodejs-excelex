@@ -1323,8 +1323,12 @@ model Customer {
 
   // ── Personal details ───────────────────────────────────────────────────
   contactPerson String? @map("contact_person")
+  // Four lines, because the client's own export has four and their data uses
+  // them as area and city rather than as overflow.
   addressLine1  String? @map("address_line1")
   addressLine2  String? @map("address_line2")
+  addressLine3  String? @map("address_line3")
+  addressLine4  String? @map("address_line4")
   pinCode       String? @map("pin_code")
   city          String?
   /// Where the customer sits. Free text until the pincode master lands.
@@ -1373,6 +1377,11 @@ model Customer {
   contractAmount Decimal? @map("contract_amount") @db.Decimal(14, 2)
   creditDays     Int      @default(0) @map("credit_days")
 
+  /// The share of an invoice that may go unpaid past its due date before
+  /// bookings are held. Carried in the client's own import file beside the
+  /// credit terms, so it is stored beside them.
+  creditPercent Decimal? @map("credit_percent") @db.Decimal(5, 2)
+
   registrationNo String? @map("registration_no")
   /// Free text printed on the invoice — packing notes, PO requirements.
   instructions   String?
@@ -1386,11 +1395,11 @@ model Customer {
   ledgerHead     String? @map("ledger_head")
   contractOrigin String? @map("contract_origin")
 
-  businessChannel String? @map("business_channel")
-  iecNo           String? @map("iec_no")
-  bankAdCode      String? @map("bank_ad_code")
-  bankAccount     String? @map("bank_account")
-  bankIfsc        String? @map("bank_ifsc")
+  businessChannel String?      @map("business_channel")
+  iecNo           String?      @map("iec_no")
+  bankAdCode      String?      @map("bank_ad_code")
+  bankAccount     String?      @map("bank_account")
+  bankIfsc        String?      @map("bank_ifsc")
   firm            FirmType?
   shipperType     ShipperType? @map("shipper_type")
 

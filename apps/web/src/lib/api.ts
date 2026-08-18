@@ -292,7 +292,7 @@ export interface Zone {
 
 export interface ImportOutcome {
   row: number;
-  status: "create" | "update" | "error";
+  status: "create" | "update" | "error" | "skipped";
   code: string;
   message?: string;
 }

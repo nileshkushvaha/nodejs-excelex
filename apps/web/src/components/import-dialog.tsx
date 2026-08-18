@@ -174,6 +174,7 @@ export function ImportDialog({
 
 function Report({ report, onDone }: { report: ImportReport; onDone: () => void }) {
   const errors = report.outcomes.filter((outcome) => outcome.status === "error");
+  const skipped = report.outcomes.filter((outcome) => outcome.status === "skipped");
   const committed = report.mode === "commit" && !report.aborted;
 
   return (
@@ -183,6 +184,18 @@ function Report({ report, onDone }: { report: ImportReport; onDone: () => void }
         <Stat label={committed ? "Updated" : "To update"} value={committed ? report.updated : report.outcomes.filter((o) => o.status === "update").length} tone="info" />
         <Stat label="Errors" value={report.failed} tone={report.failed > 0 ? "bad" : "muted"} />
       </div>
+
+      {/* Shown before the outcome, not after: a column the importer refused
+          is something to know while deciding whether to commit, not a
+          footnote once the write has happened. */}
+      {skipped.map((outcome) => (
+        <p
+          key={`skipped-${outcome.row}`}
+          className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-300"
+        >
+          {outcome.message}
+        </p>
+      ))}
 
       {report.aborted ? (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-300">

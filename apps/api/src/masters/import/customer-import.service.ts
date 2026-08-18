@@ -21,37 +21,73 @@ import { normaliseHeader, parseSpreadsheet, type ImportReport, type RowOutcome }
  * can produce.
  */
 
-/** Accepted spellings for each column, normalised. */
+/**
+ * Accepted spellings for each column, normalised.
+ *
+ * Taken from the client's own two files rather than invented: CustomerMaster
+ * is the shape their staff fill in, Customerlist is what the legacy system
+ * exports. Both are listed, so a file exported from the old system on Monday
+ * imports here on Tuesday without anyone renaming a column.
+ */
 const COLUMNS = {
   code: ["customercode", "code"],
   name: ["customername", "name"],
-  contactPerson: ["contactperson", "contact"],
+  contactPerson: ["contactperson", "contact", "contactperson"],
   addressLine1: ["address1", "addressline1", "address"],
   addressLine2: ["address2", "addressline2"],
+  addressLine3: ["address3", "addressline3"],
+  addressLine4: ["address4", "addressline4"],
   pinCode: ["pincode", "pin", "postcode"],
   city: ["city"],
   stateCode: ["state", "statecode"],
   billingStateCode: ["billingstate", "customerbillingstate", "billingstatecode"],
-  telephone1: ["telno1", "telephone1", "phone", "telephone"],
-  telephone2: ["telno2", "telephone2"],
-  mobile: ["mobile", "mobileno", "cell"],
-  email: ["email", "emailid"],
-  serviceCentre: ["servicecentre", "servicecenter"],
-  branch: ["branch"],
+  telephone1: ["telno1", "telephone1", "customertel1", "phone", "telephone"],
+  telephone2: ["telno2", "telephone2", "customertel2"],
+  mobile: ["mobile", "mobileno", "customermobile", "cell"],
+  fax: ["faxno", "fax", "customerfax"],
+  email: ["emailid", "email", "customeremail"],
+  accountEmail: ["customeremailacct", "accountemail"],
+  // The legacy export puts the branch code in "branch code" and the service
+  // centre's name in "branch name", which is what their screens show too.
+  serviceCentre: ["servicecentre", "servicecenter", "branchname"],
+  branch: ["branch", "branchcode"],
   origin: ["origin"],
   gstin: ["gstno", "gstin", "gst"],
+  aadhaar: ["aadharno", "aadhaarno", "aadhar", "aadhaar"],
+  passportNo: ["passportno", "passport"],
   pan: ["panno", "pan"],
   tan: ["tanno", "tan"],
+  invoiceFormat: ["invoiceformat"],
+  coCourier: ["cocourier"],
   customerType: ["customertype", "type"],
   registerType: ["registertype", "registrationtype"],
   paymentType: ["paymenttype", "payment"],
   billingType: ["billingtype", "billingcycle"],
+  contractAmount: ["contractamount"],
   creditDays: ["creditdays"],
   creditLimit: ["creditlimit"],
+  creditPercent: ["creditpercentage", "creditpercent"],
   contractHead: ["contracthead"],
-  salesExecutive: ["salesexecutive", "salesex", "salesexcode"],
-  isActive: ["status", "active", "isactive"],
+  fuelSurcharge: ["fuelsurcharge", "fuel"],
+  taxApplicable: ["tax", "taxapplicable"],
+  eInvoice: ["einvoice", "einvoicing"],
+  globalCustomer: ["globalcustomer"],
+  startDate: ["startdate", "custstartdate"],
+  salesExecutive: ["salesexecutive", "salesex", "salesexcode", "execcode", "execname"],
+  isActive: ["customerstatus", "status", "active", "isactive"],
 } as const;
+
+/**
+ * Columns that are read to be refused.
+ *
+ * The legacy sheet carries portal logins in plain text. Importing them would
+ * mean this system storing a password it can read, which is the one thing a
+ * password store must never do — and a customer portal account is a user with
+ * a hashed credential, not a column on the customer row. The file is not
+ * rejected over it; the columns are ignored and the row is flagged so nobody
+ * believes the logins came across.
+ */
+const REFUSED_COLUMNS = ["customeruser", "customerpassword", "password"] as const;
 
 function pick(row: Record<string, string>, names: readonly string[]): string {
   for (const name of names) {
@@ -62,10 +98,13 @@ function pick(row: Record<string, string>, names: readonly string[]): string {
 }
 
 function parseBoolean(value: string): boolean | undefined {
-  const text = value.trim().toLowerCase();
+  // Punctuation is stripped, not just case: the client's export writes
+  // "In-Active", which read as unrecognised and fell back to the default —
+  // quietly importing every closed account as open.
+  const text = value.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
   if (!text) return undefined;
   if (["y", "yes", "true", "1", "active", "on"].includes(text)) return true;
-  if (["n", "no", "false", "0", "inactive", "off"].includes(text)) return false;
+  if (["n", "no", "false", "0", "inactive", "off", "closed"].includes(text)) return false;
   return undefined;
 }
 
@@ -81,6 +120,33 @@ function parseEnum<T extends string>(value: string, members: readonly T[]): T | 
   return members.find((member) => normaliseHeader(member) === key);
 }
 
+/**
+ * Reads the three date shapes these files actually contain.
+ *
+ * The client's data is dd/mm/yyyy — "01/01/2026" and "21/12/2020" — which is
+ * unambiguous only because 21 cannot be a month. A real cell arrives as an
+ * ISO string from the parser, and a hand-typed one may be yyyy-mm-dd. Nothing
+ * is guessed: an unrecognised value returns undefined and the row fails,
+ * because a silently wrong start date is a silently wrong contract.
+ */
+function parseDate(value: string): string | undefined {
+  const text = value.trim();
+  if (!text) return undefined;
+
+  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(text);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+
+  const dmy = /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/.exec(text);
+  if (dmy) {
+    const day = Number(dmy[1]);
+    const month = Number(dmy[2]);
+    if (day < 1 || day > 31 || month < 1 || month > 12) return undefined;
+    return `${dmy[3]}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  }
+
+  return undefined;
+}
+
 const CUSTOMER_TYPES = ["CUSTOMER", "CO_COURIER", "FRANCHISEE"] as const;
 const REGISTER_TYPES = ["REGISTERED", "UNREGISTERED", "B2B", "B2C"] as const;
 const PAYMENT_TYPES = ["CASH", "CHEQUE", "CREDIT", "TOPAY"] as const;
@@ -91,35 +157,51 @@ export class CustomerImportService {
   constructor(private readonly prisma: PrismaService) {}
 
   /** The columns an import file may carry, for the template download. */
+  /**
+   * The columns an import file may carry, for the template download.
+   *
+   * These are the client's own headings from CustomerMaster, in their order,
+   * so a file filled in from the template and a file exported from the legacy
+   * system look the same to whoever has to check them.
+   */
   static readonly TEMPLATE_HEADERS = [
     "Customer Code",
     "Customer Name",
     "Contact Person",
-    "Address 1",
-    "Address 2",
+    "Address1",
+    "Address2",
+    "Address3",
+    "Address4",
     "Pin Code",
-    "City",
-    "State",
-    "Billing State",
-    "Tel No 1",
-    "Tel No 2",
+    "Tel No. 1",
+    "Tel No. 2",
+    "Email ID",
     "Mobile",
-    "Email",
+    "Fax No",
+    "State",
     "Service Centre",
-    "Branch",
+    "Start Date",
+    "Status",
     "Origin",
-    "GST No",
-    "PAN No",
-    "TAN No",
-    "Customer Type",
-    "Register Type",
+    "GST No.",
+    "Aadhar No.",
+    "Passport No.",
+    "PAN No.",
+    "TAN No.",
+    "Invoice Format",
+    "Co-Courier",
     "Payment Type",
     "Billing Type",
-    "Credit Days",
-    "Credit Limit",
+    "Contract Amount",
+    "Credit Percentage",
     "Contract Head",
+    "Fuel Surcharge",
     "Sales Executive",
-    "Status",
+    "Global Customer",
+    "CUSTOMER_E_MAIL_ACCT",
+    "Register_type",
+    "Tax",
+    "Einvoice",
   ];
 
   async run(buffer: Buffer, filename: string, mode: "preview" | "commit"): Promise<ImportReport> {
@@ -161,6 +243,19 @@ export class CustomerImportService {
       const existingByCode = new Map(existing.map((customer) => [customer.code, customer]));
       const seenInFile = new Set<string>();
       const outcomes: RowOutcome[] = [];
+
+      // Reported as row 1 — the header — because that is where the columns
+      // are, and because it must be visible in the preview before anyone
+      // commits believing the logins came across.
+      const refused = REFUSED_COLUMNS.filter((column) => sheet.headers.includes(column));
+      if (refused.length > 0) {
+        outcomes.push({
+          row: 1,
+          status: "skipped",
+          code: "—",
+          message: `Ignored ${refused.length === 1 ? "column" : "columns"} carrying portal credentials. A portal login is a user account with a hashed password, not a customer column, and this system will not store one it can read.`,
+        });
+      }
       const pending: Array<{ id: string | null; data: Record<string, unknown> }> = [];
 
       for (const [rowIndex, row] of sheet.rows.entries()) {
@@ -280,6 +375,25 @@ export class CustomerImportService {
           continue;
         }
 
+        const contractAmountText = pick(row, COLUMNS.contractAmount).trim();
+        if (contractAmountText && !/^-?\d+(\.\d+)?$/.test(contractAmountText)) {
+          fail(`Contract amount "${contractAmountText}" is not a number.`);
+          continue;
+        }
+
+        const creditPercentText = pick(row, COLUMNS.creditPercent).trim();
+        if (creditPercentText && !/^-?\d+(\.\d+)?$/.test(creditPercentText)) {
+          fail(`Credit percentage "${creditPercentText}" is not a number.`);
+          continue;
+        }
+
+        const startDateText = pick(row, COLUMNS.startDate).trim();
+        const startDate = startDateText ? parseDate(startDateText) : undefined;
+        if (startDateText && !startDate) {
+          fail(`Start date "${startDateText}" is not a date the importer recognises — use dd/mm/yyyy or yyyy-mm-dd.`);
+          continue;
+        }
+
         const current = existingByCode.get(code);
 
         // Only columns the file actually carries are written. A file with no
@@ -312,8 +426,34 @@ export class CustomerImportService {
         set("paymentType", paymentType);
         set("billingType", billingType);
         set("contractHead", pick(row, COLUMNS.contractHead).trim());
+        set("addressLine3", pick(row, COLUMNS.addressLine3).trim());
+        set("addressLine4", pick(row, COLUMNS.addressLine4).trim());
+        set("fax", pick(row, COLUMNS.fax).trim());
+        set("accountEmail", pick(row, COLUMNS.accountEmail).trim());
+        set("aadhaar", pick(row, COLUMNS.aadhaar).trim());
+        set("passportNo", pick(row, COLUMNS.passportNo).trim());
+        set("invoiceFormat", pick(row, COLUMNS.invoiceFormat).trim());
         if (creditDays !== undefined) data["creditDays"] = creditDays;
         if (creditLimitText) data["creditLimit"] = creditLimitText;
+        if (contractAmountText) data["contractAmount"] = contractAmountText;
+        if (creditPercentText) data["creditPercent"] = creditPercentText;
+        if (startDate) data["startDate"] = new Date(`${startDate}T00:00:00Z`);
+
+        // Their sheet has a Co-Courier flag rather than a type column, so a
+        // ticked flag names the type — unless the file said the type outright.
+        if (!customerType && parseBoolean(pick(row, COLUMNS.coCourier))) {
+          data["customerType"] = "CO_COURIER";
+        }
+
+        for (const [key, column] of [
+          ["fuelSurcharge", COLUMNS.fuelSurcharge],
+          ["taxApplicable", COLUMNS.taxApplicable],
+          ["eInvoice", COLUMNS.eInvoice],
+          ["globalCustomer", COLUMNS.globalCustomer],
+        ] as const) {
+          const flag = parseBoolean(pick(row, column));
+          if (flag !== undefined) data[key] = flag;
+        }
 
         const isActive = parseBoolean(pick(row, COLUMNS.isActive));
         if (isActive !== undefined) data["isActive"] = isActive;

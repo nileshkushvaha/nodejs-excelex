@@ -521,27 +521,57 @@ export class MastersController {
     // A leading =, +, - or @ makes a spreadsheet treat the cell as a formula,
     // so a customer named "=cmd|..." would execute on open. Prefixed with an
     // apostrophe, which Excel strips on display and never evaluates.
-    const cell = (value: string | null | undefined): string => {
-      const text = value ?? "";
+    const cell = (value: unknown): string => {
+      const text = value === null || value === undefined ? "" : String(value);
       const guarded = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
       return `"${guarded.replace(/"/g, '""')}"`;
     };
+    const day = (value: Date | null) => (value ? value.toISOString().slice(0, 10) : "");
+    const yesNo = (value: boolean) => (value ? "Yes" : "No");
 
-    const lines = [
-      ["Customer Code", "Branch", "Service Centre", "Name", "Contact", "Phone", "Email", "Status", "Contract Head"].join(","),
-    ];
+    // The client's own CustomerMaster headings, in their order, so an export
+    // is a valid import: pull the list, edit it in Excel, upload it back.
+    const lines = [CustomerImportService.TEMPLATE_HEADERS.join(",")];
     for (const row of rows) {
       lines.push(
         [
           cell(row.code),
-          cell(row.branch?.code),
-          cell(row.serviceCentre?.name),
           cell(row.name),
           cell(row.contactPerson),
-          cell(row.mobile),
+          cell(row.addressLine1),
+          cell(row.addressLine2),
+          cell(row.addressLine3),
+          cell(row.addressLine4),
+          cell(row.pinCode),
+          cell(row.telephone1),
+          cell(row.telephone2),
           cell(row.email),
-          cell(row.isActive ? "Active" : "Inactive"),
+          cell(row.mobile),
+          cell(row.fax),
+          cell(row.stateCode),
+          cell(row.serviceCentre?.name),
+          cell(day(row.startDate)),
+          cell(row.isActive ? "Active" : "In-Active"),
+          cell(row.origin?.code),
+          cell(row.gstin),
+          cell(row.aadhaar),
+          cell(row.passportNo),
+          cell(row.pan),
+          cell(row.tan),
+          cell(row.invoiceFormat),
+          cell(yesNo(row.customerType === "CO_COURIER")),
+          cell(row.paymentType),
+          cell(row.billingType),
+          cell(row.contractAmount),
+          cell(row.creditPercent),
           cell(row.contractHead),
+          cell(yesNo(row.fuelSurcharge)),
+          cell(row.salesExecutive?.code),
+          cell(yesNo(row.globalCustomer)),
+          cell(row.accountEmail),
+          cell(row.registerType),
+          cell(yesNo(row.taxApplicable)),
+          cell(yesNo(row.eInvoice)),
         ].join(","),
       );
     }

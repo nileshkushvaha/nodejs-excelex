@@ -126,18 +126,36 @@ export class CustomerService {
    */
   async listForExport(query: Omit<CustomerListQuery, "page" | "pageSize">) {
     const { clientId } = requireRequestContext();
-    const page = await this.list({ ...query, page: 1, pageSize: 100 });
 
-    if (page.total <= 100) return page.rows;
+    const where: Prisma.CustomerWhereInput = {
+      deletedAt: null,
+      ...(query.branchId ? { branchId: query.branchId } : {}),
+      ...(query.serviceCentreId ? { serviceCentreId: query.serviceCentreId } : {}),
+      ...(query.customerType ? { customerType: query.customerType as never } : {}),
+      ...(query.status ? { isActive: query.status === "active" } : {}),
+      ...(query.search?.trim()
+        ? {
+            OR: [
+              { code: { contains: query.search.trim(), mode: "insensitive" as const } },
+              { name: { contains: query.search.trim(), mode: "insensitive" as const } },
+              { contactPerson: { contains: query.search.trim(), mode: "insensitive" as const } },
+              { mobile: { contains: query.search.trim() } },
+              { email: { contains: query.search.trim(), mode: "insensitive" as const } },
+            ],
+          }
+        : {}),
+    };
 
-    return this.prisma.forClient(clientId!, async () => {
-      const all: CustomerRow[] = [...page.rows];
-      for (let next = 2; next <= Math.min(page.pageCount, 200); next += 1) {
-        const more = await this.list({ ...query, page: next, pageSize: 100 });
-        all.push(...more.rows);
-      }
-      return all;
-    });
+    return this.prisma.forClient(clientId!, async (tx) =>
+      tx.customer.findMany({
+        where,
+        include: { branch: true, serviceCentre: true, origin: true, salesExecutive: true },
+        orderBy: { code: "asc" },
+        // Past this the honest answer is a report, not a file the browser has
+        // to hold in memory and Excel has to open.
+        take: 20000,
+      }),
+    );
   }
 
   /** The whole row, for the edit form. */

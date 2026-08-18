@@ -28,10 +28,13 @@ function pick(row: Record<string, string>, names: readonly string[]): string {
 }
 
 function parseBoolean(value: string): boolean | undefined {
-  const text = value.trim().toLowerCase();
+  // Punctuation is stripped, not just case: the client's export writes
+  // "In-Active", which read as unrecognised and fell back to the default —
+  // quietly importing every closed account as open.
+  const text = value.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
   if (!text) return undefined;
   if (["y", "yes", "true", "1", "active", "on"].includes(text)) return true;
-  if (["n", "no", "false", "0", "inactive", "off"].includes(text)) return false;
+  if (["n", "no", "false", "0", "inactive", "off", "closed"].includes(text)) return false;
   return undefined;
 }
 
