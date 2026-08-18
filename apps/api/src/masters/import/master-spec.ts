@@ -75,6 +75,16 @@ export interface MasterSpec<Row = Record<string, unknown>> {
   /** Relations the export needs loaded. */
   readonly include?: Record<string, boolean>;
 
+  /**
+   * Fixed columns that narrow this master within a shared table.
+   *
+   * The six short lists live in one table separated by a kind, so a spec for
+   * industries must export only industries and must stamp the kind on every
+   * row it creates. Without it, exporting industries would hand back vendors
+   * too, and importing them would create rows belonging to no list.
+   */
+  readonly scope?: Record<string, unknown>;
+
   readonly columns: readonly ColumnSpec<Row>[];
 
   /**

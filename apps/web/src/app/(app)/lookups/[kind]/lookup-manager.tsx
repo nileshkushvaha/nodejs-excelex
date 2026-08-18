@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 import { FilterBar, useFilterBar, type FilterDefinition } from "@/components/filter-bar";
 import { Field, FormError, formField } from "@/components/form-field";
 import { FormPanel } from "@/components/form-page";
+import { DataToolbar } from "@/components/data-toolbar";
 import { ActiveBadge, MasterTable } from "@/components/master-table";
 import { Toggle } from "@/components/toggle";
 import type { ActionResult, LookupRow } from "@/lib/api";
@@ -68,15 +69,18 @@ export function LookupManager({
         shown={filtered.length}
         noun={label}
         actions={
-          canManage ? (
-            <button
-              type="button"
-              onClick={() => setEditing((current) => (current ? null : "new"))}
-              className="btn-primary rounded-lg px-3 py-2 text-sm font-medium"
-            >
-              {editing ? "Cancel" : `New ${label.one}`}
-            </button>
-          ) : null
+          <>
+            <DataToolbar master={kind} label={label.many} canImport={canManage} />
+            {canManage ? (
+              <button
+                type="button"
+                onClick={() => setEditing((current) => (current ? null : "new"))}
+                className="btn-primary rounded-lg px-3 py-2 text-sm font-medium"
+              >
+                {editing ? "Cancel" : `New ${label.one}`}
+              </button>
+            ) : null}
+          </>
         }
       />
 

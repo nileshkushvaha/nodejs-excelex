@@ -40,7 +40,7 @@ export class MasterIoService {
     return this.prisma.forClient(clientId!, async (tx) => {
       const delegate = this.delegate(tx, spec);
       return delegate.findMany({
-        where: { deletedAt: null },
+        where: { deletedAt: null, ...(spec.scope ?? {}) },
         ...(spec.include ? { include: spec.include } : {}),
         orderBy: { code: "asc" },
         // Past this, the honest answer is a report rather than a file the
@@ -109,8 +109,10 @@ export class MasterIoService {
       };
 
       const delegate = this.delegate(tx, spec);
+      // Scoped, so an industry called ADM does not collide with a vendor
+      // called ADM when the two share a table.
       const existing = (await delegate.findMany({
-        where: { deletedAt: null },
+        where: { deletedAt: null, ...(spec.scope ?? {}) },
       })) as Array<{ id: string; code: string }>;
       const existingByCode = new Map(existing.map((row) => [row.code, row]));
 
@@ -175,7 +177,7 @@ export class MasterIoService {
           if (row.id) {
             await delegate.update({ where: { id: row.id }, data: row.data });
           } else {
-            await delegate.create({ data: { clientId: clientId!, ...row.data } });
+            await delegate.create({ data: { clientId: clientId!, ...(spec.scope ?? {}), ...row.data } });
           }
         }
 

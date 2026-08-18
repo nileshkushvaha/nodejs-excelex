@@ -44,6 +44,108 @@ export const MASTERS: Record<string, MasterSpec> = {
     example: ["110001", "New Delhi", "Connaught Place", "DL", "DEL", "Z1", "No", "Active"],
   },
 
+  "vendors": {
+    key: "vendor",
+    label: { one: "Vendor", many: "Vendors" },
+    resource: "vendor",
+    model: "lookup",
+    // One table, six lists. The kind both filters the export and stamps
+    // every imported row.
+    scope: { kind: "VENDOR" },
+    columns: [
+      text("Vendor Code", "code", { required: true, upper: true, aliases: ["code"] }),
+      text("Vendor Name", "name", { required: true, aliases: ["name"] }),
+      text("Description", "description"),
+      integer("Order", "sequence", { min: 0, max: 9999, aliases: ["sequence"] }),
+      status(),
+    ],
+  },
+
+  "industries": {
+    key: "industry",
+    label: { one: "Industry", many: "Industries" },
+    resource: "lookup",
+    model: "lookup",
+    // One table, six lists. The kind both filters the export and stamps
+    // every imported row.
+    scope: { kind: "INDUSTRY" },
+    columns: [
+      text("Industry Code", "code", { required: true, upper: true, aliases: ["code"] }),
+      text("Industry Name", "name", { required: true, aliases: ["name"] }),
+      text("Description", "description"),
+      integer("Order", "sequence", { min: 0, max: 9999, aliases: ["sequence"] }),
+      status(),
+    ],
+  },
+
+  "areas": {
+    key: "area",
+    label: { one: "Area", many: "Areas" },
+    resource: "lookup",
+    model: "lookup",
+    // One table, six lists. The kind both filters the export and stamps
+    // every imported row.
+    scope: { kind: "AREA" },
+    columns: [
+      text("Area Code", "code", { required: true, upper: true, aliases: ["code"] }),
+      text("Area Name", "name", { required: true, aliases: ["name"] }),
+      text("Description", "description"),
+      integer("Order", "sequence", { min: 0, max: 9999, aliases: ["sequence"] }),
+      status(),
+    ],
+  },
+
+  "content-types": {
+    key: "content_type",
+    label: { one: "Content type", many: "Content types" },
+    resource: "lookup",
+    model: "lookup",
+    // One table, six lists. The kind both filters the export and stamps
+    // every imported row.
+    scope: { kind: "CONTENT_TYPE" },
+    columns: [
+      text("Content type Code", "code", { required: true, upper: true, aliases: ["code"] }),
+      text("Content type Name", "name", { required: true, aliases: ["name"] }),
+      text("Description", "description"),
+      integer("Order", "sequence", { min: 0, max: 9999, aliases: ["sequence"] }),
+      status(),
+    ],
+  },
+
+  "instructions": {
+    key: "instruction",
+    label: { one: "Instruction", many: "Instructions" },
+    resource: "lookup",
+    model: "lookup",
+    // One table, six lists. The kind both filters the export and stamps
+    // every imported row.
+    scope: { kind: "INSTRUCTION" },
+    columns: [
+      text("Instruction Code", "code", { required: true, upper: true, aliases: ["code"] }),
+      text("Instruction Name", "name", { required: true, aliases: ["name"] }),
+      text("Description", "description"),
+      integer("Order", "sequence", { min: 0, max: 9999, aliases: ["sequence"] }),
+      status(),
+    ],
+  },
+
+  "customer-groups": {
+    key: "customer_group",
+    label: { one: "Customer group", many: "Customer groups" },
+    resource: "lookup",
+    model: "lookup",
+    // One table, six lists. The kind both filters the export and stamps
+    // every imported row.
+    scope: { kind: "CUSTOMER_GROUP" },
+    columns: [
+      text("Customer group Code", "code", { required: true, upper: true, aliases: ["code"] }),
+      text("Customer group Name", "name", { required: true, aliases: ["name"] }),
+      text("Description", "description"),
+      integer("Order", "sequence", { min: 0, max: 9999, aliases: ["sequence"] }),
+      status(),
+    ],
+  },
+
   zones: {
     key: "zone",
     label: { one: "Zone", many: "Zones" },
