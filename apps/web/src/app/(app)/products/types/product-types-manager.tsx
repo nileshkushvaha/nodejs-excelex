@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState } from "react";
 
 import { FilterBar, useFilterBar, type FilterDefinition } from "@/components/filter-bar";
+import { DataToolbar } from "@/components/data-toolbar";
 import { ActiveBadge, MasterTable } from "@/components/master-table";
 import type { Classification } from "@/lib/api";
 import { deleteProductType } from "./actions";
@@ -60,14 +61,17 @@ export function ProductTypesManager({
         shown={filtered.length}
         noun={{ one: "product type", many: "product types" }}
         actions={
-          canManage ? (
+          <>
+            <DataToolbar master="product-types" label="Product types" canImport={canManage} />
+            {canManage ? (
             <Link
               href="/products/types/new"
               className="btn-primary rounded-lg px-3 py-2 text-sm font-medium"
             >
               New product type
             </Link>
-          ) : null
+          ) : null}
+          </>
         }
       />
 

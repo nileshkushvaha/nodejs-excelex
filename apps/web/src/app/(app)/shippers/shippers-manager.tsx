@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useActionState, useMemo, useTransition } from "react";
 
 import { FilterBar, type FilterDefinition } from "@/components/filter-bar";
+import { DataToolbar } from "@/components/data-toolbar";
 import { ActiveBadge, MasterTable } from "@/components/master-table";
 import { Pager } from "@/components/pager";
 import type { Destination, Shipper, ShipperPage } from "@/lib/api";
@@ -102,12 +103,12 @@ export function ShippersManager({
         noun={{ one: "shipper", many: "shippers" }}
         actions={
           <>
-            <a
-              href={`/api/v1/masters/shippers/export?${params.toString()}`}
-              className="btn-secondary rounded-lg px-3 py-2 text-sm font-medium"
-            >
-              Export
-            </a>
+            <DataToolbar
+              master="shippers"
+              label="Shippers"
+              canImport={canManage}
+              query={params.toString()}
+            />
             {canManage ? (
               <Link href="/shippers/new" className="btn-primary rounded-lg px-3 py-2 text-sm font-medium">
                 New shipper

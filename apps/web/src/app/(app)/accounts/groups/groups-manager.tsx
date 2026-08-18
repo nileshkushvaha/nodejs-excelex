@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState } from "react";
 
 import { FilterBar, useFilterBar, type FilterDefinition } from "@/components/filter-bar";
+import { DataToolbar } from "@/components/data-toolbar";
 import { ActiveBadge, MasterTable } from "@/components/master-table";
 import type { AccountGroup } from "@/lib/api";
 import { deleteAccountGroup } from "./actions";
@@ -60,14 +61,17 @@ export function GroupsManager({
         shown={filtered.length}
         noun={{ one: "group", many: "groups" }}
         actions={
-          canManage ? (
+          <>
+            <DataToolbar master="account-groups" label="Account groups" canImport={canManage} />
+            {canManage ? (
             <Link
               href="/accounts/groups/new"
               className="btn-primary rounded-lg px-3 py-2 text-sm font-medium"
             >
               New group
             </Link>
-          ) : null
+          ) : null}
+          </>
         }
       />
 

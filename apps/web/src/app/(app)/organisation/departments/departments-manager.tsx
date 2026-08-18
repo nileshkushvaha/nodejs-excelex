@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState } from "react";
 
 import { FilterBar, useFilterBar, type FilterDefinition } from "@/components/filter-bar";
+import { DataToolbar } from "@/components/data-toolbar";
 import { ActiveBadge, MasterTable } from "@/components/master-table";
 import type { Department } from "@/lib/api";
 import { deleteDepartment } from "../actions";
@@ -61,11 +62,14 @@ export function DepartmentsManager({
         shown={filtered.length}
         noun={{ one: "department", many: "departments" }}
         actions={
-          canManage ? (
+          <>
+            <DataToolbar master="departments" label="Departments" canImport={canManage} />
+            {canManage ? (
             <Link href="/organisation/departments/new" className="btn-primary rounded-lg px-3 py-2 text-sm font-medium">
                 New department
               </Link>
-          ) : null
+          ) : null}
+          </>
         }
       />
 

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState, useMemo } from "react";
 
 import { FilterBar, useFilterBar, type FilterDefinition } from "@/components/filter-bar";
+import { DataToolbar } from "@/components/data-toolbar";
 import { ActiveBadge, MasterTable } from "@/components/master-table";
 import type { Department, Designation } from "@/lib/api";
 import { deleteDesignation } from "../actions";
@@ -80,11 +81,14 @@ export function DesignationsManager({
         shown={filtered.length}
         noun={{ one: "designation", many: "designations" }}
         actions={
-          canManage ? (
+          <>
+            <DataToolbar master="designations" label="Designations" canImport={canManage} />
+            {canManage ? (
             <Link href="/organisation/designations/new" className="btn-primary rounded-lg px-3 py-2 text-sm font-medium">
                 New designation
               </Link>
-          ) : null
+          ) : null}
+          </>
         }
       />
 

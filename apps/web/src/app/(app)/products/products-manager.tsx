@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useMemo } from "react";
 
 import { FilterBar, useFilterBar, type FilterDefinition } from "@/components/filter-bar";
+import { DataToolbar } from "@/components/data-toolbar";
 import { ActiveBadge, MasterTable } from "@/components/master-table";
 import type { Classification, Product } from "@/lib/api";
 import { deleteProduct } from "./actions";
-import { ImportDialog } from "@/components/import-dialog";
 
 
 export function ProductsManager({
@@ -21,7 +21,6 @@ export function ProductsManager({
   groups: Classification[];
   canManage: boolean;
 }) {
-  const [importing, setImporting] = useState(false);
   const [removeState, removeAction] = useActionState(deleteProduct, null);
 
   const definitions = useMemo<ReadonlyArray<FilterDefinition<Product>>>(
@@ -95,20 +94,14 @@ export function ProductsManager({
         shown={filtered.length}
         noun={{ one: "product", many: "products" }}
         actions={
-          canManage ? (
-            <span className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setImporting(true)}
-                className="btn-secondary rounded-lg px-3 py-2 text-sm font-medium"
-              >
-                Import
-              </button>
+          <>
+            <DataToolbar master="products" label="Products" canImport={canManage} />
+            {canManage ? (
               <Link href="/products/new" className="btn-primary rounded-lg px-3 py-2 text-sm font-medium">
                 New product
               </Link>
-            </span>
-          ) : null
+            ) : null}
+          </>
         }
       />
 
@@ -208,7 +201,6 @@ export function ProductsManager({
         ]}
       />
 
-      <ImportDialog open={importing} onClose={() => setImporting(false)} />
     </>
   );
 }

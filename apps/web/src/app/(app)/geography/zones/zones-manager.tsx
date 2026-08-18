@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState } from "react";
 
 import { FilterBar, useFilterBar, type FilterDefinition } from "@/components/filter-bar";
+import { DataToolbar } from "@/components/data-toolbar";
 import { ActiveBadge, MasterTable } from "@/components/master-table";
 import type { Zone } from "@/lib/api";
 import { deleteZone } from "./actions";
@@ -55,11 +56,14 @@ export function ZonesManager({ zones, canManage }: { zones: Zone[]; canManage: b
         shown={filtered.length}
         noun={{ one: "zone", many: "zones" }}
         actions={
-          canManage ? (
+          <>
+            <DataToolbar master="zones" label="Zones" canImport={canManage} />
+            {canManage ? (
             <Link href="/geography/zones/new" className="btn-primary rounded-lg px-3 py-2 text-sm font-medium">
                 New zone
               </Link>
-          ) : null
+          ) : null}
+          </>
         }
       />
 

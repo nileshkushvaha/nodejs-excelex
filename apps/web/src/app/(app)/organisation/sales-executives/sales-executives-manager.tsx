@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState } from "react";
 
 import { FilterBar, useFilterBar, type FilterDefinition } from "@/components/filter-bar";
+import { DataToolbar } from "@/components/data-toolbar";
 import { ActiveBadge, MasterTable } from "@/components/master-table";
 import type { SalesExecutive } from "@/lib/api";
 import { deleteSalesExecutive } from "./actions";
@@ -60,14 +61,17 @@ export function SalesExecutivesManager({
         shown={filtered.length}
         noun={{ one: "sales executive", many: "sales executives" }}
         actions={
-          canManage ? (
+          <>
+            <DataToolbar master="sales-executives" label="Sales executives" canImport={canManage} />
+            {canManage ? (
             <Link
               href="/organisation/sales-executives/new"
               className="btn-primary rounded-lg px-3 py-2 text-sm font-medium"
             >
               New sales executive
             </Link>
-          ) : null
+          ) : null}
+          </>
         }
       />
 

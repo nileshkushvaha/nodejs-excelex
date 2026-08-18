@@ -19,6 +19,8 @@ import { ProductImportService } from "./masters/import/product-import.service";
 import { DestinationService } from "./masters/destination.service";
 import { ProductService } from "./masters/product.service";
 import { ChargeService } from "./masters/charge.service";
+import { DataController } from "./masters/data.controller";
+import { MasterIoService } from "./masters/import/master-io.service";
 import { AccountGroupService } from "./masters/account-group.service";
 import { ConsigneeService } from "./masters/consignee.service";
 import { ShipperService } from "./masters/shipper.service";
@@ -45,6 +47,7 @@ import { SettingsController } from "./settings/settings.controller";
     MastersController,
     ProfileController,
     SettingsController,
+    DataController,
   ],
   providers: [
     { provide: ENVIRONMENT, useFactory: () => loadEnvironment() },
@@ -67,6 +70,7 @@ import { SettingsController } from "./settings/settings.controller";
     ConsigneeService,
     ShipperService,
     AccountGroupService,
+    MasterIoService,
     ChargeService,
     ProfileService,
     PasswordPolicyService,

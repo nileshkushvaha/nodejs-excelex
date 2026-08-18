@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useActionState, useMemo, useTransition } from "react";
 
 import { FilterBar, type FilterDefinition } from "@/components/filter-bar";
+import { DataToolbar } from "@/components/data-toolbar";
 import { ActiveBadge, MasterTable } from "@/components/master-table";
 import { Pager } from "@/components/pager";
 import type { Consignee, ConsigneePage, Destination } from "@/lib/api";
@@ -103,12 +104,12 @@ export function ConsigneesManager({
         noun={{ one: "consignee", many: "consignees" }}
         actions={
           <>
-            <a
-              href={`/api/v1/masters/consignees/export?${params.toString()}`}
-              className="btn-secondary rounded-lg px-3 py-2 text-sm font-medium"
-            >
-              Export
-            </a>
+            <DataToolbar
+              master="consignees"
+              label="Consignees"
+              canImport={canManage}
+              query={params.toString()}
+            />
             {canManage ? (
               <Link href="/consignees/new" className="btn-primary rounded-lg px-3 py-2 text-sm font-medium">
                 New consignee

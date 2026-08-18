@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState, useMemo } from "react";
 
 import { FilterBar, useFilterBar, type FilterDefinition } from "@/components/filter-bar";
+import { DataToolbar } from "@/components/data-toolbar";
 import { ActiveBadge, MasterTable } from "@/components/master-table";
 import type { Destination, ServiceCentre, StateRow } from "@/lib/api";
 import { deleteServiceCentre } from "./actions";
@@ -83,11 +84,14 @@ export function ServiceCentresManager({
         shown={filtered.length}
         noun={{ one: "service centre", many: "service centres" }}
         actions={
-          canManage ? (
+          <>
+            <DataToolbar master="service-centres" label="Service centres" canImport={canManage} />
+            {canManage ? (
             <Link href="/network/service-centres/new" className="btn-primary rounded-lg px-3 py-2 text-sm font-medium">
                 New service centre
               </Link>
-          ) : null
+          ) : null}
+          </>
         }
       />
 
