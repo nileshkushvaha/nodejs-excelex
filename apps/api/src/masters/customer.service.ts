@@ -116,6 +116,30 @@ export class CustomerService {
     });
   }
 
+  /**
+   * Every row the current filters select, unpaged, for the export.
+   *
+   * Deliberately not reusing list(): an export that silently gave you page one
+   * of your filter would be worse than no export at all. Capped, because a
+   * client with a hundred thousand customers should be asking for a report,
+   * not a spreadsheet the browser has to hold.
+   */
+  async listForExport(query: Omit<CustomerListQuery, "page" | "pageSize">) {
+    const { clientId } = requireRequestContext();
+    const page = await this.list({ ...query, page: 1, pageSize: 100 });
+
+    if (page.total <= 100) return page.rows;
+
+    return this.prisma.forClient(clientId!, async () => {
+      const all: CustomerRow[] = [...page.rows];
+      for (let next = 2; next <= Math.min(page.pageCount, 200); next += 1) {
+        const more = await this.list({ ...query, page: next, pageSize: 100 });
+        all.push(...more.rows);
+      }
+      return all;
+    });
+  }
+
   /** The whole row, for the edit form. */
   async byId(id: string) {
     const { clientId } = requireRequestContext();

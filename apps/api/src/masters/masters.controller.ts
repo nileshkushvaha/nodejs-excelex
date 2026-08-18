@@ -501,6 +501,52 @@ export class MastersController {
     return this.customers.create(parse(customerSchema, body) as CustomerInput);
   }
 
+  // Declared before "customers/:id", because Nest matches in declaration
+  // order and "export" is not a uuid.
+  @Get("customers/export")
+  @RequirePermission("masters.customer.view")
+  @Header("content-type", "text/csv; charset=utf-8")
+  @Header("content-disposition", 'attachment; filename="customers.csv"')
+  async exportCustomers(@Query() query: Record<string, string>): Promise<string> {
+    const rows = await this.customers.listForExport({
+      search: query["search"],
+      branchId: query["branchId"],
+      serviceCentreId: query["serviceCentreId"],
+      customerType: query["customerType"],
+      status: query["status"],
+    });
+
+    // A leading =, +, - or @ makes a spreadsheet treat the cell as a formula,
+    // so a customer named "=cmd|..." would execute on open. Prefixed with an
+    // apostrophe, which Excel strips on display and never evaluates.
+    const cell = (value: string | null | undefined): string => {
+      const text = value ?? "";
+      const guarded = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
+      return `"${guarded.replace(/"/g, '""')}"`;
+    };
+
+    const lines = [
+      ["Customer Code", "Branch", "Service Centre", "Name", "Contact", "Phone", "Email", "Status", "Contract Head"].join(","),
+    ];
+    for (const row of rows) {
+      lines.push(
+        [
+          cell(row.code),
+          cell(row.branch?.code),
+          cell(row.serviceCentre?.name),
+          cell(row.name),
+          cell(row.contactPerson),
+          cell(row.mobile),
+          cell(row.email),
+          cell(row.isActive ? "Active" : "Inactive"),
+          cell(row.contractHead),
+        ].join(","),
+      );
+    }
+
+    return `${lines.join("\n")}\n`;
+  }
+
   @Get("customers/:id")
   @RequirePermission("masters.customer.view")
   async customerById(@Param("id", ParseUUIDPipe) id: string) {

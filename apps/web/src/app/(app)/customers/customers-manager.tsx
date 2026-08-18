@@ -127,11 +127,22 @@ export function CustomersManager({
         shown={page.rows.length}
         noun={{ one: "customer", many: "customers" }}
         actions={
-          canManage ? (
-            <Link href="/customers/new" className="btn-primary rounded-lg px-3 py-2 text-sm font-medium">
-              New customer
-            </Link>
-          ) : null
+          <>
+            {/* The export carries the filters, so what downloads is what is
+                on screen — an export that quietly gave you everything would
+                be a different answer to the one being looked at. */}
+            <a
+              href={`/api/v1/masters/customers/export?${params.toString()}`}
+              className="btn-secondary rounded-lg px-3 py-2 text-sm font-medium"
+            >
+              Export
+            </a>
+            {canManage ? (
+              <Link href="/customers/new" className="btn-primary rounded-lg px-3 py-2 text-sm font-medium">
+                New customer
+              </Link>
+            ) : null}
+          </>
         }
       />
 
