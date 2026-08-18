@@ -32,6 +32,7 @@ import {
   type VolumetricInput,
 } from "./customer-detail.service";
 import { CustomerService, type CustomerInput } from "./customer.service";
+import { CustomerImportService } from "./import/customer-import.service";
 import { SalesExecutiveService } from "./sales-executive.service";
 import { ServiceCentreService } from "./service-centre.service";
 import { ZoneService } from "./zone.service";
@@ -476,6 +477,7 @@ export class MastersController {
     private readonly charges: ChargeService,
     private readonly customers: CustomerService,
     private readonly customerDetails: CustomerDetailService,
+    private readonly customerImport: CustomerImportService,
   ) {}
 
   // ── Customers ────────────────────────────────────────────────────────────
@@ -545,6 +547,44 @@ export class MastersController {
     }
 
     return `${lines.join("\n")}\n`;
+  }
+
+  @Post("customers/import")
+  @RequirePermission("masters.customer.manage")
+  @UseInterceptors(FileInterceptor("file", { limits: { fileSize: 10 * 1024 * 1024, files: 1 } }))
+  importCustomers(
+    @UploadedFile() file: { buffer: Buffer; originalname: string } | undefined,
+    @Query("mode") mode?: string,
+  ) {
+    if (!file) throw new BadRequestException("Attach a .xlsx or .csv file.");
+
+    const name = file.originalname.toLowerCase();
+    if (!name.endsWith(".xlsx") && !name.endsWith(".csv")) {
+      throw new BadRequestException("Only .xlsx and .csv files are accepted.");
+    }
+
+    // Preview unless the caller says otherwise: a mistyped mode should not be
+    // the difference between a report and a write.
+    return this.customerImport.run(
+      file.buffer,
+      file.originalname,
+      mode === "commit" ? "commit" : "preview",
+    );
+  }
+
+  @Get("customers/import/template")
+  @RequirePermission("masters.customer.view")
+  @Header("content-type", "text/csv; charset=utf-8")
+  @Header("content-disposition", 'attachment; filename="customer-import-template.csv"')
+  customerTemplate(): string {
+    const example = [
+      "111146", "TTE TECHNOLOGY INDIA PVT LTD", "Kamal Khanna", "Plot 21, Sector 34", "",
+      "122001", "Gurugram", "HR", "HR", "0124 4000000", "", "9821889052",
+      "accounts@tte.example", "EXCELEX EXPRESS LOGISTICS LLP", "DEL", "DEL",
+      "06AAACT1234A1Z5", "AAACT1234A", "", "Customer", "Registered", "Credit",
+      "Monthly", "30", "500000", "", "RAH", "Active",
+    ];
+    return `${CustomerImportService.TEMPLATE_HEADERS.join(",")}\n${example.join(",")}\n`;
   }
 
   @Get("customers/:id")

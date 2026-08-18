@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useActionState, useMemo, useTransition } from "react";
+import { useActionState, useMemo, useState, useTransition } from "react";
 
 import { FilterBar, type FilterDefinition } from "@/components/filter-bar";
+import { ImportDialog } from "@/components/import-dialog";
 import { ActiveBadge, MasterTable } from "@/components/master-table";
 import type { CustomerPage, CustomerRow } from "@/lib/api";
 import { deleteCustomer } from "./actions";
@@ -38,6 +39,7 @@ export function CustomersManager({
   const pathname = usePathname();
   const params = useSearchParams();
   const [pending, startTransition] = useTransition();
+  const [importing, setImporting] = useState(false);
   const [removeState, removeAction] = useActionState(deleteCustomer, null);
 
   // No match functions: every one of these is answered by the query, not by
@@ -138,9 +140,18 @@ export function CustomersManager({
               Export
             </a>
             {canManage ? (
-              <Link href="/customers/new" className="btn-primary rounded-lg px-3 py-2 text-sm font-medium">
-                New customer
-              </Link>
+              <>
+                <button
+                  type="button"
+                  onClick={() => setImporting(true)}
+                  className="btn-secondary rounded-lg px-3 py-2 text-sm font-medium"
+                >
+                  Import
+                </button>
+                <Link href="/customers/new" className="btn-primary rounded-lg px-3 py-2 text-sm font-medium">
+                  New customer
+                </Link>
+              </>
             ) : null}
           </>
         }
@@ -215,6 +226,14 @@ export function CustomersManager({
           ]}
         />
       </div>
+
+      <ImportDialog
+        open={importing}
+        onClose={() => setImporting(false)}
+        title="Import customers"
+        endpoint="/api/v1/masters/customers/import"
+        templateHref="/api/v1/masters/customers/import/template"
+      />
 
       {page.pageCount > 1 ? (
         <nav className="mt-4 flex flex-wrap items-center justify-between gap-3" aria-label="Pagination">
