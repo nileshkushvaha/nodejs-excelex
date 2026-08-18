@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState } from "react";
 
-import { Field, FormError, formField } from "@/components/form-field";
+import { Field, Form, FormError, formField } from "@/components/form-field";
 import { FormActions, FormPanel } from "@/components/form-page";
 import { Toggle } from "@/components/toggle";
 import type { Department } from "@/lib/api";
@@ -13,9 +13,9 @@ export function DepartmentForm({ department }: { department: Department | null }
   const [state, action, pending] = useActionState(saveDepartment, null);
 
   return (
-    <form action={action} className="space-y-5">
+    <Form errors={state?.fieldErrors} action={action} className="space-y-5">
       {department ? <input type="hidden" name="id" value={department.id} /> : null}
-      <FormError message={state?.error} />
+      <FormError result={state} />
 
       <FormPanel title="Department">
         <div className="grid gap-3 sm:grid-cols-4">
@@ -74,6 +74,6 @@ export function DepartmentForm({ department }: { department: Department | null }
           Cancel
         </Link>
       </FormActions>
-    </form>
+    </Form>
   );
 }

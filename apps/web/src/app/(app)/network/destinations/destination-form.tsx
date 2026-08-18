@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState } from "react";
 
-import { FormError } from "@/components/form-field";
+import { Form, FormError } from "@/components/form-field";
 import { FormActions, FormPanel } from "@/components/form-page";
 import { Toggle } from "@/components/toggle";
 import type { Destination, StateRow, Zone } from "@/lib/api";
@@ -33,9 +33,9 @@ export function DestinationForm({
   const options = branches.filter((branch) => branch.id !== destination?.id);
 
   return (
-    <form action={action} className="space-y-4">
+    <Form errors={state?.fieldErrors} action={action} className="space-y-4">
           {destination ? <input type="hidden" name="id" value={destination.id} /> : null}
-          <FormError message={state?.error} />
+          <FormError result={state} />
   
           <FormPanel title="Destination">
           <div className="grid gap-3 sm:grid-cols-4">
@@ -195,6 +195,6 @@ export function DestinationForm({
               Cancel
             </Link>
           </FormActions>
-        </form>
+        </Form>
   );
 }

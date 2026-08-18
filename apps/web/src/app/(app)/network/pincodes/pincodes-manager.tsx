@@ -5,7 +5,7 @@ import { useActionState, useMemo, useState, useTransition } from "react";
 
 import { DataToolbar } from "@/components/data-toolbar";
 import { FilterBar, type FilterDefinition } from "@/components/filter-bar";
-import { Field, FormError, formField } from "@/components/form-field";
+import { Field, Form, FormError, formField } from "@/components/form-field";
 import { FormPanel } from "@/components/form-page";
 import { ActiveBadge, MasterTable } from "@/components/master-table";
 import { Pager } from "@/components/pager";
@@ -229,9 +229,9 @@ function RowForm({
   );
 
   return (
-    <form action={submit}>
+    <Form action={submit} errors={state?.fieldErrors}>
       {row ? <input type="hidden" name="id" value={row.id} /> : null}
-      <FormError message={state?.error} />
+      <FormError result={state} />
 
       <FormPanel title={row ? `Edit ${row.code}` : "New pin code"}>
         <div className="grid gap-3 sm:grid-cols-4">
@@ -298,6 +298,6 @@ function RowForm({
           </div>
         </div>
       </FormPanel>
-    </form>
+    </Form>
   );
 }

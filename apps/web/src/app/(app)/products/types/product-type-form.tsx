@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState } from "react";
 
-import { Field, FormError, formField } from "@/components/form-field";
+import { Field, Form, FormError, formField } from "@/components/form-field";
 import { FormActions, FormPanel } from "@/components/form-page";
 import { Toggle } from "@/components/toggle";
 import type { Classification } from "@/lib/api";
@@ -13,9 +13,9 @@ export function ProductTypeForm({ type }: { type: Classification | null }) {
   const [state, action, pending] = useActionState(saveProductType, null);
 
   return (
-    <form action={action} className="space-y-5">
+    <Form errors={state?.fieldErrors} action={action} className="space-y-5">
       {type ? <input type="hidden" name="id" value={type.id} /> : null}
-      <FormError message={state?.error} />
+      <FormError result={state} />
 
       <FormPanel title="Product type">
         <div className="grid gap-3 sm:grid-cols-4">
@@ -63,6 +63,6 @@ export function ProductTypeForm({ type }: { type: Classification | null }) {
           Cancel
         </Link>
       </FormActions>
-    </form>
+    </Form>
   );
 }

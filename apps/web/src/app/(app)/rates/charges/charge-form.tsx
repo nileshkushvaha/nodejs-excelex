@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState, useMemo, useState } from "react";
 
-import { Field, FormError, formField } from "@/components/form-field";
+import { Field, Form, FormError, formField } from "@/components/form-field";
 import { FormActions, FormPanel } from "@/components/form-page";
 import { Toggle } from "@/components/toggle";
 import type { Charge } from "@/lib/api";
@@ -40,9 +40,9 @@ export function ChargeForm({ charge, all }: { charge: Charge | null; all: Charge
   }
 
   return (
-    <form action={action} className="space-y-5">
+    <Form errors={state?.fieldErrors} action={action} className="space-y-5">
       {charge ? <input type="hidden" name="id" value={charge.id} /> : null}
-      <FormError message={state?.error} />
+      <FormError result={state} />
 
       <FormPanel title="Charge">
         <div className="grid gap-3 sm:grid-cols-4">
@@ -228,6 +228,6 @@ export function ChargeForm({ charge, all }: { charge: Charge | null; all: Charge
           Cancel
         </Link>
       </FormActions>
-    </form>
+    </Form>
   );
 }

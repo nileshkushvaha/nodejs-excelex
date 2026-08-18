@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState } from "react";
 
-import { Field, FormError, formField } from "@/components/form-field";
+import { Field, Form, FormError, formField } from "@/components/form-field";
 import { FormActions, FormPanel } from "@/components/form-page";
 import { Toggle } from "@/components/toggle";
 import type { Destination, ServiceCentre, Shipper, StateRow } from "@/lib/api";
@@ -25,9 +25,9 @@ export function ShipperForm({
   const [state, action, pending] = useActionState(saveShipper, null);
 
   return (
-    <form action={action} className="space-y-5">
+    <Form errors={state?.fieldErrors} action={action} className="space-y-5">
       {shipper ? <input type="hidden" name="id" value={shipper.id} /> : null}
-      <FormError message={state?.error} />
+      <FormError result={state} />
 
       <FormPanel title="Shipper">
         <div className="grid gap-3 sm:grid-cols-4">
@@ -211,6 +211,6 @@ export function ShipperForm({
           Cancel
         </Link>
       </FormActions>
-    </form>
+    </Form>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { Field, FormError, formField } from "@/components/form-field";
+import { Field, Form, FormError, formField } from "@/components/form-field";
 import { FormPanel } from "@/components/form-page";
 import type { Charge, CustomerChargeRow, Destination, Product } from "@/lib/api";
 import { DetailList, useDetailForm } from "../detail-list";
@@ -104,10 +104,10 @@ function RowForm({
   const today = new Date().toISOString().slice(0, 10);
 
   return (
-    <form action={submit}>
+    <Form errors={state?.fieldErrors} action={submit}>
       <input type="hidden" name="customerId" value={customerId} />
       {row ? <input type="hidden" name="id" value={row.id} /> : null}
-      <FormError message={state?.error} />
+      <FormError result={state} />
 
       <FormPanel title={row ? "Edit charge" : "Charge"}>
         <div className="grid gap-3 sm:grid-cols-4">
@@ -189,6 +189,6 @@ function RowForm({
           </div>
         </div>
       </FormPanel>
-    </form>
+    </Form>
   );
 }

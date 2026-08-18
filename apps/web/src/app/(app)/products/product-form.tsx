@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState, useState } from "react";
 
-import { Field, FormError, formField } from "@/components/form-field";
+import { Field, Form, FormError, formField } from "@/components/form-field";
 import { FormActions, FormPanel } from "@/components/form-page";
 import { Toggle } from "@/components/toggle";
 import type { Classification, Product } from "@/lib/api";
@@ -22,10 +22,10 @@ export function ProductForm({
   const [contentKind, setContentKind] = useState<"DOX" | "NDOX">(product?.contentKind ?? "NDOX");
 
   return (
-    <form action={action} className="space-y-5">
+    <Form errors={state?.fieldErrors} action={action} className="space-y-5">
       {product ? <input type="hidden" name="id" value={product.id} /> : null}
       <input type="hidden" name="contentKind" value={contentKind} />
-      <FormError message={state?.error} />
+      <FormError result={state} />
 
       <FormPanel title="Product">
         <div className="grid gap-3 sm:grid-cols-4">
@@ -149,6 +149,6 @@ export function ProductForm({
           Cancel
         </Link>
       </FormActions>
-    </form>
+    </Form>
   );
 }

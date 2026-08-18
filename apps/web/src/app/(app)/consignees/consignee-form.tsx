@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState } from "react";
 
-import { Field, FormError, formField } from "@/components/form-field";
+import { Field, Form, FormError, formField } from "@/components/form-field";
 import { FormActions, FormPanel } from "@/components/form-page";
 import { Toggle } from "@/components/toggle";
 import type { Consignee, Destination, ServiceCentre, StateRow } from "@/lib/api";
@@ -25,9 +25,9 @@ export function ConsigneeForm({
   const [state, action, pending] = useActionState(saveConsignee, null);
 
   return (
-    <form action={action} className="space-y-5">
+    <Form errors={state?.fieldErrors} action={action} className="space-y-5">
       {consignee ? <input type="hidden" name="id" value={consignee.id} /> : null}
-      <FormError message={state?.error} />
+      <FormError result={state} />
 
       <FormPanel title="Consignee">
         <div className="grid gap-3 sm:grid-cols-4">
@@ -163,6 +163,6 @@ export function ConsigneeForm({
           Cancel
         </Link>
       </FormActions>
-    </form>
+    </Form>
   );
 }

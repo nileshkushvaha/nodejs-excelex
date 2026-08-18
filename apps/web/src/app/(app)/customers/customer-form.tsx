@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState } from "react";
 
-import { Field, FormError, formField } from "@/components/form-field";
+import { Field, Form, FormError, formField } from "@/components/form-field";
 import { FormActions, FormPanel } from "@/components/form-page";
 import { Toggle } from "@/components/toggle";
 import type { Customer, Destination, SalesExecutive, ServiceCentre, StateRow } from "@/lib/api";
@@ -43,9 +43,9 @@ export function CustomerForm({
     customer ? Boolean(customer[key]) : fallback;
 
   return (
-    <form action={action} className="space-y-5">
+    <Form errors={state?.fieldErrors} action={action} className="space-y-5">
       {customer ? <input type="hidden" name="id" value={customer.id} /> : null}
-      <FormError message={state?.error} />
+      <FormError result={state} />
 
       <FormPanel title="Personal details">
         <div className="grid gap-3 sm:grid-cols-4">
@@ -408,6 +408,6 @@ export function CustomerForm({
           Cancel
         </Link>
       </FormActions>
-    </form>
+    </Form>
   );
 }

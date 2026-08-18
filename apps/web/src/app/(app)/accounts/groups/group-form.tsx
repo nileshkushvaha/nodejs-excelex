@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState } from "react";
 
-import { Field, FormError, formField } from "@/components/form-field";
+import { Field, Form, FormError, formField } from "@/components/form-field";
 import { FormActions, FormPanel } from "@/components/form-page";
 import { SearchableField } from "@/components/searchable-select";
 import { Toggle } from "@/components/toggle";
@@ -30,9 +30,9 @@ export function GroupForm({
     .map((row) => ({ value: row.id, label: `${row.code} — ${row.name}` }));
 
   return (
-    <form action={action} className="space-y-5">
+    <Form errors={state?.fieldErrors} action={action} className="space-y-5">
       {group ? <input type="hidden" name="id" value={group.id} /> : null}
-      <FormError message={state?.error} />
+      <FormError result={state} />
 
       <FormPanel title="Group">
         <div className="grid gap-3 sm:grid-cols-3">
@@ -85,6 +85,6 @@ export function GroupForm({
           Cancel
         </Link>
       </FormActions>
-    </form>
+    </Form>
   );
 }

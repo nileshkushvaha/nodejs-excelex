@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 
 import { FilterBar, useFilterBar, type FilterDefinition } from "@/components/filter-bar";
-import { Field, FormError, formField } from "@/components/form-field";
+import { Field, Form, FormError, formField } from "@/components/form-field";
 import { FormPanel } from "@/components/form-page";
 import { DataToolbar } from "@/components/data-toolbar";
 import { ActiveBadge, MasterTable } from "@/components/master-table";
@@ -177,10 +177,10 @@ function RowForm({
   );
 
   return (
-    <form action={submit}>
+    <Form action={submit} errors={state?.fieldErrors}>
       <input type="hidden" name="kind" value={kind} />
       {row ? <input type="hidden" name="id" value={row.id} /> : null}
-      <FormError message={state?.error} />
+      <FormError result={state} />
 
       <FormPanel title={row ? `Edit ${label.one}` : `New ${label.one}`}>
         <div className="grid gap-3 sm:grid-cols-4">
@@ -238,6 +238,6 @@ function RowForm({
           </div>
         </div>
       </FormPanel>
-    </form>
+    </Form>
   );
 }
