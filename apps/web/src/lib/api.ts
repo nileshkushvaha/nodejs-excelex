@@ -663,6 +663,43 @@ export interface PinCodePage {
 export const getPinCodes = (query: string) =>
   get<PinCodePage>(`/api/v1/masters/pin-codes?${query}`);
 
+export interface RateLine {
+  id: string;
+  lineType: "UPTO" | "INITIAL" | "ADDITIONAL" | "PLUS" | "PLUSKG";
+  weight: string;
+  rate: string;
+}
+
+export interface Rate {
+  id: string;
+  kind: "SELL" | "BUY";
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  unit: "KGS" | "LBS";
+  days: number | null;
+  vendor: string | null;
+  service: string | null;
+  countryCode: string | null;
+  awbCharge: string | null;
+  isActive: boolean;
+  customer: { id: string; code: string; name: string } | null;
+  product: { id: string; code: string; name: string } | null;
+  origin: { id: string; code: string; name: string } | null;
+  destination: { id: string; code: string; name: string } | null;
+  zone: { id: string; code: string; name: string } | null;
+  lines: RateLine[];
+}
+
+export interface RatePage {
+  rows: Rate[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+}
+
+export const getRates = (query: string) => get<RatePage>(`/api/v1/masters/rates?${query}`);
+
 export const getAccountGroups = () => get<AccountGroup[]>("/api/v1/masters/account-groups");
 
 export const getShippers = (query: string) => get<ShipperPage>(`/api/v1/masters/shippers?${query}`);

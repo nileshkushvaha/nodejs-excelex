@@ -33,6 +33,9 @@ import { ServiceCentresController } from "./masters/service-centres.controller";
 import { ShippersController } from "./masters/shippers.controller";
 import { ZonesController } from "./masters/zones.controller";
 import { MasterIoService } from "./masters/import/master-io.service";
+import { RatesController } from "./masters/rates.controller";
+import { RateService } from "./masters/rate.service";
+import { RateImportService } from "./masters/import/rate-import.service";
 import { LookupsController } from "./masters/lookups.controller";
 import { LookupService } from "./masters/lookup.service";
 import { PinCodeService } from "./masters/pin-code.service";
@@ -72,6 +75,7 @@ import { SettingsController } from "./settings/settings.controller";
     ShippersController,
     ZonesController,
     LookupsController,
+    RatesController,
     ProfileController,
     SettingsController,
     DataController,
@@ -101,6 +105,8 @@ import { SettingsController } from "./settings/settings.controller";
     MasterIoService,
     LookupService,
     PinCodeService,
+    RateService,
+    RateImportService,
     ChargeService,
     ProfileService,
     PasswordPolicyService,
