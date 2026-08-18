@@ -2342,3 +2342,47 @@ model MailMessage {
   @@index([clientId])
   @@map("mail_messages")
 }
+
+// ─────────────────────────────────────────────────────────────
+// PASSWORD RESET — client scope
+// ─────────────────────────────────────────────────────────────
+
+/// @scope(client)
+/// One attempt to reset a password by a mailed one-time code.
+///
+/// The code is six digits and short-lived, so it is stored hashed with a
+/// per-row salt and guarded by an attempt count rather than by entropy: five
+/// wrong guesses end the attempt, and a new request starts a new row. Once
+/// the code is verified a reset token — long, random, hashed — is issued for
+/// the final step, so the code itself is never sent back or reused. Nothing
+/// here says whether the address exists: rows are only written for accounts
+/// that do, and the API answers the same either way.
+model PasswordReset {
+  id       String @id @default(uuid(7)) @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+  userId   String @map("user_id") @db.Uuid
+  email    String
+
+  codeHash    String @map("code_hash")
+  codeSalt    String @map("code_salt")
+  attempts    Int    @default(0)
+  maxAttempts Int    @default(5) @map("max_attempts")
+
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  verifiedAt DateTime? @map("verified_at") @db.Timestamptz(6)
+  /// Issued on verification; the final step presents it. Hashed.
+  resetTokenHash String?   @map("reset_token_hash")
+  consumedAt     DateTime? @map("consumed_at") @db.Timestamptz(6)
+  /// Set when a newer request supersedes this one, or attempts run out.
+  cancelledAt DateTime? @map("cancelled_at") @db.Timestamptz(6)
+
+  ip        String?
+  userAgent String? @map("user_agent")
+  requestId String? @map("request_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([clientId, userId, createdAt])
+  @@index([clientId, email, createdAt])
+  @@index([clientId])
+  @@map("password_resets")
+}

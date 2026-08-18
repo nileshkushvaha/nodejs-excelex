@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
@@ -73,9 +74,14 @@ export function LoginForm() {
       </div>
 
       <div>
-        <label htmlFor="password" className="mb-1 block text-sm font-medium text-fg">
-          Password
-        </label>
+        <div className="mb-1 flex items-baseline justify-between">
+          <label htmlFor="password" className="block text-sm font-medium text-fg">
+            Password
+          </label>
+          <Link href="/forgot-password" className="text-xs text-muted underline-offset-2 hover:underline">
+            Forgot it?
+          </Link>
+        </div>
         <input
           id="password"
           name="password"

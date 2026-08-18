@@ -125,7 +125,11 @@ export function LoginSecurityForm({
           defaultChecked={settings.resetThrottleEnabled}
           disabled={!canManage}
         />
-        <NotEnforced reason="there is no password-reset endpoint yet; the switch will apply to it when it lands." />
+        <p className="text-xs text-muted">
+          Enforced. With this on, more than three reset requests for one email address in fifteen
+          minutes are refused for the rest of the window. A per-address limit for the whole
+          deployment applies regardless.
+        </p>
       </SettingsCard>
 
       <SettingsCard

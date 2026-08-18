@@ -61,9 +61,16 @@ export async function runRetentionSweep(envelope: JobEnvelope<RetentionSweepPayl
     where: { createdAt: { lt: loginsBefore } },
   });
 
+  // Reset attempts are useful for a week of "did I ask for this" questions
+  // and worthless after; the codes and tokens in them are long dead.
+  const passwordResets = await tx.passwordReset.deleteMany({
+    where: { createdAt: { lt: new Date(Date.now() - 7 * 86_400_000) } },
+  });
+
   return {
     sessions: sessions.count,
     jobs: jobs.count,
+    passwordResets: passwordResets.count,
     loginAttempts: loginAttempts.count,
     horizons: {
       sessions: sessionsBefore.toISOString(),

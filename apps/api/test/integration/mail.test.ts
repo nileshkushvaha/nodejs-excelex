@@ -26,7 +26,7 @@ describe("outgoing mail", () => {
   });
 
   it("saves settings, never returns the password, and keeps it on a blank re-save", async () => {
-    const put = (body: unknown) =>
+    const put = (body: object) =>
       request(app.getHttpServer()).put("/api/v1/settings/mail").set("host", HOSTS.a).set("cookie", cookie).send(body);
 
     let response = await put({

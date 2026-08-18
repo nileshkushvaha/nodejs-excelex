@@ -1,12 +1,11 @@
 import { BadRequestException, Injectable, UnauthorizedException } from "@nestjs/common";
-import { hashPassword, verifyPassword } from "@excelex/database";
-import { passwordViolations } from "@excelex/permissions";
+import { verifyPassword } from "@excelex/database";
 
 import { ActorCache } from "../auth/actor-cache";
+import { applyNewPassword } from "../auth/password-rules";
 import { SessionService } from "../auth/session.service";
 import { requireRequestContext } from "../core/context/request-context";
 import { PrismaService } from "../core/database/prisma.service";
-import { PasswordPolicyService } from "../settings/password-policy.service";
 import { SecuritySettingsService } from "../settings/security-settings.service";
 
 export interface ProfileView {
@@ -128,68 +127,17 @@ export class ProfileService {
     }
 
     const issued = this.sessions.issue();
-    const newHash = await hashPassword(newPassword);
 
     await this.prisma.forClient(clientId!, async (tx) => {
-      const policy = PasswordPolicyService.toPolicy(await tx.passwordPolicy.findFirst());
-
-      // Every unmet rule at once. Refusing one rule at a time — too short, then
-      // needs a digit, then needs a capital — is how people end up writing
-      // passwords on a sticky note.
-      const violations = passwordViolations(policy, newPassword);
-      if (violations.length > 0) {
-        throw new BadRequestException(
-          violations.map((rule) => `Your password must contain: ${rule.toLowerCase()}`),
-        );
-      }
-
       const user = await tx.user.findFirstOrThrow({ where: { id: actor!.userId } });
 
       if (!(await verifyPassword(user.passwordHash, currentPassword))) {
         throw new UnauthorizedException("That is not your current password.");
       }
 
-      if (policy.preventReuse) {
-        const history = await tx.passwordHistory.findMany({
-          where: { userId: user.id },
-          orderBy: { createdAt: "desc" },
-          take: policy.historyCount,
-        });
-
-        // Argon2 salts every hash, so a reused password does not produce a
-        // matching digest — each stored hash has to be verified in turn. That
-        // cost is why historyCount is bounded rather than unlimited.
-        for (const entry of history) {
-          if (await verifyPassword(entry.passwordHash, newPassword)) {
-            throw new BadRequestException(
-              `That password was used recently. Choose one you have not used in your last ${policy.historyCount}.`,
-            );
-          }
-        }
-      }
-
-      if (user.passwordHash) {
-        await tx.passwordHistory.create({
-          data: { clientId: clientId!, userId: user.id, passwordHash: user.passwordHash },
-        });
-
-        // Pruned to the policy: an unbounded list of someone's old credentials
-        // is a liability that grows for as long as they work here.
-        const stale = await tx.passwordHistory.findMany({
-          where: { userId: user.id },
-          orderBy: { createdAt: "desc" },
-          skip: policy.historyCount,
-          select: { id: true },
-        });
-        if (stale.length > 0) {
-          await tx.passwordHistory.deleteMany({ where: { id: { in: stale.map((row) => row.id) } } });
-        }
-      }
-
-      await tx.user.update({
-        where: { id: user.id },
-        data: { passwordHash: newHash, passwordChangedAt: new Date() },
-      });
+      // The policy, the reuse rule and the history — the same code the reset
+      // path runs, so neither door is weaker than the other.
+      await applyNewPassword(tx, clientId!, user, newPassword);
 
       // Revoked rather than deleted: the rows are the evidence of what was
       // active at the moment of the change, which is what an incident review
