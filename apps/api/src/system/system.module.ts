@@ -9,6 +9,7 @@ import { NotificationsModule } from "./notifications/notifications.module";
 import { PerformanceModule } from "./performance/performance.module";
 import { QueueModule } from "./queue/queue.module";
 import { SchedulerModule } from "./scheduler/scheduler.module";
+import { SessionsModule } from "./sessions/sessions.module";
 
 /**
  * The System screens: operating the account rather than using it.
@@ -29,6 +30,7 @@ import { SchedulerModule } from "./scheduler/scheduler.module";
     LoginHistoryModule,
     NotificationsModule,
     ExceptionsModule,
+    SessionsModule,
     PerformanceModule,
   ],
 })

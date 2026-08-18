@@ -1360,3 +1360,37 @@ export interface ExceptionSummary {
 export const getExceptionGroups = (query: string) => get<ExceptionGroupPage>(`/api/v1/system/exceptions?${query}`);
 export const getExceptionSummary = () => get<ExceptionSummary>("/api/v1/system/exceptions/summary");
 export const getExceptionDetail = (fingerprint: string) => get<ExceptionDetail>(`/api/v1/system/exceptions/${fingerprint}`);
+
+// ── Logged-in users ─────────────────────────────────────────────────────────
+
+export interface AdminSession {
+  id: string;
+  userId: string;
+  host: string;
+  ip: string | null;
+  userAgent: string | null;
+  device: { browser: string; os: string } | null;
+  signedInAt: string;
+  lastActiveAt: string;
+  idleExpiresAt: string;
+  absoluteExpiry: string;
+  isSelf: boolean;
+  user: { id: string; fullName: string; email: string; isActive: boolean } | null;
+}
+
+export interface AdminSessionPage {
+  rows: AdminSession[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+}
+
+export interface AdminSessionSummary {
+  activeSessions: number;
+  signedInUsers: number;
+  signedInLastHour: number;
+}
+
+export const getAdminSessions = (query: string) => get<AdminSessionPage>(`/api/v1/system/sessions?${query}`);
+export const getAdminSessionSummary = () => get<AdminSessionSummary>("/api/v1/system/sessions/summary");

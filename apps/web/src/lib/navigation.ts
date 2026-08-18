@@ -327,7 +327,7 @@ export const NAVIGATION: readonly NavigationSection[] = [
         children: [
           { label: "Users", href: "/users", permission: "settings.user.view" },
           { label: "Roles", href: "/roles", permission: "settings.role.view" },
-          soon("Logged-in users", "/users/active", "settings.session.manage"),
+          { label: "Logged-in users", href: "/users/active", permission: "settings.session.manage" },
           { label: "Audit trail", href: "/system/activity", permission: "settings.audit.view" },
         ],
       },
