@@ -64,6 +64,94 @@ export interface Consignment {
   readonly weight: string;
 }
 
+/** Kilograms, or pounds, because a tariff may be written in either. */
+export type WeightUnit = "KGS" | "LBS";
+
+/** One pound in kilograms, to four places — the tariff scale. */
+const KG_PER_LB = toScaledLiteral("0.4536");
+
+function toScaledLiteral(value: string): bigint {
+  const [whole, fraction = ""] = value.split(".");
+  return BigInt(whole!) * SCALE + BigInt((fraction + "0000").slice(0, 4));
+}
+
+/**
+ * Converts a weight into the unit its tariff is written in.
+ *
+ * A shipment is weighed once, on one scale, and priced against whichever
+ * tariff applies — which may be quoted in pounds for an international lane
+ * and kilograms for a domestic one. Pricing a kilogram weight against a pound
+ * tariff without converting is wrong by a factor of 2.2, in the customer's
+ * favour or ours depending on the direction, and neither is acceptable.
+ */
+export function convertWeight(weight: string, from: WeightUnit, to: WeightUnit): string {
+  if (from === to) return fromScaled(toScaled(weight));
+
+  const scaled = toScaled(weight);
+  return from === "KGS"
+    ? fromScaled((scaled * SCALE) / KG_PER_LB)
+    : fromScaled((scaled * KG_PER_LB) / SCALE);
+}
+
+/**
+ * The weight a consignment is charged on.
+ *
+ * The greater of what it weighs and what it takes up, which is the rule every
+ * courier prices by: a box of pillows costs what its volume costs. The
+ * divisor is negotiated per customer, which is why it is a parameter here and
+ * a row in customer_volumetrics rather than a constant.
+ *
+ * A divisor of zero means "not agreed" rather than "divide by zero", so the
+ * volumetric side is simply skipped.
+ */
+export function chargeableWeight(input: {
+  actual: string;
+  /** Centimetres, if the consignment was measured. */
+  length?: string;
+  width?: string;
+  height?: string;
+  /** The customer's agreed divisor. Zero or absent means not agreed. */
+  divisor?: string;
+}): string {
+  const actual = toScaled(input.actual);
+  if (!input.length || !input.width || !input.height || !input.divisor) return fromScaled(actual);
+
+  const divisor = toScaled(input.divisor);
+  if (divisor <= 0n) return fromScaled(actual);
+
+  // Multiplied then divided in scaled space, so the intermediate cannot lose
+  // precision the way (l*w*h)/d would in floating point.
+  const volume = (toScaled(input.length) * toScaled(input.width)) / SCALE;
+  const cubic = (volume * toScaled(input.height)) / SCALE;
+  const volumetric = (cubic * SCALE) / divisor;
+
+  return fromScaled(volumetric > actual ? volumetric : actual);
+}
+
+/** How a priced amount is rounded before it reaches an invoice. */
+export type Rounding = "NONE" | "NEAREST" | "UP" | "DOWN";
+
+/**
+ * Rounds to whole currency units.
+ *
+ * Their rate import offers "Rate Round Off", and a tariff that prices to four
+ * decimal places has to be told what to do with them before an invoice shows
+ * ₹1,247.8331 to somebody who agreed to ₹1,248.
+ */
+export function round(amount: string, mode: Rounding): string {
+  if (mode === "NONE") return fromScaled(toScaled(amount));
+
+  const scaled = toScaled(amount);
+  const whole = scaled / SCALE;
+  const remainder = scaled % SCALE;
+  if (remainder === 0n) return fromScaled(scaled);
+
+  const up = whole + 1n;
+  if (mode === "UP") return fromScaled(up * SCALE);
+  if (mode === "DOWN") return fromScaled(whole * SCALE);
+  return fromScaled((remainder >= SCALE / 2n ? up : whole) * SCALE);
+}
+
 export interface Quote {
   readonly amount: string;
   /** Every line that contributed, so an invoice query has an answer. */
@@ -94,7 +182,15 @@ export interface Quote {
  * JavaScript number with a fraction: 0.1 + 0.2 is not 0.3, and an invoice is
  * the last place to find that out.
  */
-export function quote(lines: readonly RateLine[], consignment: Consignment): Quote {
+export function quote(
+  lines: readonly RateLine[],
+  consignment: Consignment,
+  options: {
+    /** Charged once per airway bill, on top of the weight calculation. */
+    awbCharge?: string | null;
+    rounding?: Rounding;
+  } = {},
+): Quote {
   const weight = toScaled(consignment.weight);
   const workings: Array<{
     lineType: RateLineType;
@@ -119,7 +215,17 @@ export function quote(lines: readonly RateLine[], consignment: Consignment): Quo
       amount: fromScaled(toScaled(upto.rate)),
       note: `Flat charge up to ${upto.weight}`,
     });
-    return { amount: fromScaled(toScaled(upto.rate)), workings };
+    const flat = toScaled(upto.rate) + (options.awbCharge ? toScaled(options.awbCharge) : 0n);
+    if (options.awbCharge) {
+      workings.push({
+        lineType: "PLUS",
+        weight: "0.000",
+        rate: options.awbCharge,
+        amount: options.awbCharge,
+        note: "Airway bill charge",
+      });
+    }
+    return { amount: round(fromScaled(flat), options.rounding ?? "NONE"), workings };
   }
 
   let total = 0n;
@@ -189,7 +295,34 @@ export function quote(lines: readonly RateLine[], consignment: Consignment): Quo
     });
   }
 
-  return { amount: fromScaled(total), workings };
+  // Once per airway bill, not per slab — which is why it is on the card and
+  // added here rather than being another line type.
+  if (options.awbCharge) {
+    const awb = toScaled(options.awbCharge);
+    if (awb !== 0n) {
+      total += awb;
+      workings.push({
+        lineType: "PLUS",
+        weight: "0.000",
+        rate: options.awbCharge,
+        amount: options.awbCharge,
+        note: "Airway bill charge",
+      });
+    }
+  }
+
+  const rounded = round(fromScaled(total), options.rounding ?? "NONE");
+  if (rounded !== fromScaled(total)) {
+    workings.push({
+      lineType: "PLUS",
+      weight: "0.000",
+      rate: "0",
+      amount: fromScaled(toScaled(rounded) - total),
+      note: `Rounded ${options.rounding?.toLowerCase()}`,
+    });
+  }
+
+  return { amount: rounded, workings };
 }
 
 export interface Card {

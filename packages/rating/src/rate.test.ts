@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  chargeableWeight,
+  convertWeight,
   fromScaled,
   quote,
+  round,
   selectCard,
   toScaled,
   type Card,
@@ -174,5 +177,69 @@ describe("choosing a tariff", () => {
         "2026-06-01",
       )?.id,
     ).toBe("newer");
+  });
+});
+
+describe("the four things a lane price is not", () => {
+  const lines = [line("INITIAL", "0.500", "80"), line("ADDITIONAL", "0.500", "40")];
+
+  it("adds the airway bill charge once, not per slab", () => {
+    const result = quote(lines, { weight: "5.000" }, { awbCharge: "50" });
+
+    // 440 for the weight, and 50 once for the AWB.
+    expect(result.amount).toBe("490.0000");
+    expect(result.workings.filter((w) => w.note === "Airway bill charge")).toHaveLength(1);
+  });
+
+  it("adds it to a flat UPTO price too", () => {
+    const result = quote([line("UPTO", "1.000", "120")], { weight: "0.400" }, { awbCharge: "50" });
+    expect(result.amount).toBe("170.0000");
+  });
+
+  it("converts kilograms to pounds and back without drift", () => {
+    // A tariff quoted in pounds priced against a kilogram weight is wrong by
+    // a factor of 2.2 — in someone's favour, and neither is acceptable.
+    const asLbs = convertWeight("1.000", "KGS", "LBS");
+    expect(Number(asLbs)).toBeCloseTo(2.2046, 3);
+    expect(Number(convertWeight(asLbs, "LBS", "KGS"))).toBeCloseTo(1, 3);
+  });
+
+  it("charges volume when a box weighs less than it takes up", () => {
+    // 40 × 30 × 25cm at the 5000 divisor is 6kg, against 2kg actual.
+    const chargeable = chargeableWeight({
+      actual: "2.000",
+      length: "40",
+      width: "30",
+      height: "25",
+      divisor: "5000",
+    });
+
+    expect(Number(chargeable)).toBeCloseTo(6, 3);
+  });
+
+  it("ignores volume when the divisor is not agreed", () => {
+    // Zero means "not agreed", not "divide by zero".
+    expect(
+      chargeableWeight({ actual: "2.000", length: "40", width: "30", height: "25", divisor: "0" }),
+    ).toBe("2.0000");
+  });
+
+  it("keeps the actual weight when it is the greater", () => {
+    expect(
+      Number(chargeableWeight({ actual: "9.000", length: "10", width: "10", height: "10", divisor: "5000" })),
+    ).toBeCloseTo(9, 3);
+  });
+
+  it("rounds the way the client's import screen asks", () => {
+    expect(round("1247.8331", "NEAREST")).toBe("1248.0000");
+    expect(round("1247.4999", "NEAREST")).toBe("1247.0000");
+    expect(round("1247.0001", "UP")).toBe("1248.0000");
+    expect(round("1247.9999", "DOWN")).toBe("1247.0000");
+    expect(round("1247.8331", "NONE")).toBe("1247.8331");
+  });
+
+  it("rounds the quote itself, so the invoice sees the rounded number", () => {
+    const result = quote([line("INITIAL", "0.5", "80.4444")], { weight: "0.4" }, { rounding: "NEAREST" });
+    expect(result.amount).toBe("80.0000");
   });
 });
