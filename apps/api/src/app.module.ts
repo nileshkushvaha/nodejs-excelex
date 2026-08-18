@@ -9,6 +9,7 @@ import { ActorCache } from "./auth/actor-cache";
 import { AuthService } from "./auth/auth.service";
 import { SessionService } from "./auth/session.service";
 import { ClientResolutionMiddleware } from "./core/context/client-resolution.middleware";
+import { OriginCheckMiddleware } from "./core/http/origin-check.middleware";
 import { CoreModule } from "./core/core.module";
 import { DashboardController } from "./dashboard/dashboard.controller";
 import { JobsModule } from "./jobs/jobs.module";
@@ -124,6 +125,9 @@ export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
     // Every route, including health checks: the host allowlist is a transport
     // concern and a request for an unknown host should not reach any handler.
-    consumer.apply(ClientResolutionMiddleware).forRoutes("*path");
+    // Origin verification first, not SameSite: every client host shares one
+    // registrable domain, so they are same-site with each other and SameSite
+    // separates nothing between them. This is the CSRF control.
+    consumer.apply(OriginCheckMiddleware, ClientResolutionMiddleware).forRoutes("*path");
   }
 }

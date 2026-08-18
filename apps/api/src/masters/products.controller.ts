@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  NotFoundException,
   Body,
   Delete,
   Get,
@@ -55,7 +56,7 @@ export class ProductsController {
   @Can("productType", "view")
   async productTypeById(@Param("id", ParseUUIDPipe) id: string) {
     const row = await this.products.typeById(id);
-    if (!row) throw new BadRequestException("Product type not found.");
+    if (!row) throw new NotFoundException("Product type not found.");
     return row;
   }
 

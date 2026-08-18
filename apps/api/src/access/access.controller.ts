@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -15,6 +14,7 @@ import { z } from "zod";
 
 import { Can, RequirePermission } from "../auth/auth.guard";
 import { AccessService } from "./access.service";
+import { parseOrThrow } from "../core/errors/validation";
 
 const permissionList = z.array(z.string().min(1).max(120)).max(200);
 
@@ -41,11 +41,8 @@ const directPermissionSchema = z.object({
 });
 
 function parse<T>(schema: z.ZodType<T>, body: unknown): T {
-  const result = schema.safeParse(body);
-  if (!result.success) {
-    throw new BadRequestException(result.error.issues.map((issue) => issue.message));
-  }
-  return result.data;
+  const result = parseOrThrow(schema, body);
+  return result;
 }
 
 @Controller({ path: "access", version: "1" })

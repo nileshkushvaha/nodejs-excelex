@@ -1,5 +1,13 @@
 import { cookies, headers } from "next/headers";
 
+import {
+  ApiError,
+  ApiUnavailableError,
+  networkFailure,
+  readErrorBody,
+  type ApiFieldError,
+} from "./api-error";
+
 const API_ORIGIN = process.env.API_ORIGIN ?? "http://localhost:3001";
 
 export interface CurrentSession {
@@ -51,21 +59,48 @@ async function apiFetch(
 }
 
 /**
- * Returns null for both "you may not see this" and "the API is unreachable".
+ * A read, with its failure typed.
  *
- * A transient network failure throws out of fetch(), and an uncaught throw in a
- * server component takes the whole page down with a 500. Callers already handle
- * null by rendering an explanation, so the page degrades to that instead of
- * disappearing while the API restarts.
+ * Three things can go wrong and they mean different things to a page: the
+ * reader may not see this (401 → sign in; 403/404 → "you do not hold…"),
+ * the request itself was refused (a 4xx worth showing), or the API did not
+ * answer at all (5xx or no connection). Before this, all three were `null`,
+ * and an outage rendered on twenty-six pages as a permission problem.
+ */
+export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: ApiError };
+
+export async function getResult<T>(path: string): Promise<ApiResult<T>> {
+  let response: Response;
+  try {
+    response = await apiFetch(path);
+  } catch {
+    return { ok: false, error: networkFailure(path) };
+  }
+
+  if (!response.ok) {
+    const body = await readErrorBody(response);
+    const error =
+      response.status >= 500 ? new ApiUnavailableError(response.status, body, path) : new ApiError(response.status, body);
+    return { ok: false, error };
+  }
+
+  return { ok: true, data: (await response.json()) as T };
+}
+
+/**
+ * Returns null for "you may not see this" and throws for "the API did not answer".
+ *
+ * Null keeps the meaning every page already gives it — the amber "you do not
+ * hold this permission" panel — for 401/403/404 and any other refusal. An
+ * outage is different: nothing the reader did caused it and no permission
+ * would fix it, so it is thrown as an ApiUnavailableError and stops the page
+ * at the nearest error boundary, which shows the status and the reference.
  */
 async function get<T>(path: string): Promise<T | null> {
-  try {
-    const response = await apiFetch(path);
-    if (!response.ok) return null;
-    return (await response.json()) as T;
-  } catch {
-    return null;
-  }
+  const result = await getResult<T>(path);
+  if (result.ok) return result.data;
+  if (result.error instanceof ApiUnavailableError) throw result.error;
+  return null;
 }
 
 export interface ActionResult {
@@ -78,6 +113,16 @@ export interface ActionResult {
    * can send the user to it rather than back to a list to hunt for it.
    */
   data?: unknown;
+  /** The API's stable error code, for a form that wants to react to one. */
+  code?: string;
+  /** What a person quotes to support; the same id as the API's log line. */
+  reference?: string;
+  /** Field path → first message, for a form that places errors beside inputs. */
+  fieldErrors?: Record<string, string>;
+  /** Every issue, in order, when the API returned more than one sentence. */
+  messages?: string[];
+  /** The raw field errors, for a form that wants codes or several per field. */
+  errors?: ApiFieldError[];
 }
 
 /**
@@ -95,7 +140,7 @@ export async function apiMutate(
   try {
     response = await apiFetch(path, { method, body });
   } catch {
-    return { ok: false, error: "Could not reach the server. Nothing was changed." };
+    return failed(networkFailure(path));
   }
 
   // 204 is the normal answer to a PUT or DELETE here, and calling .json() on
@@ -105,12 +150,19 @@ export async function apiMutate(
     return { ok: true, data: await response.json().catch(() => undefined) };
   }
 
-  const payload = (await response.json().catch(() => null)) as
-    | { message?: string | string[] }
-    | null;
-  const message = Array.isArray(payload?.message) ? payload.message[0] : payload?.message;
+  return failed(new ApiError(response.status, await readErrorBody(response)));
+}
 
-  return { ok: false, error: message ?? `Request failed (${response.status}).` };
+/** An ApiError as the ActionResult a form reads. */
+export function failed(error: ApiError): ActionResult {
+  return {
+    ok: false,
+    error: error.message,
+    code: error.code,
+    reference: error.reference ?? undefined,
+    messages: error.messages,
+    ...(error.errors.length ? { errors: error.errors, fieldErrors: error.fieldErrors() } : {}),
+  };
 }
 
 export interface PermissionCatalogueEntry {
@@ -723,11 +775,456 @@ export const getGeneralSettings = () => get<GeneralSettings>("/api/v1/settings/g
 export const getPasswordPolicy = () => get<PasswordPolicy>("/api/v1/settings/password-policy");
 export const getSecuritySettings = () => get<SecuritySettings>("/api/v1/settings/security");
 
-/** Returns null when unauthenticated, so callers redirect rather than crash. */
+/**
+ * Null when there is no session, so the layout can send the reader to sign
+ * in — and only then. An API outage throws instead, because redirecting to
+ * the sign-in page during an outage tells a signed-in person they were
+ * signed out, and the sign-in form then fails for a reason it cannot name.
+ */
 export async function getCurrentSession(): Promise<CurrentSession | null> {
-  return get<CurrentSession>("/api/v1/auth/me");
+  const result = await getResult<CurrentSession>("/api/v1/auth/me");
+  if (result.ok) return result.data;
+  if (result.error.isUnauthenticated) return null;
+  throw result.error instanceof ApiUnavailableError
+    ? result.error
+    : new ApiUnavailableError(result.error.status, null, "/api/v1/auth/me");
 }
 
 export async function getDashboardSummary(): Promise<DashboardSummary | null> {
   return get<DashboardSummary>("/api/v1/dashboard/summary");
 }
+
+// ── System: cache ──────────────────────────────────────────────────────────
+
+export interface CacheNamespaceOverview {
+  name: string;
+  label: string;
+  description: string;
+  ttlSeconds: number;
+  keys: number;
+  approximate: boolean;
+  hits: number;
+  misses: number;
+  hitRate: number | null;
+}
+
+export interface CacheRedisHealth {
+  ok: boolean;
+  pingMs: number | null;
+  version?: string;
+  uptimeSeconds?: number;
+  usedMemoryBytes?: number;
+  usedMemoryHuman?: string;
+  maxMemoryBytes?: number;
+  evictedKeys?: number;
+  keyspaceHits?: number;
+  keyspaceMisses?: number;
+  connectedClients?: number;
+  totalKeys?: number;
+}
+
+export interface CacheOverview {
+  redis: CacheRedisHealth;
+  namespaces: CacheNamespaceOverview[];
+  platform: CacheNamespaceOverview[];
+  inProcess: { actorCache: { entries: number; ttlMs: number; maxEntries: number } };
+  queuePrefixKeys: number;
+}
+
+export interface CacheKeyRow {
+  key: string;
+  ttlSeconds: number | null;
+  bytes: number | null;
+}
+
+export interface CacheKeyPage {
+  keys: CacheKeyRow[];
+  cursor: string | null;
+}
+
+export interface CacheKeyValue extends CacheKeyRow {
+  value: unknown;
+}
+
+export const getCacheOverview = () => get<CacheOverview>("/api/v1/system/cache");
+export const getCacheKeys = (namespace: string, query: string) =>
+  get<CacheKeyPage>(`/api/v1/system/cache/${encodeURIComponent(namespace)}/keys?${query}`);
+export const getCacheKey = (namespace: string, key: string) =>
+  get<CacheKeyValue>(
+    `/api/v1/system/cache/${encodeURIComponent(namespace)}/keys/${encodeURIComponent(key)}`,
+  );
+
+// ── System: performance ────────────────────────────────────────────────────
+
+export interface PerformanceRoute {
+  route: string;
+  method: string;
+  count: number;
+  errors: number;
+  errorRate: number;
+  p50: number;
+  p95: number;
+  p99: number;
+  avg: number;
+  max: number;
+}
+
+export interface PerformanceModel {
+  model: string;
+  count: number;
+  operations: Record<string, number>;
+  p50: number;
+  p95: number;
+  avg: number;
+  totalMs: number;
+  slowCount: number;
+}
+
+export interface PerformanceOverview {
+  instance: string;
+  scope: "instance";
+  process: {
+    pid: number;
+    node: string;
+    uptimeSeconds: number;
+    startedAt: string;
+    activeHandles: number;
+    activeRequests: number;
+    memory: { rss: number; heapUsed: number; heapTotal: number; external: number };
+  };
+  eventLoop: { p50: number; p99: number; max: number };
+  memory: { rss: number; heapUsed: number; heapTotal: number; external: number };
+  cpu: { percent: number };
+  inFlight: number;
+  http: {
+    windowMinutes: 5 | 15 | 60;
+    requests: number;
+    rps: number;
+    errors4xx: number;
+    errors5xx: number;
+    errorRate: number;
+    p50: number;
+    p95: number;
+    p99: number;
+    max: number;
+    avg: number;
+    byRoute: PerformanceRoute[];
+    slowestByAvg: PerformanceRoute[];
+    mostErrors: PerformanceRoute[];
+    perMinute: Array<{ minute: string; count: number; errors: number; p95: number }>;
+  };
+  db: {
+    queries: number;
+    p50: number;
+    p95: number;
+    totalMs: number;
+    slowCount: number;
+    perModel: PerformanceModel[];
+  };
+  redis: { pingMs: number | null; ok: boolean };
+  database: { pingMs: number | null; ok: boolean };
+  queues: Array<{
+    queue: string;
+    paused: boolean;
+    waiting?: number;
+    active?: number;
+    delayed?: number;
+    failed?: number;
+    completed?: number;
+    prioritized?: number;
+  }>;
+  jobs: { succeeded: number; failed: number; p95: number; avg: number };
+  since: string;
+  generatedAt: string;
+}
+
+export interface PerformanceHealth {
+  ok: boolean;
+  checks: Array<{ name: string; ok: boolean; ms: number | null; detail: string }>;
+  instance: string;
+  metricsPath: string;
+  metricsProtected: boolean;
+  generatedAt: string;
+}
+
+export const getPerformanceOverview = (query: string) =>
+  get<PerformanceOverview>(`/api/v1/system/performance?${query}`);
+export const getPerformanceHealth = () =>
+  get<PerformanceHealth>("/api/v1/system/performance/health");
+export const getPerformanceRoutes = (query: string) =>
+  get<{ window: number; sort: string; routes: PerformanceRoute[] }>(
+    `/api/v1/system/performance/routes?${query}`,
+  );
+
+// ── System: activity log ───────────────────────────────────────────────────
+
+export interface ActivityActor {
+  id: string;
+  fullName: string;
+  email: string;
+}
+
+export interface ActivityRow {
+  id: string;
+  createdAt: string;
+  action: string;
+  actionLabel: string;
+  entity: string | null;
+  entityId: string | null;
+  actor: ActivityActor | null;
+  ip: string | null;
+  requestId: string | null;
+  hasMetadata: boolean;
+}
+
+export interface ActivityDetail extends ActivityRow {
+  metadata: unknown;
+  userAgent: string | null;
+}
+
+export interface ActivityPage {
+  rows: ActivityRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+}
+
+export interface ActivityFacets {
+  domains: Array<{ domain: string; actions: Array<{ action: string; label: string; count: number }> }>;
+  entities: string[];
+  actors: Array<{ actor: ActivityActor; count: number }>;
+}
+
+export interface ActivitySummary {
+  window: { days: number; from: string; to: string };
+  totals: { events: number; actors: number; perDay: Array<{ day: string; count: number }> };
+  topActions: Array<{ action: string; label: string; count: number }>;
+  topActors: Array<{ actor: ActivityActor | null; count: number }>;
+  byDomain: Array<{ domain: string; count: number }>;
+}
+
+export const getActivity = (query: string) => get<ActivityPage>(`/api/v1/system/activity?${query}`);
+export const getActivityDetail = (id: string) =>
+  get<ActivityDetail>(`/api/v1/system/activity/${encodeURIComponent(id)}`);
+export const getActivityFacets = () => get<ActivityFacets>("/api/v1/system/activity/facets");
+export const getActivitySummary = (days = 7) =>
+  get<ActivitySummary>(`/api/v1/system/activity/summary?days=${days}`);
+
+// ── System: login history ──────────────────────────────────────────────────
+
+export type LoginOutcome =
+  | "SUCCEEDED"
+  | "BAD_PASSWORD"
+  | "INACTIVE"
+  | "LOCKED"
+  | "LOCKED_OUT"
+  | "UNKNOWN_USER";
+
+export interface LoginDevice {
+  browser: string | null;
+  os: string | null;
+}
+
+export interface LoginAttemptRow {
+  id: string;
+  createdAt: string;
+  email: string;
+  user: { id: string; fullName: string; email: string; isActive: boolean; lockedUntil: string | null } | null;
+  outcome: LoginOutcome;
+  ip: string | null;
+  userAgent: string | null;
+  device: LoginDevice;
+  host: string;
+  sessionId: string | null;
+  sessionActive: boolean;
+}
+
+export interface LoginHistoryPage {
+  rows: LoginAttemptRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+}
+
+export interface LoginHistorySummary {
+  window: { days: number; from: string; to: string };
+  totals: {
+    attempts: number;
+    succeeded: number;
+    failed: number;
+    lockedOut: number;
+    uniqueUsers: number;
+    uniqueIps: number;
+  };
+  byDay: Array<{ day: string; succeeded: number; failed: number }>;
+  topFailingEmails: Array<{ email: string; count: number }>;
+  topIps: Array<{ ip: string; count: number }>;
+  currentlyLocked: Array<{
+    id: string;
+    fullName: string;
+    email: string;
+    lockedUntil: string;
+    failedLoginAttempts: number;
+  }>;
+  activeSessions: number;
+}
+
+export interface UserLoginHistory {
+  user: { id: string; fullName: string; email: string; isActive: boolean; lockedUntil: string | null };
+  attempts: LoginAttemptRow[];
+  activeSessions: Array<{
+    id: string;
+    ip: string | null;
+    userAgent: string | null;
+    device: LoginDevice;
+    createdAt: string;
+    idleExpiresAt: string;
+  }>;
+}
+
+export const getLoginHistory = (query: string) =>
+  get<LoginHistoryPage>(`/api/v1/system/login-history?${query}`);
+export const getLoginHistorySummary = (days = 7) =>
+  get<LoginHistorySummary>(`/api/v1/system/login-history/summary?days=${days}`);
+export const getUserLoginHistory = (userId: string) =>
+  get<UserLoginHistory>(`/api/v1/system/login-history/users/${encodeURIComponent(userId)}`);
+
+// ── System: queue monitor ──────────────────────────────────────────────────
+
+export interface QueueLive {
+  queue: string;
+  waiting: number;
+  active: number;
+  delayed: number;
+  failed: number;
+  completed: number;
+  prioritized: number;
+  paused: boolean;
+  concurrency: number;
+}
+
+export interface QueuesLive {
+  queues: QueueLive[];
+  handlers: string[];
+  concurrency: Record<string, number>;
+}
+
+export interface QueueWindowStats {
+  queue: string;
+  name: string | null;
+  succeeded: number;
+  failed: number;
+  cancelled: number;
+  avgMs: number | null;
+  p95Ms: number | null;
+}
+
+export interface QueueSummary {
+  generatedAt: string;
+  last24h: QueueWindowStats[];
+  last7d: QueueWindowStats[];
+  throughput: Array<{ queue: string; hours: Array<{ hour: string; succeeded: number; failed: number }> }>;
+  oldestWaiting: Record<string, { since: string; ageMs: number } | null>;
+}
+
+export type JobStatus = "QUEUED" | "RUNNING" | "SUCCEEDED" | "FAILED" | "CANCELLED";
+
+export interface JobRow {
+  id: string;
+  queue: string;
+  name: string;
+  status: JobStatus;
+  attempts: number;
+  maxAttempts: number;
+  scheduledFor: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  durationMs: number | null;
+  error: string | null;
+  scheduleId: string | null;
+  requestedById: string | null;
+  requestedBy: { fullName: string; email: string } | null;
+  createdAt: string;
+}
+
+export interface JobPage {
+  rows: JobRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+}
+
+export interface JobDetail extends JobRow {
+  payload: unknown;
+  result: unknown;
+  updatedAt: string;
+  live: {
+    state: string;
+    progress: unknown;
+    attemptsMade: number;
+    failedReason: string | null;
+    processedOn: string | null;
+    finishedOn: string | null;
+    delay: number;
+  } | null;
+}
+
+export const getQueuesLive = () => get<QueuesLive>("/api/v1/system/queues");
+export const getQueueSummary = () => get<QueueSummary>("/api/v1/system/queues/summary");
+export const getJobs = (query: string) => get<JobPage>(`/api/v1/system/jobs?${query}`);
+export const getJob = (id: string) => get<JobDetail>(`/api/v1/system/jobs/${encodeURIComponent(id)}`);
+
+// ── System: scheduler ──────────────────────────────────────────────────────
+
+export interface Schedule {
+  id: string;
+  name: string;
+  description: string | null;
+  queue: string;
+  jobName: string;
+  cron: string;
+  timezone: string;
+  isActive: boolean;
+  lastRunAt: string | null;
+  nextRunAt: string | null;
+  lastStatus: JobStatus | null;
+  payload: unknown;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SchedulePage {
+  rows: Schedule[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+}
+
+export interface ScheduleDetail extends Schedule {
+  runs: JobRow[];
+}
+
+export interface ScheduleOptions {
+  jobNames: Array<{ name: string; description: string }>;
+  queues: string[];
+  timezones: string[];
+}
+
+export interface SchedulerStatus {
+  enabled: boolean;
+  isLeader: boolean;
+  lastTickAt: string | null;
+  nextTickAt: string | null;
+  tickMs: number;
+  dueCount: number;
+}
+
+export const getSchedules = (query: string) => get<SchedulePage>(`/api/v1/system/schedules?${query}`);
+export const getSchedule = (id: string) =>
+  get<ScheduleDetail>(`/api/v1/system/schedules/${encodeURIComponent(id)}`);
+export const getScheduleOptions = () => get<ScheduleOptions>("/api/v1/system/schedules/options");
+export const getSchedulerStatus = () => get<SchedulerStatus>("/api/v1/system/scheduler/status");

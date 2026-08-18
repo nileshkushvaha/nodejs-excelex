@@ -118,7 +118,7 @@ export class LookupsController {
   @Can("destination", "view")
   async pinCodeById(@Param("id", ParseUUIDPipe) id: string) {
     const row = await this.pinCodes.byId(id);
-    if (!row) throw new BadRequestException("Pin code not found.");
+    if (!row) throw new NotFoundException("Pin code not found.");
     return row;
   }
 

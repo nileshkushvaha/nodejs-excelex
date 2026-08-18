@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, HttpCode, Put } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Put } from "@nestjs/common";
 import { POLICY_LIMITS } from "@excelex/permissions";
 import { z } from "zod";
 
@@ -6,6 +6,7 @@ import { Can, RequirePermission } from "../auth/auth.guard";
 import { ClientSettingsService } from "./client-settings.service";
 import { PasswordPolicyService } from "./password-policy.service";
 import { SecuritySettingsService } from "./security-settings.service";
+import { parseOrThrow } from "../core/errors/validation";
 
 const passwordPolicySchema = z.object({
   minLength: z.coerce
@@ -111,17 +112,14 @@ export class SettingsController {
   @Can("clientSettings", "update")
   @HttpCode(204)
   async updateGeneral(@Body() body: unknown): Promise<void> {
-    const result = clientSettingsSchema.safeParse(body);
-    if (!result.success) {
-      throw new BadRequestException(result.error.issues.map((issue) => issue.message));
-    }
+    const result = parseOrThrow(clientSettingsSchema, body);
 
     // Statutory identifiers are stored uppercase so a lookup never has to guess.
     await this.general.update({
-      ...result.data,
-      gstin: result.data.gstin?.toUpperCase() ?? null,
-      pan: result.data.pan?.toUpperCase() ?? null,
-      cin: result.data.cin?.toUpperCase() ?? null,
+      ...result,
+      gstin: result.gstin?.toUpperCase() ?? null,
+      pan: result.pan?.toUpperCase() ?? null,
+      cin: result.cin?.toUpperCase() ?? null,
     });
   }
 
@@ -139,12 +137,9 @@ export class SettingsController {
   @RequirePermission("settings.security.manage")
   @HttpCode(204)
   async update(@Body() body: unknown): Promise<void> {
-    const result = passwordPolicySchema.safeParse(body);
-    if (!result.success) {
-      throw new BadRequestException(result.error.issues.map((issue) => issue.message));
-    }
+    const result = parseOrThrow(passwordPolicySchema, body);
 
-    await this.passwordPolicy.update(result.data);
+    await this.passwordPolicy.update(result);
   }
 
   @Get("security")
@@ -157,11 +152,8 @@ export class SettingsController {
   @RequirePermission("settings.security.manage")
   @HttpCode(204)
   async updateSecurity(@Body() body: unknown): Promise<void> {
-    const result = securitySettingsSchema.safeParse(body);
-    if (!result.success) {
-      throw new BadRequestException(result.error.issues.map((issue) => issue.message));
-    }
+    const result = parseOrThrow(securitySettingsSchema, body);
 
-    await this.security.update(result.data);
+    await this.security.update(result);
   }
 }

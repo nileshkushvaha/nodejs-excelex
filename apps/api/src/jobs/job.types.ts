@@ -19,6 +19,21 @@ export const JOB_NAMES = {
 
 export type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];
 
+/**
+ * What each job means, in words a person choosing one from a list can use.
+ *
+ * Kept beside the names rather than in the UI, so the description and the
+ * behaviour are edited together and the scheduler's options endpoint has one
+ * source to serve.
+ */
+export const JOB_DESCRIPTIONS: Record<JobName, string> = {
+  [JOB_NAMES.RATE_IMPORT]: "Apply a rate import too large to run inside a request.",
+  [JOB_NAMES.RATE_COPY]: "Copy a tariff forward in bulk.",
+  [JOB_NAMES.RETENTION_SWEEP]:
+    "Delete expired sessions, old finished jobs and old login attempts per the retention policy. Payload may set sessionDays, jobDays, loginAttemptDays.",
+  [JOB_NAMES.HEARTBEAT]: "Prove the queue runs end to end. Does nothing else.",
+};
+
 export const QUEUES = {
   /** Anything a person is waiting on. Kept short so it stays responsive. */
   DEFAULT: "default",
@@ -45,5 +60,7 @@ export interface JobEnvelope<T = Record<string, unknown>> {
   readonly jobId: string;
   /** Who asked. Null for scheduled work, which nobody asked for personally. */
   readonly requestedById: string | null;
+  /** The schedule that fired it, when one did. Null for work someone asked for. */
+  readonly scheduleId?: string | null;
   readonly payload: T;
 }

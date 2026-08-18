@@ -1,7 +1,12 @@
 import { Module } from "@nestjs/common";
 
 import { JobsModule } from "../jobs/jobs.module";
-import { QueueController } from "./queue/queue.controller";
+import { ActivityModule } from "./activity/activity.module";
+import { CacheModule } from "./cache/cache.module";
+import { LoginHistoryModule } from "./login-history/login-history.module";
+import { PerformanceModule } from "./performance/performance.module";
+import { QueueModule } from "./queue/queue.module";
+import { SchedulerModule } from "./scheduler/scheduler.module";
 
 /**
  * The System screens: operating the account rather than using it.
@@ -13,8 +18,14 @@ import { QueueController } from "./queue/queue.controller";
  * the audit trail, so it keeps settings.audit.view).
  */
 @Module({
-  imports: [JobsModule],
-  controllers: [QueueController],
-  providers: [],
+  imports: [
+    JobsModule,
+    QueueModule,
+    SchedulerModule,
+    CacheModule,
+    ActivityModule,
+    LoginHistoryModule,
+    PerformanceModule,
+  ],
 })
 export class SystemModule {}

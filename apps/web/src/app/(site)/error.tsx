@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import { BoundaryError } from "@/components/boundary-error";
 
-import { ErrorScreen } from "@/components/error-screen";
-
+/** The public site's boundary: the way out is the home page. */
 export default function SiteError({
   error,
   retry,
@@ -11,17 +10,10 @@ export default function SiteError({
   error: Error & { digest?: string };
   retry: () => void;
 }) {
-  useEffect(() => {
-    console.error(error);
-  }, [error]);
-
-  const development = process.env.NODE_ENV !== "production";
-
   return (
-    <ErrorScreen
-      status={500}
-      detail={development ? (error.stack ?? error.message) : undefined}
-      digest={error.digest}
+    <BoundaryError
+      error={error}
+      retry={retry}
       actions={
         <>
           <button

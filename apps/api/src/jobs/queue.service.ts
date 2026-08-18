@@ -3,6 +3,7 @@ import { Queue, type JobsOptions } from "bullmq";
 import type IORedis from "ioredis";
 
 import { requireRequestContext } from "../core/context/request-context";
+import { InvariantError } from "../core/errors/app-error";
 import { PrismaService } from "../core/database/prisma.service";
 import { RedisService } from "../core/redis/redis.service";
 import { QUEUES, type JobName, type QueueName } from "./job.types";
@@ -63,17 +64,20 @@ export class QueueService implements OnModuleDestroy {
       maxAttempts?: number;
       clientId?: string;
       requestedById?: string | null;
+      /** Set by the dispatcher, so the row and the envelope both name the schedule. */
+      scheduleId?: string | null;
     } = {},
   ): Promise<{ id: string }> {
     const context = options.clientId ? undefined : requireRequestContext();
     const clientId = options.clientId ?? context?.clientId;
-    if (!clientId) throw new Error("A job must belong to a client.");
+    if (!clientId) throw new InvariantError("job_without_client", "A job must belong to a client.");
 
     const requestedById =
       options.requestedById === undefined ? (context?.actor?.userId ?? null) : options.requestedById;
 
     const queueName = options.queue ?? QUEUES.DEFAULT;
     const maxAttempts = options.maxAttempts ?? 3;
+    const scheduleId = options.scheduleId ?? null;
 
     const row = await this.prisma.forClient(clientId, async (tx) =>
       tx.job.create({
@@ -84,12 +88,17 @@ export class QueueService implements OnModuleDestroy {
           payload: payload as never,
           maxAttempts,
           requestedById,
+          scheduleId,
           scheduledFor: options.delayMs ? new Date(Date.now() + options.delayMs) : null,
         },
       }),
     );
 
     const jobOptions: JobsOptions = {
+      // The BullMQ id is our row id, so the monitor can look a row's live
+      // state up directly rather than scanning the queue for a matching
+      // payload.
+      jobId: row.id,
       attempts: maxAttempts,
       // Exponential, because the usual reason a job fails twice is that
       // something downstream is still down, and hammering it does not help.
@@ -100,7 +109,11 @@ export class QueueService implements OnModuleDestroy {
       removeOnFail: { age: 86_400 },
     };
 
-    await this.queue(queueName).add(name, { clientId, jobId: row.id, requestedById, payload }, jobOptions);
+    await this.queue(queueName).add(
+      name,
+      { clientId, jobId: row.id, requestedById, scheduleId, payload },
+      jobOptions,
+    );
 
     this.logger.log(`Queued ${name} (${row.id}) on ${queueName}`);
     return { id: row.id };
@@ -108,14 +121,45 @@ export class QueueService implements OnModuleDestroy {
 
   /** Counts straight from Redis, for the live half of the monitor. */
   async depth(name: QueueName) {
-    const counts = await this.queue(name).getJobCounts(
-      "waiting",
-      "active",
-      "delayed",
-      "failed",
-      "completed",
-    );
-    return { queue: name, ...counts };
+    const queue = this.queue(name);
+    const [counts, paused] = await Promise.all([
+      queue.getJobCounts("waiting", "active", "delayed", "failed", "completed", "prioritized"),
+      queue.isPaused(),
+    ]);
+    return { queue: name, ...counts, paused };
+  }
+
+  /**
+   * The live BullMQ record for one of our rows, or null once it has left
+   * Redis. Direct by id, because the id is ours (see enqueue).
+   */
+  async liveState(queueName: QueueName, id: string) {
+    const job = await this.queue(queueName).getJob(id);
+    if (!job) return null;
+    const state = await job.getState();
+    return {
+      state,
+      progress: job.progress,
+      attemptsMade: job.attemptsMade,
+      failedReason: job.failedReason ?? null,
+      processedOn: job.processedOn ? new Date(job.processedOn).toISOString() : null,
+      finishedOn: job.finishedOn ? new Date(job.finishedOn).toISOString() : null,
+      delay: job.delay,
+    };
+  }
+
+  /**
+   * Removes a job that has not started. Returns false when it is not in Redis
+   * or is past the point of removal; the caller decides what that means.
+   */
+  async removeIfWaiting(queueName: QueueName, id: string): Promise<"removed" | "running" | "gone"> {
+    const job = await this.queue(queueName).getJob(id);
+    if (!job) return "gone";
+    const state = await job.getState();
+    if (state === "active") return "running";
+    if (state === "completed" || state === "failed") return "gone";
+    await job.remove();
+    return "removed";
   }
 
   async onModuleDestroy(): Promise<void> {

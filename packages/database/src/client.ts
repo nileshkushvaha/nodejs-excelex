@@ -17,10 +17,67 @@ import { clientScopeExtension } from "./scope";
 const DEFAULT_MAX_WAIT_MS = 5_000;
 const DEFAULT_TIMEOUT_MS = 15_000;
 
+/**
+ * What the timing hook sees: the model and operation and how long they took,
+ * never the arguments. Arguments carry client data; a metrics pipeline is the
+ * wrong place for it, and a hook that cannot see it cannot leak it.
+ */
+export interface QueryTiming {
+  readonly model: string;
+  readonly operation: string;
+  readonly durationMs: number;
+}
+
+export type QueryObserver = (info: QueryTiming) => void;
+
 export interface ClientPrismaOptions {
   readonly connectionString: string;
   /** Overridden only by tests that need to drive the context directly. */
   readonly getClientId?: () => string | undefined;
+  /** Called after every model operation with its duration. */
+  readonly onQuery?: QueryObserver;
+}
+
+/**
+ * Times every model operation and reports it to the observer.
+ *
+ * Applied unconditionally with a no-op default rather than only when an
+ * observer is given, so the handle's type does not depend on configuration:
+ * a `PlatformPrisma` is one type whether or not metrics are switched on.
+ * Wall-clock via hrtime, because Date.now() is a millisecond and half the
+ * queries here finish in less than one.
+ */
+function queryTimingExtension(onQuery: QueryObserver | undefined) {
+  return {
+    name: "queryTiming",
+    query: {
+      $allModels: {
+        async $allOperations({
+          model,
+          operation,
+          args,
+          query,
+        }: {
+          model: string;
+          operation: string;
+          args: unknown;
+          query: (args: unknown) => Promise<unknown>;
+        }) {
+          if (!onQuery) return query(args);
+          const started = process.hrtime.bigint();
+          try {
+            return await query(args);
+          } finally {
+            onQuery({
+              model,
+              operation,
+              durationMs: Number(process.hrtime.bigint() - started) / 1_000_000,
+            });
+          }
+        },
+      },
+    },
+  };
 }
 
 /**
@@ -32,7 +89,9 @@ export function createClientPrisma(options: ClientPrismaOptions) {
     adapter: new PrismaPg({ connectionString: options.connectionString }),
   });
 
-  return base.$extends(clientScopeExtension(options.getClientId ?? currentClientId));
+  return base
+    .$extends(clientScopeExtension(options.getClientId ?? currentClientId))
+    .$extends(queryTimingExtension(options.onQuery));
 }
 
 /**
@@ -40,8 +99,10 @@ export function createClientPrisma(options: ClientPrismaOptions) {
  * scope extension, because platform models have no clientId — the separation is
  * enforced by grants, not by a filter.
  */
-export function createPlatformPrisma(connectionString: string) {
-  return new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
+export function createPlatformPrisma(connectionString: string, onQuery?: QueryObserver) {
+  return new PrismaClient({ adapter: new PrismaPg({ connectionString }) }).$extends(
+    queryTimingExtension(onQuery),
+  );
 }
 
 /**
@@ -52,8 +113,10 @@ export function createPlatformPrisma(connectionString: string) {
  * dispatching due schedules — so that neither needs BYPASSRLS. Everything a
  * dispatched job then does runs under the client's own context.
  */
-export function createJobsPrisma(connectionString: string) {
-  return new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
+export function createJobsPrisma(connectionString: string, onQuery?: QueryObserver) {
+  return new PrismaClient({ adapter: new PrismaPg({ connectionString }) }).$extends(
+    queryTimingExtension(onQuery),
+  );
 }
 
 export type ClientPrisma = ReturnType<typeof createClientPrisma>;

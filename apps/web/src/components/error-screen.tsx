@@ -89,6 +89,7 @@ export function ErrorScreen({
   body,
   detail,
   digest,
+  code,
   actions,
 }: {
   status: number;
@@ -96,6 +97,8 @@ export function ErrorScreen({
   body?: string;
   detail?: string;
   digest?: string;
+  /** The API's error code, when the failure was one it named. */
+  code?: string;
   actions?: ReactNode;
 }) {
   const known = STATUSES[status] ?? STATUSES[500]!;
@@ -128,11 +131,18 @@ export function ErrorScreen({
 
         <div className="mt-8 flex flex-wrap justify-center gap-3">{actions}</div>
 
-        {digest ? (
+        {digest || code ? (
           // The one thing worth showing in production: the identifier that
-          // matches this page to a line in the server log.
+          // matches this page to a line in the server log — and the code,
+          // which tells support what kind of failure before they look.
           <p className="mt-6 text-xs text-faint">
-            Reference <span className="font-mono">{digest}</span>
+            {digest ? (
+              <>
+                Reference <span className="font-mono">{digest}</span>
+              </>
+            ) : null}
+            {digest && code ? " · " : null}
+            {code ? <span className="font-mono">{code}</span> : null}
           </p>
         ) : null}
       </div>

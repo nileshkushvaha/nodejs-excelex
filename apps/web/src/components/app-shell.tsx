@@ -212,7 +212,16 @@ function UserMenu({ user }: { user: { fullName: string; email: string } }) {
 
   async function signOut() {
     setBusy(true);
-    await fetch("/api/v1/auth/logout", { method: "POST" });
+    // A failed logout call — the API down, the session already gone — still
+    // ends at the sign-in page: the cookie is what the server honours, and if
+    // it could not be revoked now the layout's session check will send the
+    // person back here the moment the API returns. Swallowing the failure is
+    // deliberate; surfacing it would trap them in a shell they want to leave.
+    try {
+      await fetch("/api/v1/auth/logout", { method: "POST" });
+    } catch {
+      // Intentionally ignored: see above.
+    }
     // refresh() before push() so the server components re-run and drop the
     // revoked session from the rendered output.
     router.refresh();

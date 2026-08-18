@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 
+import { CacheService } from "../core/cache/cache.service";
 import { requireRequestContext } from "../core/context/request-context";
 import { PrismaService } from "../core/database/prisma.service";
 
@@ -37,7 +38,10 @@ export interface ClientSettingsView extends ClientSettings {
 
 @Injectable()
 export class ClientSettingsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
+  ) {}
 
   /**
    * Returns the stored row, or a sensible starting point built from what the
@@ -50,7 +54,12 @@ export class ClientSettingsService {
    */
   async view(): Promise<ClientSettingsView> {
     const { clientId } = requireRequestContext();
+    return this.cache.getOrSet({ clientId: clientId! }, "settings", "general", () =>
+      this.load(clientId!),
+    );
+  }
 
+  private async load(clientId: string): Promise<ClientSettingsView> {
     const row = await this.prisma.forClient(clientId!, (tx) => tx.clientSettings.findFirst());
     if (row) {
       return {
@@ -148,6 +157,8 @@ export class ClientSettingsService {
         });
       }
     });
+
+    await this.cache.del({ clientId: clientId! }, "settings", "general");
   }
 
   /**

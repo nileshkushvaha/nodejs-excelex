@@ -7,6 +7,8 @@ export {
   type ClientContextOptions,
   type ClientPrisma,
   type ClientPrismaOptions,
+  type QueryObserver,
+  type QueryTiming,
   type PlatformPrisma,
   type JobsPrisma,
   type ResolvedClient,

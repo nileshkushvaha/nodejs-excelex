@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  NotFoundException,
   Body,
   Delete,
   Get,
@@ -50,7 +51,7 @@ export class ChargesController {
   @Can("charge", "view")
   async chargeById(@Param("id", ParseUUIDPipe) id: string) {
     const row = await this.charges.byId(id);
-    if (!row) throw new BadRequestException("Charge not found.");
+    if (!row) throw new NotFoundException("Charge not found.");
     return row;
   }
 

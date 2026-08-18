@@ -1,5 +1,6 @@
-import { BadRequestException } from "@nestjs/common";
 import { z } from "zod";
+
+import { parseOrThrow } from "../core/errors/validation";
 
 /**
  * Every master's request schema, and the two helpers they share.
@@ -562,13 +563,12 @@ export const salesExecutiveSchema = z.object({
   isActive: z.coerce.boolean().default(true),
 });
 
-export function parse<T>(schema: z.ZodType<T>, body: unknown): T {
-  const result = schema.safeParse(body);
-  if (!result.success) {
-    throw new BadRequestException(result.error.issues.map((issue) => issue.message));
-  }
-  return result.data;
-}
+/**
+ * Kept as the masters' local name for the shared boundary parser, so the
+ * forty call sites read as they always did. New code imports parseOrThrow
+ * directly; there is one implementation.
+ */
+export const parse = parseOrThrow;
 
 /** Nullish is how the schema spells "absent"; the service takes null. */
 export function toChargeInput(data: z.infer<typeof chargeSchema>) {

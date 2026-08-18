@@ -14,6 +14,7 @@ import { requireRequestContext } from "../core/context/request-context";
 import { AuthService } from "./auth.service";
 import { PublicRoute } from "./auth.guard";
 import { SessionService } from "./session.service";
+import { parseOrThrow } from "../core/errors/validation";
 
 const signInSchema = z.object({
   email: z.string().trim().min(1, "Enter your email address.").max(320),
@@ -34,10 +35,7 @@ export class AuthController {
     @Body() body: unknown,
     @Res({ passthrough: true }) response: Response,
   ): Promise<{ user: { id: string; email: string; fullName: string; permissions: readonly string[] } }> {
-    const parsed = signInSchema.safeParse(body);
-    if (!parsed.success) {
-      throw new BadRequestException(parsed.error.issues.map((issue) => issue.message));
-    }
+    const parsed = parseOrThrow(signInSchema, body);
 
     const context = requireRequestContext();
     if (!context.clientId) {
@@ -47,8 +45,8 @@ export class AuthController {
     const result = await this.auth.signIn(
       context.clientId,
       context.host,
-      parsed.data.email,
-      parsed.data.password,
+      parsed.email,
+      parsed.password,
       context.ip,
       context.userAgent,
     );

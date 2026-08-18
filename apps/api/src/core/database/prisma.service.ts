@@ -8,6 +8,7 @@ import {
   type ClientPrisma,
   type JobsPrisma,
   type PlatformPrisma,
+  type QueryObserver,
   type ResolvedClient,
 } from "@excelex/database";
 
@@ -27,10 +28,25 @@ export class PrismaService implements OnModuleDestroy {
   private readonly platformPrisma: PlatformPrisma;
   private readonly jobsPrisma: JobsPrisma;
 
+  /**
+   * Set after construction rather than injected: the metrics service that
+   * wants to hear about queries is itself a consumer of this service, and a
+   * constructor dependency in both directions is a cycle Nest cannot build.
+   * Every handle reports through this one indirection, so an observer set
+   * later still sees every query from that moment on.
+   */
+  private queryObserver: QueryObserver | undefined;
+
   constructor(@Inject(ENVIRONMENT) environment: Environment) {
-    this.clientPrisma = createClientPrisma({ connectionString: environment.DATABASE_URL });
-    this.platformPrisma = createPlatformPrisma(environment.DATABASE_PLATFORM_URL);
-    this.jobsPrisma = createJobsPrisma(environment.DATABASE_JOBS_URL);
+    const onQuery: QueryObserver = (info) => this.queryObserver?.(info);
+    this.clientPrisma = createClientPrisma({ connectionString: environment.DATABASE_URL, onQuery });
+    this.platformPrisma = createPlatformPrisma(environment.DATABASE_PLATFORM_URL, onQuery);
+    this.jobsPrisma = createJobsPrisma(environment.DATABASE_JOBS_URL, onQuery);
+  }
+
+  /** Registers the one place query timings are reported to. Later calls replace earlier ones. */
+  setQueryObserver(observer: QueryObserver | undefined): void {
+    this.queryObserver = observer;
   }
 
   /**

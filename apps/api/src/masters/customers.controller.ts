@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  NotFoundException,
   Body,
   Delete,
   Get,
@@ -182,7 +183,7 @@ export class CustomersController {
   @Can("customer", "view")
   async customerById(@Param("id", ParseUUIDPipe) id: string) {
     const row = await this.customers.byId(id);
-    if (!row) throw new BadRequestException("Customer not found.");
+    if (!row) throw new NotFoundException("Customer not found.");
     return row;
   }
 

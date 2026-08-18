@@ -3,9 +3,26 @@ import { Worker, type Job as BullJob } from "bullmq";
 
 import { ENVIRONMENT, type Environment } from "../core/config/environment";
 import { PrismaService } from "../core/database/prisma.service";
+import { logEvent } from "../core/observability/log-event";
+import { MetricsService } from "../core/metrics/metrics.service";
 import { QUEUES, type JobEnvelope, type QueueName } from "./job.types";
 import { QueueService } from "./queue.service";
 import { JobRegistry } from "./job.registry";
+
+/**
+ * How many jobs each queue runs at once in one worker process.
+ *
+ * Exported so the monitor can show it beside the live counts: a queue with
+ * forty waiting and a concurrency of two is a different picture from forty
+ * waiting and twenty.
+ */
+export const WORKER_CONCURRENCY: Readonly<Record<QueueName, number>> = {
+  [QUEUES.DEFAULT]: 5,
+  // Bulk work is deliberately the least concurrent: two large imports at
+  // once is how a database runs out of connections.
+  [QUEUES.BULK]: 2,
+  [QUEUES.SCHEDULED]: 2,
+};
 
 /**
  * Running work, safely, outside a request.
@@ -30,6 +47,7 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
     private readonly prisma: PrismaService,
     private readonly queues: QueueService,
     private readonly registry: JobRegistry,
+    private readonly metrics: MetricsService,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -38,26 +56,37 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
       return;
     }
 
-    for (const [name, concurrency] of [
-      [QUEUES.DEFAULT, 5],
-      [QUEUES.BULK, 2],
-      [QUEUES.SCHEDULED, 2],
-    ] as Array<[QueueName, number]>) {
+    for (const [name, concurrency] of Object.entries(WORKER_CONCURRENCY) as Array<
+      [QueueName, number]
+    >) {
       const worker = new Worker(
         name,
         async (job) => this.run(job as BullJob<JobEnvelope>),
         {
           connection: this.queues.redis,
           prefix: this.queues.prefix,
-          // Bulk work is deliberately the least concurrent: two large imports
-          // at once is how a database runs out of connections.
           concurrency,
         },
       );
 
       worker.on("failed", (job, error) => {
-        this.logger.error(`${job?.name} failed: ${error.message}`, error.stack);
+        logEvent(
+          this.logger,
+          "error",
+          "job.failed",
+          {
+            queue: name,
+            job: job?.name,
+            jobId: job?.data?.jobId,
+            clientId: job?.data?.clientId,
+            attempt: job?.attemptsMade,
+            message: error.message,
+          },
+          error.stack,
+        );
+        if (job) this.observe(name, job, "failed");
       });
+      worker.on("completed", (job) => this.observe(name, job, "succeeded"));
 
       this.workers.push(worker);
     }
@@ -65,8 +94,16 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
     this.logger.log(`Workers running on ${this.workers.length} queues.`);
   }
 
+  /** Duration from BullMQ's own timestamps, so the metric and the row agree. */
+  private observe(queue: QueueName, job: BullJob, status: "succeeded" | "failed"): void {
+    const durationMs =
+      job.finishedOn && job.processedOn ? job.finishedOn - job.processedOn : 0;
+    this.metrics.observeJob({ queue, name: job.name, status, durationMs });
+  }
+
   private async run(job: BullJob<JobEnvelope>): Promise<unknown> {
     const { clientId, jobId, payload, requestedById } = job.data;
+    const scheduleId = job.data.scheduleId ?? null;
     const handler = this.registry.handler(job.name);
     const startedAt = new Date();
 
@@ -78,6 +115,7 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
         startedAt,
         error: `No handler is registered for "${job.name}".`,
         attempts: job.attemptsMade,
+        scheduleId,
       });
       throw new Error(`No handler for ${job.name}`);
     }
@@ -93,7 +131,7 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
       // The context is sealed here, so everything the handler touches is
       // scoped to this client by the same barrier a request uses.
       const result = await this.prisma.forClient(clientId, async (tx) =>
-        handler({ clientId, jobId, requestedById, payload }, tx),
+        handler({ clientId, jobId, requestedById, scheduleId, payload }, tx),
       );
 
       await this.finish(clientId, jobId, {
@@ -101,6 +139,7 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
         startedAt,
         result: (result ?? null) as never,
         attempts: job.attemptsMade + 1,
+        scheduleId,
       });
 
       return result;
@@ -114,6 +153,7 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
         startedAt,
         error: error instanceof Error ? (error.stack ?? error.message) : String(error),
         attempts: job.attemptsMade + 1,
+        scheduleId,
       });
 
       throw error;
@@ -129,11 +169,23 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
       attempts: number;
       error?: string;
       result?: never;
+      scheduleId?: string | null;
     },
   ): Promise<void> {
     const finishedAt = new Date();
 
     await this.prisma.forClient(clientId, async (tx) => {
+      // The schedule's last outcome is written in the same transaction as
+      // the job's, so the scheduler screen never shows a run the job table
+      // disagrees with. Only a final outcome counts: a retry still pending
+      // is not a result.
+      if (data.scheduleId && data.status !== "QUEUED") {
+        await tx.jobSchedule.updateMany({
+          where: { id: data.scheduleId },
+          data: { lastStatus: data.status },
+        });
+      }
+
       await tx.job.update({
         where: { id: jobId },
         data: {

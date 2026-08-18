@@ -22,6 +22,8 @@ Each ADR states: context, decision, alternatives considered (with the reason eac
 | [0001](ADR-0001-client-hostname-contract.md) | Client hostname contract and resolution | Accepted | 1 |
 | [0002](ADR-0002-client-isolation.md) | Client isolation: Prisma extension plus PostgreSQL RLS | Accepted | 1 |
 | [0003](ADR-0003-session-and-auth-boundary.md) | Session and authentication boundary | Accepted | 1 |
+| [0004](ADR-0004-background-work-and-system-operations.md) | Background work and the System screens (queue, scheduler, cache, activity, login history, performance) | Accepted | 1 |
+| [0005](ADR-0005-error-handling-and-observability.md) | Error handling, logging and correlation: one vocabulary, one envelope, one filter; structured logs; the web reads the contract | Accepted | 1 |
 
 ## Open decisions
 

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  NotFoundException,
   Body,
   Delete,
   Get,
@@ -163,7 +164,7 @@ export class DestinationsController {
   @Can("destination", "view")
   async destinationById(@Param("id", ParseUUIDPipe) id: string) {
     const row = await this.destinations.byId(id);
-    if (!row) throw new BadRequestException("Destination not found.");
+    if (!row) throw new NotFoundException("Destination not found.");
     return row;
   }
 

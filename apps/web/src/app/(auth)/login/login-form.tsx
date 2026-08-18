@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
+import { readApiError } from "@/lib/api-error";
+
 export function LoginForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -23,19 +25,23 @@ export function LoginForm() {
       });
 
       if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as { message?: string | string[] } | null;
-        const message = Array.isArray(body?.message) ? body.message[0] : body?.message;
+        const failure = await readApiError(response);
         // The server's message is deliberately identical for an unknown address
         // and a wrong password. Do not embellish it here — a friendlier,
         // more specific message would turn this form into an account oracle.
-        setError(message ?? "Sign-in failed. Please try again.");
+        // An outage is different and is named as such, with its reference.
+        setError(
+          failure.isUnavailable && failure.reference
+            ? `${failure.message} Reference ${failure.reference}.`
+            : failure.message,
+        );
         return;
       }
 
       router.refresh();
       router.push("/dashboard");
     } catch {
-      setError("Could not reach the server. Check that the API is running.");
+      setError("We could not reach the server. Try again in a moment.");
     } finally {
       setBusy(false);
     }

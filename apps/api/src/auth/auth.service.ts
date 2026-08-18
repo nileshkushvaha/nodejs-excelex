@@ -6,6 +6,7 @@ import { SecuritySettingsService } from "../settings/security-settings.service";
 import { effectivePermissions, toGrantSet, type UserWithGrants } from "./grants";
 
 import { PrismaService } from "../core/database/prisma.service";
+import { LoginHistoryService } from "../system/login-history/login-history.service";
 import { ActorCache } from "./actor-cache";
 import { SessionService } from "./session.service";
 
@@ -58,6 +59,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly sessions: SessionService,
     private readonly actors: ActorCache,
+    private readonly loginHistory: LoginHistoryService,
   ) {}
 
   /**
@@ -101,7 +103,22 @@ export class AuthService {
     const { settings, user, credentialsValid } = verdict;
 
     if (!credentialsValid || !user) {
-      if (user) await this.recordFailure(clientId, user, settings, ip, userAgent);
+      // Every refusal is written down with its real cause, which is the one
+      // thing the wire response deliberately does not say. The operator sees
+      // "unknown address" and "wrong password" as different rows; the caller
+      // sees the same sentence at the same speed.
+      if (user) {
+        await this.recordFailure(clientId, user, settings, host, ip, userAgent);
+      } else {
+        await this.loginHistory.record(clientId, {
+          userId: null,
+          email: normalisedEmail,
+          outcome: "UNKNOWN_USER",
+          host,
+          ip,
+          userAgent,
+        });
+      }
 
       this.logger.warn(`Failed sign-in for ${normalisedEmail} on ${host} from ${ip ?? "unknown"}`);
       throw new UnauthorizedException("Those sign-in details are not correct.");
@@ -113,6 +130,15 @@ export class AuthService {
     // the opposite of what it is for.
     const now = new Date();
     if (user.lockedUntil && user.lockedUntil > now) {
+      await this.loginHistory.record(clientId, {
+        userId: user.id,
+        email: normalisedEmail,
+        outcome: "LOCKED",
+        host,
+        ip,
+        userAgent,
+      });
+
       const minutes = Math.ceil((user.lockedUntil.getTime() - now.getTime()) / 60_000);
       throw new UnauthorizedException(
         settings.lockoutMinutes === 0
@@ -133,7 +159,7 @@ export class AuthService {
         });
       }
 
-      await tx.session.create({
+      const session = await tx.session.create({
         data: {
           clientId,
           userId: user.id,
@@ -160,6 +186,18 @@ export class AuthService {
           ip: ip ?? null,
           userAgent: userAgent ?? null,
         },
+      });
+
+      // In the same transaction as the session, so a login row can never point
+      // at a session that was not issued.
+      await this.loginHistory.recordIn(tx, clientId, {
+        userId: user.id,
+        email: normalisedEmail,
+        outcome: "SUCCEEDED",
+        host,
+        ip,
+        userAgent,
+        sessionId: session.id,
       });
 
       return {
@@ -260,8 +298,9 @@ export class AuthService {
    */
   private async recordFailure(
     clientId: string,
-    user: { id: string; failedLoginAttempts: number },
+    user: { id: string; email: string; failedLoginAttempts: number; isActive: boolean },
     settings: { lockAfterFailedAttempts: boolean; maxFailedAttempts: number; lockoutMinutes: number },
+    host: string,
     ip?: string,
     userAgent?: string,
   ): Promise<void> {
@@ -295,6 +334,18 @@ export class AuthService {
           ip: ip ?? null,
           userAgent: userAgent ?? null,
         },
+      });
+
+      // The counter and the history row commit together. An inactive account
+      // is counted like a bad password — the response is the same and the
+      // lockout still applies — but recorded as what it was.
+      await this.loginHistory.recordIn(tx, clientId, {
+        userId: user.id,
+        email: user.email,
+        outcome: shouldLock ? "LOCKED_OUT" : user.isActive ? "BAD_PASSWORD" : "INACTIVE",
+        host,
+        ip,
+        userAgent,
       });
     });
   }

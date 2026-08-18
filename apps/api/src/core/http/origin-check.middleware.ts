@@ -1,7 +1,8 @@
-import { ForbiddenException } from "@nestjs/common";
+import { Inject, Injectable, type NestMiddleware } from "@nestjs/common";
 import type { NextFunction, Request, Response } from "express";
 
-import type { Environment } from "../config/environment";
+import { ENVIRONMENT, type Environment } from "../config/environment";
+import { ForbiddenError } from "../errors/app-error";
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
@@ -17,8 +18,19 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
  * Sec-Fetch-Site is checked first where the browser sends it, because it cannot
  * be set by page script; Origin is the fallback for older clients.
  */
-export class OriginCheckMiddleware {
-  constructor(private readonly environment: Environment) {}
+@Injectable()
+export class OriginCheckMiddleware implements NestMiddleware {
+  constructor(@Inject(ENVIRONMENT) private readonly environment: Environment) {}
+
+  /**
+   * A Nest middleware rather than a bare Express one, so a refusal leaves
+   * through the exception filter like every other error — as the standard
+   * JSON envelope with a code and a request id — instead of falling into
+   * Express's default handler and coming back as an HTML page.
+   */
+  use(request: Request, response: Response, next: NextFunction): void {
+    this.handler()(request, response, next);
+  }
 
   handler() {
     return (request: Request, response: Response, next: NextFunction): void => {
@@ -39,7 +51,7 @@ export class OriginCheckMiddleware {
       }
 
       if (!allowed.has(origin)) {
-        throw new ForbiddenException("Cross-origin request rejected.");
+        throw new ForbiddenError("Cross-origin request rejected.", "origin_rejected");
       }
 
       return next();

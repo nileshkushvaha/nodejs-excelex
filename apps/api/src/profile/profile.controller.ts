@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -15,6 +14,7 @@ import { z } from "zod";
 
 import { SessionService } from "../auth/session.service";
 import { ProfileService } from "./profile.service";
+import { parseOrThrow } from "../core/errors/validation";
 
 const updateProfileSchema = z.object({
   fullName: z.string().trim().min(2, "Enter your name.").max(120),
@@ -36,11 +36,8 @@ const changePasswordSchema = z.object({
 });
 
 function parse<T>(schema: z.ZodType<T>, body: unknown): T {
-  const result = schema.safeParse(body);
-  if (!result.success) {
-    throw new BadRequestException(result.error.issues.map((issue) => issue.message));
-  }
-  return result.data;
+  const result = parseOrThrow(schema, body);
+  return result;
 }
 
 @Controller({ path: "profile", version: "1" })

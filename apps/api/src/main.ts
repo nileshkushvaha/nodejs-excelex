@@ -6,25 +6,34 @@ import cookieParser from "cookie-parser";
 import helmet from "helmet";
 
 import { AppModule } from "./app.module";
-import { ENVIRONMENT, type Environment } from "./core/config/environment";
-import { AllExceptionsFilter } from "./core/http/exception.filter";
-import { OriginCheckMiddleware } from "./core/http/origin-check.middleware";
+import { ENVIRONMENT, loadEnvironment, type Environment } from "./core/config/environment";
+import { createAppLogger } from "./core/observability/app-logger";
+import { installProcessHandlers } from "./core/observability/process-handlers";
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule, { bufferLogs: false });
+  // The environment is read once here, before the container exists, because
+  // the logger has to be chosen before anything logs. The container reads it
+  // again through the ENVIRONMENT provider; both see the same process.env.
+  const bootEnvironment = loadEnvironment();
+  const logger = createAppLogger({
+    json: bootEnvironment.NODE_ENV === "production",
+    level: bootEnvironment.LOG_LEVEL ?? (bootEnvironment.NODE_ENV === "production" ? "log" : "debug"),
+  });
+
+  const app = await NestFactory.create(AppModule, { logger, bufferLogs: false });
   const environment = app.get<Environment>(ENVIRONMENT);
 
   app.use(helmet({ contentSecurityPolicy: environment.NODE_ENV === "production" }));
   app.use(cookieParser());
 
-  // Origin verification, not SameSite. Every client host shares one registrable
-  // domain, so they are same-site with each other and SameSite separates nothing
-  // between them. This is the CSRF control.
-  app.use(new OriginCheckMiddleware(environment).handler());
+  // Origin verification lives in AppModule.configure(), as Nest middleware,
+  // so its refusal is rendered by the exception filter like any other error.
 
-  // Every failure leaves through here, so one rule decides what a response
-  // may say: detail in development, a status and a reference in production.
-  app.useGlobalFilters(new AllExceptionsFilter());
+  // Prisma, Redis, the workers and the scheduler each close themselves in
+  // onModuleDestroy — which only runs on SIGTERM if the hooks are enabled.
+  // Without this a rolling deploy kills a worker mid-job.
+  app.enableShutdownHooks();
+  installProcessHandlers(app);
 
   app.setGlobalPrefix("api");
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: "1" });

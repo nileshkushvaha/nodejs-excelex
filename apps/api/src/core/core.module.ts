@@ -1,7 +1,11 @@
 import { Global, Module } from "@nestjs/common";
+import { APP_FILTER } from "@nestjs/core";
 
+import { CacheService } from "./cache/cache.service";
 import { ENVIRONMENT, loadEnvironment } from "./config/environment";
+import { AllExceptionsFilter } from "./http/exception.filter";
 import { PrismaService } from "./database/prisma.service";
+import { MetricsModule } from "./metrics/metrics.module";
 import { RedisService } from "./redis/redis.service";
 
 /**
@@ -14,11 +18,16 @@ import { RedisService } from "./redis/redis.service";
  */
 @Global()
 @Module({
+  imports: [MetricsModule],
   providers: [
     { provide: ENVIRONMENT, useFactory: () => loadEnvironment() },
+    // Registered here rather than with useGlobalFilters() so it is built by
+    // the container and can be given the metrics service and the environment.
+    { provide: APP_FILTER, useClass: AllExceptionsFilter },
     PrismaService,
     RedisService,
+    CacheService,
   ],
-  exports: [ENVIRONMENT, PrismaService, RedisService],
+  exports: [ENVIRONMENT, PrismaService, RedisService, CacheService],
 })
 export class CoreModule {}

@@ -19,7 +19,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             what the server rendered — deliberately. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
-      <body className="antialiased">
+      {/*
+        suppressHydrationWarning on <body> too: browser extensions (ColorZilla's
+        cz-shortcut-listen, Grammarly, password managers) add attributes to the
+        body before React hydrates. Those are not ours and cannot be matched
+        server-side; the flag limits the suppression to this element's own
+        attributes, not to its children.
+      */}
+      <body className="antialiased" suppressHydrationWarning>
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>

@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 
+import { CacheService } from "../core/cache/cache.service";
 import { requireRequestContext } from "../core/context/request-context";
 import { PrismaService } from "../core/database/prisma.service";
 
@@ -45,23 +46,34 @@ export const DEFAULT_SECURITY_SETTINGS: SecuritySettings = {
 
 @Injectable()
 export class SecuritySettingsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
+  ) {}
 
   /** Merges a stored row over the defaults, for use inside an existing transaction. */
   static toSettings(row: Partial<SecuritySettings> | null | undefined): SecuritySettings {
     return row ? { ...DEFAULT_SECURITY_SETTINGS, ...row } : DEFAULT_SECURITY_SETTINGS;
   }
 
+  /**
+   * Cached under the settings namespace and dropped on update, so the read
+   * that every settings screen and sign-in path performs costs a Redis round
+   * trip rather than a transaction. The auth paths still read the row inside
+   * their own transaction — a lockout policy is not something to serve stale.
+   */
   async view(): Promise<SecuritySettingsView> {
     const { clientId } = requireRequestContext();
 
-    return this.prisma.forClient(clientId!, async (tx) => {
-      const row = await tx.securitySettings.findFirst();
-      return {
-        ...SecuritySettingsService.toSettings(row),
-        updatedAt: row?.updatedAt.toISOString() ?? null,
-      };
-    });
+    return this.cache.getOrSet({ clientId: clientId! }, "settings", "security", () =>
+      this.prisma.forClient(clientId!, async (tx) => {
+        const row = await tx.securitySettings.findFirst();
+        return {
+          ...SecuritySettingsService.toSettings(row),
+          updatedAt: row?.updatedAt.toISOString() ?? null,
+        };
+      }),
+    );
   }
 
   async update(settings: SecuritySettings): Promise<void> {
@@ -98,5 +110,7 @@ export class SecuritySettingsService {
         });
       }
     });
+
+    await this.cache.del({ clientId: clientId! }, "settings", "security");
   }
 }

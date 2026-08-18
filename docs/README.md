@@ -12,7 +12,7 @@
 | [`phase-1/01-VERSION-MATRIX.md`](phase-1/01-VERSION-MATRIX.md) | Exact dependency lines, the procedure that resolves them to committed versions, and the compatibility risks to prove during scaffolding. |
 | [`phase-1/02-SETUP-GUIDE.md`](phase-1/02-SETUP-GUIDE.md) | Reproducible local setup: prerequisites, infrastructure, roles, environment, scaffold order, verification. |
 | [`adr/`](adr/README.md) | Architecture decision records. |
-| `runbooks/` | Operational procedures. Populated in step S13. |
+| [`runbooks/`](runbooks/README.md) | Operational procedures: reading an error reference, logging and error codes; more added as modules land. |
 
 ## Reading order for a first review
 

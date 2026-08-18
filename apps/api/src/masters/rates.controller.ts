@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  NotFoundException,
   Body,
   Controller,
   Delete,
@@ -147,7 +148,7 @@ export class RatesController {
   @Can("zone", "view")
   async byId(@Param("id", ParseUUIDPipe) id: string) {
     const row = await this.rates.byId(id);
-    if (!row) throw new BadRequestException("Rate not found.");
+    if (!row) throw new NotFoundException("Rate not found.");
     return row;
   }
 

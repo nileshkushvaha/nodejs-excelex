@@ -3,6 +3,8 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { readApiError } from "@/lib/api-error";
+
 import { MasterDialog } from "@/components/master-dialog";
 import type { ImportReport } from "@/lib/api";
 
@@ -60,14 +62,16 @@ export function ImportDialog({
         body,
       });
 
-      const payload = (await response.json()) as ImportReport & { message?: string | string[] };
-
       if (!response.ok) {
-        const message = Array.isArray(payload.message) ? payload.message[0] : payload.message;
-        setError(message ?? `The import failed (${response.status}).`);
+        // Read through the shared reader: an error body may be the API's
+        // envelope, empty, or a proxy's HTML page, and .json() on the last
+        // two would throw us into the catch below with the wrong message.
+        const failure = await readApiError(response);
+        setError(failure.reference && failure.isUnavailable ? `${failure.message} (reference ${failure.reference})` : failure.message);
         return;
       }
 
+      const payload = (await response.json()) as ImportReport;
       setReport(payload);
 
       if (mode === "commit" && !payload.aborted) {
@@ -76,7 +80,7 @@ export function ImportDialog({
         router.refresh();
       }
     } catch {
-      setError("Could not reach the server. Nothing was imported.");
+      setError("We could not reach the server. Nothing was imported — try again in a moment.");
     } finally {
       setBusy(false);
     }

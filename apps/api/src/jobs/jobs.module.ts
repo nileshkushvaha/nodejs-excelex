@@ -1,5 +1,6 @@
 import { Module, OnModuleInit } from "@nestjs/common";
 
+import { registerRetentionSweep } from "./handlers/retention-sweep.handler";
 import { JobRegistry, registerHeartbeat } from "./job.registry";
 import { JobService } from "./job.service";
 import { QueueService } from "./queue.service";
@@ -26,5 +27,6 @@ export class JobsModule implements OnModuleInit {
    */
   onModuleInit(): void {
     registerHeartbeat(this.registry);
+    registerRetentionSweep(this.registry);
   }
 }

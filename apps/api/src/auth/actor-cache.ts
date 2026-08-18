@@ -84,4 +84,9 @@ export class ActorCache {
   clear(): void {
     this.entries.clear();
   }
+
+  /** Read-only figures for the cache manager screen; per process, like the cache. */
+  stats(): { entries: number; ttlMs: number; maxEntries: number } {
+    return { entries: this.entries.size, ttlMs: TTL_MS, maxEntries: MAX_ENTRIES };
+  }
 }

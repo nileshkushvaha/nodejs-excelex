@@ -79,6 +79,13 @@ const environmentSchema = z
      * authentication is a free map of every route and its error rate.
      */
     METRICS_TOKEN: z.string().min(16).optional(),
+
+    /**
+     * The least severe log level that is written. "log" in production, where
+     * "debug" prints every cache miss and "verbose" every query; "debug" in
+     * development. Structured JSON output follows NODE_ENV, not this.
+     */
+    LOG_LEVEL: z.enum(["fatal", "error", "warn", "log", "debug", "verbose"]).optional(),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== "production") return;

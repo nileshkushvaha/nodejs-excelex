@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 
+import { CacheService } from "../core/cache/cache.service";
 import { requireRequestContext } from "../core/context/request-context";
 import { PrismaService } from "../core/database/prisma.service";
 
@@ -27,12 +28,29 @@ export interface StateView {
  * permission catalogue. Reference data is shared by every client and editable by
  * none of them: a client with its own copy of India would produce addresses that
  * no other client's data could be reconciled against.
+ *
+ * Cached platform-wide for the same reason: the answer is identical for every
+ * client, so one copy serves them all, and it changes only with a migration
+ * (after which the cache manager's platform flush is the way to refresh it).
  */
 @Injectable()
 export class ReferenceService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
+  ) {}
 
-  async countries(): Promise<CountryView[]> {
+  countries(): Promise<CountryView[]> {
+    return this.cache.getOrSet("platform", "reference", "countries", () => this.loadCountries());
+  }
+
+  states(countryCode: string): Promise<StateView[]> {
+    return this.cache.getOrSet("platform", "reference", `states.${countryCode}`, () =>
+      this.loadStates(countryCode),
+    );
+  }
+
+  private async loadCountries(): Promise<CountryView[]> {
     const { clientId } = requireRequestContext();
 
     return this.prisma.forClient(clientId!, async (tx) => {
@@ -58,7 +76,7 @@ export class ReferenceService {
     });
   }
 
-  async states(countryCode: string): Promise<StateView[]> {
+  private async loadStates(countryCode: string): Promise<StateView[]> {
     const { clientId } = requireRequestContext();
 
     return this.prisma.forClient(clientId!, async (tx) => {

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  NotFoundException,
   Body,
   Delete,
   Get,
@@ -103,7 +104,7 @@ export class ConsigneesController {
   @Can("consignee", "view")
   async consigneeById(@Param("id", ParseUUIDPipe) id: string) {
     const row = await this.consignees.byId(id);
-    if (!row) throw new BadRequestException("Consignee not found.");
+    if (!row) throw new NotFoundException("Consignee not found.");
     return row;
   }
 
