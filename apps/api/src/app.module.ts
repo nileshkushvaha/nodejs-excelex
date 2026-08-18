@@ -20,6 +20,7 @@ import { DestinationService } from "./masters/destination.service";
 import { ProductService } from "./masters/product.service";
 import { ChargeService } from "./masters/charge.service";
 import { ConsigneeService } from "./masters/consignee.service";
+import { ShipperService } from "./masters/shipper.service";
 import { CustomerImportService } from "./masters/import/customer-import.service";
 import { CustomerDetailService } from "./masters/customer-detail.service";
 import { CustomerService } from "./masters/customer.service";
@@ -63,6 +64,7 @@ import { SettingsController } from "./settings/settings.controller";
     CustomerDetailService,
     CustomerImportService,
     ConsigneeService,
+    ShipperService,
     ChargeService,
     ProfileService,
     PasswordPolicyService,

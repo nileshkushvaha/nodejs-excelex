@@ -961,6 +961,8 @@ model Destination {
 
   consignees Consignee[] @relation("ConsigneeDestination")
 
+  shipperOrigins Shipper[] @relation("ShipperOrigin")
+
   @@unique([clientId, id], name: "destination_client_id")
   /// The list is filtered and sorted on these in the database, so they are
   /// indexed rather than left to a sequential scan over a few thousand rows.
@@ -1064,6 +1066,8 @@ model ServiceCentre {
   customers Customer[]
 
   consignees Consignee[]
+
+  shippers Shipper[]
 
   @@unique([clientId, id], name: "service_centre_client_id")
   @@index([clientId, code])
@@ -1706,4 +1710,79 @@ model Consignee {
   @@index([clientId, destinationId])
   @@index([clientId])
   @@map("consignees")
+}
+
+/// @scope(client)
+/// A party goods are collected from.
+///
+/// The mirror of Consignee, and client-wide for the same reason: one pickup
+/// address serves whichever customer books against it.
+///
+/// What is not mirrored is the paperwork. A shipper is the exporter of
+/// record, so the fields the customs and banking side needs live here —
+/// IEC, the bank AD code, the LUT declaration and NFEI. A consignee never
+/// files any of them; it receives.
+model Shipper {
+  id       String @id @default(uuid(7)) @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+
+  code String
+  name String
+
+  /// Where the consignment is collected. The legacy screen calls it Origin
+  /// and picks from the same master the consignee's Destination comes from.
+  originId        String? @map("origin_id") @db.Uuid
+  serviceCentreId String? @map("service_centre_id") @db.Uuid
+
+  contactPerson String? @map("contact_person")
+  addressLine1  String? @map("address_line1")
+  addressLine2  String? @map("address_line2")
+  pinCode       String? @map("pin_code")
+  city          String?
+  stateCode     String? @map("state_code")
+  countryCode   String  @default("IN") @map("country_code")
+
+  telephone1 String? @map("telephone1")
+  telephone2 String? @map("telephone2")
+  fax        String?
+  email      String?
+  mobile     String?
+
+  industry String?
+
+  gstin   String?
+  aadhaar String?
+  pan     String?
+  /// Importer Exporter Code, required on every export shipping bill.
+  iecNo   String? @map("iec_no")
+
+  /// The authorised dealer bank the export proceeds are realised through.
+  bankAdCode  String? @map("bank_ad_code")
+  bankAccount String? @map("bank_account")
+  bankIfsc    String? @map("bank_ifsc")
+
+  firm FirmType?
+
+  /// Letter of Undertaking — exports without paying IGST up front.
+  lutNumber    String?   @map("lut_number")
+  lutIssueDate DateTime? @map("lut_issue_date") @db.Date
+  lutTillDate  DateTime? @map("lut_till_date") @db.Date
+
+  /// Non-Foreign Exchange Involved: a shipment with no payment coming back,
+  /// which is declared differently.
+  nfei Boolean @default(false)
+
+  isActive  Boolean   @default(true) @map("is_active")
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  origin        Destination?   @relation("ShipperOrigin", fields: [clientId, originId], references: [clientId, id], onDelete: Restrict)
+  serviceCentre ServiceCentre? @relation(fields: [clientId, serviceCentreId], references: [clientId, id], onDelete: Restrict)
+
+  @@index([clientId, code])
+  @@index([clientId, name])
+  @@index([clientId, originId])
+  @@index([clientId])
+  @@map("shippers")
 }

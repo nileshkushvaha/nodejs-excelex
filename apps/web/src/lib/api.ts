@@ -576,6 +576,51 @@ export interface ConsigneePage {
   pageCount: number;
 }
 
+export interface Shipper {
+  id: string;
+  code: string;
+  name: string;
+  contactPerson: string | null;
+  addressLine1: string | null;
+  addressLine2: string | null;
+  pinCode: string | null;
+  city: string | null;
+  stateCode: string | null;
+  countryCode: string;
+  telephone1: string | null;
+  telephone2: string | null;
+  fax: string | null;
+  email: string | null;
+  mobile: string | null;
+  industry: string | null;
+  gstin: string | null;
+  aadhaar: string | null;
+  pan: string | null;
+  iecNo: string | null;
+  bankAdCode: string | null;
+  bankAccount: string | null;
+  bankIfsc: string | null;
+  firm: "GOVT" | "NON_GOVT" | null;
+  lutNumber: string | null;
+  lutIssueDate: string | null;
+  lutTillDate: string | null;
+  nfei: boolean;
+  isActive: boolean;
+  origin: { id: string; code: string; name: string } | null;
+  serviceCentre: { id: string; code: string; name: string } | null;
+}
+
+export interface ShipperPage {
+  rows: Shipper[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+}
+
+export const getShippers = (query: string) => get<ShipperPage>(`/api/v1/masters/shippers?${query}`);
+export const getShipper = (id: string) => get<Shipper>(`/api/v1/masters/shippers/${id}`);
+
 export const getConsignees = (query: string) =>
   get<ConsigneePage>(`/api/v1/masters/consignees?${query}`);
 export const getConsignee = (id: string) => get<Consignee>(`/api/v1/masters/consignees/${id}`);

@@ -34,6 +34,7 @@ import {
 } from "./customer-detail.service";
 import { ConsigneeService, type ConsigneeInput } from "./consignee.service";
 import { CustomerService, type CustomerInput } from "./customer.service";
+import { ShipperService, type ShipperInput } from "./shipper.service";
 import { CustomerImportService } from "./import/customer-import.service";
 import { buildWorkbook, XLSX_CONTENT_TYPE } from "./import/workbook";
 import { SalesExecutiveService } from "./sales-executive.service";
@@ -351,6 +352,77 @@ const CONSIGNEE_HEADERS = [
   "Status",
 ] as const;
 
+/** The shipper list and its export share one column set. */
+const SHIPPER_HEADERS = [
+  "Origin Code",
+  "Shipper Code",
+  "Shipper Name",
+  "Contact Person",
+  "Address1",
+  "Address2",
+  "Pin Code",
+  "City",
+  "State",
+  "Telephone1",
+  "Telephone2",
+  "Fax",
+  "Email",
+  "Mobile No",
+  "Industry",
+  "Service Center",
+  "GST No",
+  "Aadhar No",
+  "PAN No",
+  "IEC No",
+  "Bank AD Code",
+  "Bank Account",
+  "Bank IFSC",
+  "Firm",
+  "LUT Number",
+  "LUT Issue Date",
+  "LUT Till Date",
+  "NFEI",
+  "Status",
+] as const;
+
+const shipperSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .min(1, "A shipper needs a code.")
+    .max(20)
+    .regex(/^[A-Za-z0-9-]+$/, "A code may use letters, numbers and hyphens only."),
+  name: z.string().trim().min(1, "A shipper needs a name.").max(160),
+  originId: z.string().uuid().nullish().transform((v) => v ?? null),
+  serviceCentreId: z.string().uuid().nullish().transform((v) => v ?? null),
+  contactPerson: optionalText(120),
+  addressLine1: optionalText(200),
+  addressLine2: optionalText(200),
+  pinCode: optionalText(12),
+  city: optionalText(80),
+  stateCode: optionalText(10),
+  countryCode: z.string().trim().length(2).default("IN"),
+  telephone1: optionalText(40),
+  telephone2: optionalText(40),
+  fax: optionalText(40),
+  email: optionalText(320),
+  mobile: optionalText(20),
+  industry: optionalText(120),
+  gstin: optionalText(20),
+  aadhaar: optionalText(20),
+  pan: optionalText(20),
+  iecNo: optionalText(30),
+  bankAdCode: optionalText(30),
+  bankAccount: optionalText(40),
+  bankIfsc: optionalText(20),
+  firm: z.enum(["GOVT", "NON_GOVT"]).nullish().transform((v) => v ?? null),
+  lutNumber: optionalText(40),
+  lutIssueDate: dateText,
+  lutTillDate: dateText,
+  nfei: z.coerce.boolean().default(false),
+  isActive: z.coerce.boolean().default(true),
+});
+
 const consigneeSchema = z.object({
   code: z
     .string()
@@ -540,6 +612,7 @@ export class MastersController {
     private readonly customerDetails: CustomerDetailService,
     private readonly customerImport: CustomerImportService,
     private readonly consignees: ConsigneeService,
+    private readonly shippers: ShipperService,
   ) {}
 
   // ── Customers ────────────────────────────────────────────────────────────
@@ -917,6 +990,100 @@ export class MastersController {
   @HttpCode(204)
   async deleteConsignee(@Param("id", ParseUUIDPipe) id: string) {
     await this.consignees.remove(id);
+  }
+
+  // ── Shippers ─────────────────────────────────────────────────────────────
+  @Get("shippers")
+  @RequirePermission("masters.customer.view")
+  listShippers(@Query() query: Record<string, string>) {
+    return this.shippers.list({
+      page: Number(query["page"] ?? 1) || 1,
+      pageSize: Number(query["pageSize"] ?? 20) || 20,
+      search: query["search"],
+      originId: query["originId"],
+      serviceCentreId: query["serviceCentreId"],
+      status: query["status"],
+    });
+  }
+
+  @Post("shippers")
+  @RequirePermission("masters.customer.manage")
+  createShipper(@Body() body: unknown) {
+    return this.shippers.create(parse(shipperSchema, body) as ShipperInput);
+  }
+
+  // Ahead of "shippers/:id", because Nest matches in declaration order.
+  @Get("shippers/export")
+  @RequirePermission("masters.customer.view")
+  @Header("content-type", XLSX_CONTENT_TYPE)
+  @Header("content-disposition", 'attachment; filename="shippers.xlsx"')
+  async exportShippers(@Query() query: Record<string, string>): Promise<StreamableFile> {
+    const rows = await this.shippers.listForExport({
+      search: query["search"],
+      originId: query["originId"],
+      serviceCentreId: query["serviceCentreId"],
+      status: query["status"],
+    });
+
+    const file = await buildWorkbook(
+      "Shippers",
+      SHIPPER_HEADERS,
+      rows.map((row) => [
+        row.origin?.code,
+        row.code,
+        row.name,
+        row.contactPerson,
+        row.addressLine1,
+        row.addressLine2,
+        row.pinCode,
+        row.city,
+        row.stateCode,
+        row.telephone1,
+        row.telephone2,
+        row.fax,
+        row.email,
+        row.mobile,
+        row.industry,
+        row.serviceCentre?.name,
+        row.gstin,
+        row.aadhaar,
+        row.pan,
+        row.iecNo,
+        row.bankAdCode,
+        row.bankAccount,
+        row.bankIfsc,
+        row.firm,
+        row.lutNumber,
+        row.lutIssueDate,
+        row.lutTillDate,
+        row.nfei ? "Yes" : "No",
+        row.isActive ? "Active" : "In-Active",
+      ]),
+    );
+
+    return new StreamableFile(file);
+  }
+
+  @Get("shippers/:id")
+  @RequirePermission("masters.customer.view")
+  async shipperById(@Param("id", ParseUUIDPipe) id: string) {
+    const row = await this.shippers.byId(id);
+    if (!row) throw new BadRequestException("Shipper not found.");
+    return row;
+  }
+
+  @Put("shippers/:id")
+  @RequirePermission("masters.customer.manage")
+  @HttpCode(204)
+  async updateShipper(@Param("id", ParseUUIDPipe) id: string, @Body() body: unknown) {
+    await this.shippers.update(id, parse(shipperSchema, body) as ShipperInput);
+  }
+
+  @Delete("shippers/:id")
+  @RequirePermission("masters.customer.manage")
+  @HttpCode(204)
+  async deleteShipper(@Param("id", ParseUUIDPipe) id: string) {
+    await this.shippers.remove(id);
   }
 
   // ── Sales executives ─────────────────────────────────────────────────────
