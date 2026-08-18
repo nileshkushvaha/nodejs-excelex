@@ -57,75 +57,83 @@ export function ContactsTab({
         },
         { header: "City", cell: (row) => <span className="text-xs text-muted">{row.city ?? "—"}</span> },
       ]}
-      form={({ onDone }) => <AddForm customerId={customerId} states={states} onDone={onDone} />}
+      form={({ row, onDone }) => (
+        <RowForm customerId={customerId} row={row} states={states} onDone={onDone} />
+      )}
     />
   );
 }
 
-function AddForm({
+function RowForm({
   customerId,
+  row,
   states,
   onDone,
 }: {
   customerId: string;
+  row: CustomerContactRow | null;
   states: StateRow[];
   onDone: () => void;
 }) {
+  // The row carries every column the API returned, so the optional fields are
+  // read by name rather than typed one by one.
+  const value = (key: string) => (row?.[key] as string | null) ?? "";
   const { state, submit, pending } = useDetailForm(saveContact, onDone);
   const today = new Date().toISOString().slice(0, 10);
 
   return (
     <form action={submit}>
       <input type="hidden" name="customerId" value={customerId} />
+      {row ? <input type="hidden" name="id" value={row.id} /> : null}
       <FormError message={state?.error} />
 
-      <FormPanel title="Contact">
+      <FormPanel title={row ? "Edit contact" : "Contact"}>
         <div className="grid gap-3 sm:grid-cols-4">
           <Field label="Contact type" hint="Billing, pickup, escalation.">
-            <input name="contactType" required maxLength={60} className={formField} />
+            <input name="contactType" required maxLength={60} defaultValue={value("contactType")} className={formField} />
           </Field>
           <Field label="From date">
-            <input type="date" name="fromDate" required defaultValue={today} className={formField} />
+            <input type="date" name="fromDate" required defaultValue={row?.fromDate ?? today} className={formField} />
           </Field>
           <Field label="Name" span={2}>
-            <input name="name" required minLength={2} maxLength={120} className={formField} />
+            <input name="name" required minLength={2} maxLength={120} defaultValue={value("name")} className={formField} />
           </Field>
 
           <Field label="Designation">
-            <input name="designation" maxLength={80} className={formField} />
+            <input name="designation" maxLength={80} defaultValue={value("designation")} className={formField} />
           </Field>
           <Field label="Mobile">
-            <input name="mobile" required minLength={6} maxLength={20} className={formField} />
+            <input name="mobile" required minLength={6} maxLength={20} defaultValue={value("mobile")} className={formField} />
           </Field>
           <Field label="Landline">
-            <input name="landline" maxLength={40} className={formField} />
+            <input name="landline" maxLength={40} defaultValue={value("landline")} className={formField} />
           </Field>
           <Field label="Extension">
-            <input name="extension" maxLength={10} className={formField} />
+            <input name="extension" maxLength={10} defaultValue={value("extension")} className={formField} />
           </Field>
 
           <Field label="Email" span={2}>
-            <input name="email" maxLength={320} className={formField} />
+            <input name="email" maxLength={320} defaultValue={value("email")} className={formField} />
           </Field>
           <Field label="Address 1" span={2}>
-            <input name="addressLine1" maxLength={200} className={formField} />
+            <input name="addressLine1" maxLength={200} defaultValue={value("addressLine1")} className={formField} />
           </Field>
 
           <Field label="Address 2" span={2}>
-            <input name="addressLine2" maxLength={200} className={formField} />
+            <input name="addressLine2" maxLength={200} defaultValue={value("addressLine2")} className={formField} />
           </Field>
           <Field label="Address 3" span={2}>
-            <input name="addressLine3" maxLength={200} className={formField} />
+            <input name="addressLine3" maxLength={200} defaultValue={value("addressLine3")} className={formField} />
           </Field>
 
           <Field label="Pin code">
-            <input name="pinCode" required minLength={3} maxLength={12} className={formField} />
+            <input name="pinCode" required minLength={3} maxLength={12} defaultValue={value("pinCode")} className={formField} />
           </Field>
           <Field label="City">
-            <input name="city" maxLength={80} className={formField} />
+            <input name="city" maxLength={80} defaultValue={value("city")} className={formField} />
           </Field>
           <Field label="State">
-            <select name="stateCode" className={formField}>
+            <select name="stateCode" defaultValue={value("stateCode")} className={formField}>
               <option value="">—</option>
               {states.map((row) => (
                 <option key={row.code} value={row.code}>
@@ -135,41 +143,41 @@ function AddForm({
             </select>
           </Field>
           <Field label="GST no.">
-            <input name="gstin" maxLength={20} className={`${formField} font-mono uppercase`} />
+            <input name="gstin" maxLength={20} defaultValue={value("gstin")} className={`${formField} font-mono uppercase`} />
           </Field>
 
           <Field label="PAN no.">
-            <input name="pan" maxLength={20} className={`${formField} font-mono uppercase`} />
+            <input name="pan" maxLength={20} defaultValue={value("pan")} className={`${formField} font-mono uppercase`} />
           </Field>
           <Field label="Aadhaar no.">
-            <input name="aadhaar" maxLength={20} className={`${formField} font-mono`} />
+            <input name="aadhaar" maxLength={20} defaultValue={value("aadhaar")} className={`${formField} font-mono`} />
           </Field>
           <Field label="Passport no.">
-            <input name="passportNo" maxLength={20} className={formField} />
+            <input name="passportNo" maxLength={20} defaultValue={value("passportNo")} className={formField} />
           </Field>
           <Field label="IEC no.">
-            <input name="iecNo" maxLength={30} className={formField} />
+            <input name="iecNo" maxLength={30} defaultValue={value("iecNo")} className={formField} />
           </Field>
 
           <Field label="AD code">
-            <input name="adCode" maxLength={30} className={formField} />
+            <input name="adCode" maxLength={30} defaultValue={value("adCode")} className={formField} />
           </Field>
           <Field label="LUT no.">
-            <input name="lutNo" maxLength={40} className={formField} />
+            <input name="lutNo" maxLength={40} defaultValue={value("lutNo")} className={formField} />
           </Field>
           <Field label="Remark" span={2}>
-            <input name="remark" maxLength={500} className={formField} />
+            <input name="remark" maxLength={500} defaultValue={value("remark")} className={formField} />
           </Field>
         </div>
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-          <Toggle name="defaultShipper" label="Default shipper" />
+          <Toggle name="defaultShipper" label="Default shipper" defaultChecked={row?.defaultShipper ?? false} />
           <button
             type="submit"
             disabled={pending}
             className="btn-primary rounded-lg px-5 py-2 text-sm font-medium disabled:opacity-60"
           >
-            {pending ? "Saving…" : "Save contact"}
+            {pending ? "Saving…" : row ? "Save changes" : "Save contact"}
           </button>
         </div>
       </FormPanel>

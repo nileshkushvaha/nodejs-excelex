@@ -45,17 +45,21 @@ export function VolumetricsTab({
           cell: (row) => <span className="font-mono text-xs tabular-nums text-fg">{row.cft}</span>,
         },
       ]}
-      form={({ onDone }) => <AddForm customerId={customerId} products={products} onDone={onDone} />}
+      form={({ row, onDone }) => (
+        <RowForm customerId={customerId} row={row} products={products} onDone={onDone} />
+      )}
     />
   );
 }
 
-function AddForm({
+function RowForm({
   customerId,
+  row,
   products,
   onDone,
 }: {
   customerId: string;
+  row: CustomerVolumetricRow | null;
   products: Product[];
   onDone: () => void;
 }) {
@@ -64,12 +68,13 @@ function AddForm({
   return (
     <form action={submit}>
       <input type="hidden" name="customerId" value={customerId} />
+      {row ? <input type="hidden" name="id" value={row.id} /> : null}
       <FormError message={state?.error} />
 
-      <FormPanel title="Volumetric divisor">
+      <FormPanel title={row ? "Edit divisor" : "Volumetric divisor"}>
         <div className="grid gap-3 sm:grid-cols-4">
           <Field label="Product" span={2}>
-            <select name="productId" className={formField}>
+            <select name="productId" defaultValue={row?.product?.id ?? ""} className={formField}>
               <option value="">All products</option>
               {products.map((row) => (
                 <option key={row.id} value={row.id}>
@@ -79,20 +84,20 @@ function AddForm({
             </select>
           </Field>
           <Field label="Vendor">
-            <input name="vendor" maxLength={120} className={formField} />
+            <input name="vendor" maxLength={120} defaultValue={row?.vendor ?? ""} className={formField} />
           </Field>
           <Field label="Service">
-            <input name="service" maxLength={60} className={formField} />
+            <input name="service" maxLength={60} defaultValue={row?.service ?? ""} className={formField} />
           </Field>
 
           <Field label="Centimetre divide" hint="Zero means not agreed.">
-            <input name="centimetreDivide" inputMode="decimal" required defaultValue="0" className={`${formField} tabular-nums`} />
+            <input name="centimetreDivide" inputMode="decimal" required defaultValue={row?.centimetreDivide ?? "0"} className={`${formField} tabular-nums`} />
           </Field>
           <Field label="Inch divide">
-            <input name="inchDivide" inputMode="decimal" required defaultValue="0" className={`${formField} tabular-nums`} />
+            <input name="inchDivide" inputMode="decimal" required defaultValue={row?.inchDivide ?? "0"} className={`${formField} tabular-nums`} />
           </Field>
           <Field label="CFT">
-            <input name="cft" inputMode="decimal" required defaultValue="0" className={`${formField} tabular-nums`} />
+            <input name="cft" inputMode="decimal" required defaultValue={row?.cft ?? "0"} className={`${formField} tabular-nums`} />
           </Field>
 
           <div className="flex items-end">

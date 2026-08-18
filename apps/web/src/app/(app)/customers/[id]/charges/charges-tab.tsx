@@ -71,9 +71,10 @@ export function ChargesTab({
           ),
         },
       ]}
-      form={({ onDone }) => (
-        <AddForm
+      form={({ row, onDone }) => (
+        <RowForm
           customerId={customerId}
+          row={row}
           charges={charges}
           products={products}
           destinations={destinations}
@@ -84,14 +85,16 @@ export function ChargesTab({
   );
 }
 
-function AddForm({
+function RowForm({
   customerId,
+  row,
   charges,
   products,
   destinations,
   onDone,
 }: {
   customerId: string;
+  row: CustomerChargeRow | null;
   charges: Charge[];
   products: Product[];
   destinations: Destination[];
@@ -103,12 +106,13 @@ function AddForm({
   return (
     <form action={submit}>
       <input type="hidden" name="customerId" value={customerId} />
+      {row ? <input type="hidden" name="id" value={row.id} /> : null}
       <FormError message={state?.error} />
 
-      <FormPanel title="Charge">
+      <FormPanel title={row ? "Edit charge" : "Charge"}>
         <div className="grid gap-3 sm:grid-cols-4">
           <Field label="Charge" span={2}>
-            <select name="chargeId" required className={formField}>
+            <select name="chargeId" required defaultValue={row?.charge.id ?? ""} className={formField}>
               <option value="">Select a charge…</option>
               {charges.map((row) => (
                 <option key={row.id} value={row.id}>
@@ -118,30 +122,30 @@ function AddForm({
             </select>
           </Field>
           <Field label="From date">
-            <input type="date" name="fromDate" required defaultValue={today} className={formField} />
+            <input type="date" name="fromDate" required defaultValue={row?.fromDate ?? today} className={formField} />
           </Field>
           <Field label="To date">
-            <input type="date" name="toDate" required defaultValue={today} className={formField} />
+            <input type="date" name="toDate" required defaultValue={row?.toDate ?? today} className={formField} />
           </Field>
 
           <Field label="Charge type">
-            <select name="valueType" defaultValue="AMOUNT" className={formField}>
+            <select name="valueType" defaultValue={row?.valueType ?? "AMOUNT"} className={formField}>
               <option value="AMOUNT">Amount</option>
               <option value="PERCENTAGE">Percentage</option>
             </select>
           </Field>
           <Field label="Value">
-            <input name="value" inputMode="decimal" required defaultValue="0" className={`${formField} tabular-nums`} />
+            <input name="value" inputMode="decimal" required defaultValue={row?.value ?? "0"} className={`${formField} tabular-nums`} />
           </Field>
           <Field label="Minimum value">
-            <input name="minimumValue" inputMode="decimal" className={`${formField} tabular-nums`} />
+            <input name="minimumValue" inputMode="decimal" defaultValue={row?.minimumValue ?? ""} className={`${formField} tabular-nums`} />
           </Field>
           <Field label="Vendor">
-            <input name="vendor" maxLength={120} className={formField} />
+            <input name="vendor" maxLength={120} defaultValue={row?.vendor ?? ""} className={formField} />
           </Field>
 
           <Field label="Product">
-            <select name="productId" className={formField}>
+            <select name="productId" defaultValue={row?.product?.id ?? ""} className={formField}>
               <option value="">All products</option>
               {products.map((row) => (
                 <option key={row.id} value={row.id}>
@@ -151,7 +155,7 @@ function AddForm({
             </select>
           </Field>
           <Field label="Origin">
-            <select name="originId" className={formField}>
+            <select name="originId" defaultValue={row?.origin?.id ?? ""} className={formField}>
               <option value="">All origins</option>
               {destinations.map((row) => (
                 <option key={row.id} value={row.id}>
@@ -161,7 +165,7 @@ function AddForm({
             </select>
           </Field>
           <Field label="Destination">
-            <select name="destinationId" className={formField}>
+            <select name="destinationId" defaultValue={row?.destination?.id ?? ""} className={formField}>
               <option value="">All destinations</option>
               {destinations.map((row) => (
                 <option key={row.id} value={row.id}>
@@ -171,7 +175,7 @@ function AddForm({
             </select>
           </Field>
           <Field label="Service">
-            <input name="service" maxLength={60} className={formField} />
+            <input name="service" maxLength={60} defaultValue={row?.service ?? ""} className={formField} />
           </Field>
 
           <div className="flex items-end sm:col-start-4">

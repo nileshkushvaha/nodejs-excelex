@@ -33,10 +33,15 @@ export function DetailList<T extends { id: string }>({
   empty: string;
   canManage: boolean;
   addLabel: string;
-  /** Rendered inside the panel; `onDone` closes it after a successful save. */
-  form: (props: { onDone: () => void }) => ReactNode;
+  /**
+   * Rendered inside the panel. `row` is the row being edited, or null when
+   * adding; `onDone` closes the panel after a successful save.
+   */
+  form: (props: { row: T | null; onDone: () => void }) => ReactNode;
 }) {
-  const [adding, setAdding] = useState(false);
+  // null closed, "new" adding, a row editing. One state rather than a boolean
+  // and a selection, so the panel cannot be open on nothing.
+  const [editing, setEditing] = useState<T | "new" | null>(null);
   const [removeState, removeAction] = useActionState(deleteDetail, null);
 
   return (
@@ -50,15 +55,24 @@ export function DetailList<T extends { id: string }>({
         {canManage ? (
           <button
             type="button"
-            onClick={() => setAdding((open) => !open)}
+            onClick={() => setEditing((current) => (current ? null : "new"))}
             className="btn-primary rounded-lg px-3 py-2 text-sm font-medium"
           >
-            {adding ? "Cancel" : addLabel}
+            {editing ? "Cancel" : addLabel}
           </button>
         ) : null}
       </div>
 
-      {adding ? <div className="mb-4">{form({ onDone: () => setAdding(false) })}</div> : null}
+      {editing ? (
+        <div className="mb-4">
+          {/* Keyed on the row, so switching from one row to another remounts
+              the form. Without it the inputs keep the first row's values —
+              defaultValue is only read when the input mounts. */}
+          <div key={editing === "new" ? "new" : editing.id}>
+            {form({ row: editing === "new" ? null : editing, onDone: () => setEditing(null) })}
+          </div>
+        </div>
+      ) : null}
 
       <MasterTable
         rows={rows}
@@ -71,17 +85,26 @@ export function DetailList<T extends { id: string }>({
             className: "text-right",
             cell: (row) =>
               canManage ? (
-                <form action={removeAction} className="flex justify-end">
-                  <input type="hidden" name="customerId" value={customerId} />
-                  <input type="hidden" name="kind" value={kind} />
-                  <input type="hidden" name="id" value={row.id} />
+                <span className="flex justify-end gap-2">
                   <button
-                    type="submit"
-                    className="rounded border border-line-strong px-2 py-1 text-xs text-red-700 transition-colors hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950/50"
+                    type="button"
+                    onClick={() => setEditing(row)}
+                    className="rounded border border-line-strong px-2 py-1 text-xs text-fg transition-colors hover:border-accent hover:bg-surface-2"
                   >
-                    Delete
+                    Edit
                   </button>
-                </form>
+                  <form action={removeAction}>
+                    <input type="hidden" name="customerId" value={customerId} />
+                    <input type="hidden" name="kind" value={kind} />
+                    <input type="hidden" name="id" value={row.id} />
+                    <button
+                      type="submit"
+                      className="rounded border border-line-strong px-2 py-1 text-xs text-red-700 transition-colors hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950/50"
+                    >
+                      Delete
+                    </button>
+                  </form>
+                </span>
               ) : null,
           },
         ]}
