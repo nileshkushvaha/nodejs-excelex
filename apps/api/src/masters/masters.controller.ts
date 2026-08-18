@@ -24,6 +24,14 @@ import { ProductImportService } from "./import/product-import.service";
 import { DestinationService } from "./destination.service";
 import { ProductService } from "./product.service";
 import { ChargeService } from "./charge.service";
+import {
+  CustomerDetailService,
+  type ContactInput,
+  type CustomerChargeInput,
+  type FuelSurchargeInput,
+  type VolumetricInput,
+} from "./customer-detail.service";
+import { CustomerService, type CustomerInput } from "./customer.service";
 import { SalesExecutiveService } from "./sales-executive.service";
 import { ServiceCentreService } from "./service-centre.service";
 import { ZoneService } from "./zone.service";
@@ -123,6 +131,190 @@ const chargeSchema = z.object({
   applyFuelOnComponents: z.coerce.boolean(),
   isActive: z.coerce.boolean().default(true),
   componentIds: z.array(z.string().uuid()).default([]),
+});
+
+/**
+ * A customer.
+ *
+ * Nearly every field is optional because the legacy screen marks only six as
+ * required, and a half-known customer created at the counter is worth more
+ * than a rejected form. Nullish rather than optional so an emptied field
+ * clears the stored value instead of leaving yesterday's.
+ */
+const optionalText = (max: number) => z.string().trim().max(max).nullish().transform((v) => v || null);
+/** Money and percentages travel as strings and are validated as numerals. */
+const decimalText = z
+  .string()
+  .trim()
+  .regex(/^-?\d+(\.\d+)?$/, "Enter a number.")
+  .nullish()
+  .transform((v) => v || null);
+const dateText = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Enter a date.")
+  .nullish()
+  .transform((v) => v || null);
+
+const customerSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .min(1, "A customer needs a code.")
+    .max(20)
+    .regex(/^[A-Za-z0-9-]+$/, "A code may use letters, numbers and hyphens only."),
+  name: z.string().trim().min(2, "A customer needs a name.").max(160),
+  contactPerson: optionalText(120),
+  addressLine1: optionalText(200),
+  addressLine2: optionalText(200),
+  pinCode: optionalText(12),
+  city: optionalText(80),
+  stateCode: optionalText(10),
+  countryCode: z.string().trim().length(2).default("IN"),
+  telephone1: optionalText(40),
+  telephone2: optionalText(40),
+  fax: optionalText(40),
+  email: optionalText(320),
+  mobile: optionalText(20),
+  billingStateCode: optionalText(10),
+  serviceCentreId: z.string().uuid().nullish().transform((v) => v ?? null),
+  originId: z.string().uuid().nullish().transform((v) => v ?? null),
+  branchId: z.string().uuid().nullish().transform((v) => v ?? null),
+  startDate: dateText,
+  gstin: optionalText(20),
+  aadhaar: optionalText(20),
+  aadhaarDob: dateText,
+  passportNo: optionalText(20),
+  pan: optionalText(20),
+  tan: optionalText(20),
+  invoiceFormat: optionalText(60),
+  customerType: z.enum(["CUSTOMER", "CO_COURIER", "FRANCHISEE"]).default("CUSTOMER"),
+  registerType: z.enum(["REGISTERED", "UNREGISTERED", "B2B", "B2C"]).default("REGISTERED"),
+
+  paymentType: z.enum(["CASH", "CHEQUE", "CREDIT", "TOPAY"]).default("CREDIT"),
+  billingType: z.enum(["ALL", "DAILY", "WEEKLY", "FORTNIGHTLY", "MONTHLY"]).nullish().transform((v) => v ?? null),
+  contractAmount: decimalText,
+  creditDays: z.coerce.number().int().min(0).max(365).default(0),
+  registrationNo: optionalText(60),
+  instructions: optionalText(2000),
+  roundRupee: decimalText,
+  roundPaisa: decimalText,
+  contractHead: optionalText(120),
+  ledgerHead: optionalText(120),
+  contractOrigin: optionalText(120),
+  businessChannel: optionalText(60),
+  iecNo: optionalText(30),
+  bankAdCode: optionalText(30),
+  bankAccount: optionalText(40),
+  bankIfsc: optionalText(20),
+  firm: z.enum(["GOVT", "NON_GOVT"]).nullish().transform((v) => v ?? null),
+  shipperType: z.enum(["INDIVIDUAL", "MSME"]).nullish().transform((v) => v ?? null),
+  lutNumber: optionalText(40),
+  lutIssueDate: dateText,
+  lutTillDate: dateText,
+  nfei: z.coerce.boolean().default(false),
+  fuelSurcharge: z.coerce.boolean().default(true),
+  taxApplicable: z.coerce.boolean().default(true),
+  noTariff: z.coerce.boolean().default(false),
+  inclusiveTax: z.coerce.boolean().default(false),
+
+  contractNo: optionalText(60),
+  contractStartDate: dateText,
+  contractEndDate: dateText,
+  creditLimit: decimalText,
+  securityDeposit: decimalText,
+  contractNotes: optionalText(2000),
+
+  salesExecutiveId: z.string().uuid().nullish().transform((v) => v ?? null),
+  incentiveType: z.enum(["PERCENTAGE", "INCENTIVE", "FIXED"]).default("PERCENTAGE"),
+  incentivePercent: decimalText,
+  customerMessage: optionalText(500),
+  accountEmail: optionalText(320),
+  bestRate: optionalText(120),
+  monthlySales: decimalText,
+  defaultVendor: optionalText(120),
+  area: optionalText(120),
+  industry: optionalText(120),
+  globalCustomer: z.coerce.boolean().default(false),
+  measurementUnit: z.enum(["CENTIMETER", "INCH"]).default("CENTIMETER"),
+  geoLocation: optionalText(120),
+  disableCustomerOrigin: z.coerce.boolean().default(false),
+  enableTaxDutiesPaidBy: z.coerce.boolean().default(false),
+  enableAwbNo: z.coerce.boolean().default(false),
+
+  eStatement: z.coerce.boolean().default(false),
+  eInvoice: z.coerce.boolean().default(false),
+  allowZeroAmount: z.coerce.boolean().default(false),
+  isActive: z.coerce.boolean().default(true),
+});
+
+const requiredDate = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Enter a date.");
+const requiredDecimal = z
+  .string()
+  .trim()
+  .regex(/^-?\d+(\.\d+)?$/, "Enter a number.");
+
+const fuelSurchargeSchema = z.object({
+  fromDate: requiredDate,
+  toDate: requiredDate,
+  vendor: optionalText(120),
+  productId: z.string().uuid().nullish().transform((v) => v ?? null),
+  destinationId: z.string().uuid().nullish().transform((v) => v ?? null),
+  service: optionalText(60),
+  percentage: requiredDecimal,
+});
+
+const customerChargeSchema = z.object({
+  chargeId: z.string().uuid(),
+  fromDate: requiredDate,
+  toDate: requiredDate,
+  vendor: optionalText(120),
+  service: optionalText(60),
+  productId: z.string().uuid().nullish().transform((v) => v ?? null),
+  originId: z.string().uuid().nullish().transform((v) => v ?? null),
+  destinationId: z.string().uuid().nullish().transform((v) => v ?? null),
+  valueType: z.enum(["PERCENTAGE", "AMOUNT"]).default("AMOUNT"),
+  value: requiredDecimal,
+  minimumValue: decimalText,
+});
+
+const volumetricSchema = z.object({
+  productId: z.string().uuid().nullish().transform((v) => v ?? null),
+  vendor: optionalText(120),
+  service: optionalText(60),
+  cft: requiredDecimal,
+  centimetreDivide: requiredDecimal,
+  inchDivide: requiredDecimal,
+});
+
+const contactSchema = z.object({
+  contactType: z.string().trim().min(1, "Choose a contact type.").max(60),
+  fromDate: requiredDate,
+  name: z.string().trim().min(2, "A contact needs a name.").max(120),
+  designation: optionalText(80),
+  email: optionalText(320),
+  mobile: z.string().trim().min(6, "A contact needs a mobile number.").max(20),
+  landline: optionalText(40),
+  extension: optionalText(10),
+  addressLine1: optionalText(200),
+  addressLine2: optionalText(200),
+  addressLine3: optionalText(200),
+  pinCode: z.string().trim().min(3, "A pin code is required.").max(12),
+  city: optionalText(80),
+  stateCode: optionalText(10),
+  countryCode: z.string().trim().length(2).default("IN"),
+  remark: optionalText(500),
+  passportNo: optionalText(20),
+  aadhaar: optionalText(20),
+  gstin: optionalText(20),
+  pan: optionalText(20),
+  iecNo: optionalText(30),
+  adCode: optionalText(30),
+  lutNo: optionalText(40),
+  defaultShipper: z.coerce.boolean().default(false),
 });
 
 const zoneSchema = z.object({
@@ -282,7 +474,190 @@ export class MastersController {
     private readonly serviceCentres: ServiceCentreService,
     private readonly salesExecutives: SalesExecutiveService,
     private readonly charges: ChargeService,
+    private readonly customers: CustomerService,
+    private readonly customerDetails: CustomerDetailService,
   ) {}
+
+  // ── Customers ────────────────────────────────────────────────────────────
+  // Paged in the database. This master runs to thousands of rows per client,
+  // so the filters go to SQL rather than to the browser.
+  @Get("customers")
+  @RequirePermission("masters.customer.view")
+  listCustomers(@Query() query: Record<string, string>) {
+    return this.customers.list({
+      page: Number(query["page"] ?? 1) || 1,
+      pageSize: Number(query["pageSize"] ?? 20) || 20,
+      search: query["search"],
+      branchId: query["branchId"],
+      serviceCentreId: query["serviceCentreId"],
+      customerType: query["customerType"],
+      status: query["status"],
+    });
+  }
+
+  @Post("customers")
+  @RequirePermission("masters.customer.manage")
+  createCustomer(@Body() body: unknown) {
+    return this.customers.create(parse(customerSchema, body) as CustomerInput);
+  }
+
+  @Get("customers/:id")
+  @RequirePermission("masters.customer.view")
+  async customerById(@Param("id", ParseUUIDPipe) id: string) {
+    const row = await this.customers.byId(id);
+    if (!row) throw new BadRequestException("Customer not found.");
+    return row;
+  }
+
+  @Put("customers/:id")
+  @RequirePermission("masters.customer.manage")
+  @HttpCode(204)
+  async updateCustomer(@Param("id", ParseUUIDPipe) id: string, @Body() body: unknown) {
+    await this.customers.update(id, parse(customerSchema, body) as CustomerInput);
+  }
+
+  @Delete("customers/:id")
+  @RequirePermission("masters.customer.manage")
+  @HttpCode(204)
+  async deleteCustomer(@Param("id", ParseUUIDPipe) id: string) {
+    await this.customers.remove(id);
+  }
+
+  // ── The four lists that hang off a customer ──────────────────────────────
+  // Nested under the customer rather than sitting at the top level, because
+  // none of these rows means anything without one, and the path is what makes
+  // the ownership check impossible to forget.
+  @Get("customers/:id/fuel-surcharges")
+  @RequirePermission("masters.customer.view")
+  listCustomerFuel(@Param("id", ParseUUIDPipe) id: string) {
+    return this.customerDetails.listFuelSurcharges(id);
+  }
+
+  @Post("customers/:id/fuel-surcharges")
+  @RequirePermission("masters.customer.manage")
+  createCustomerFuel(@Param("id", ParseUUIDPipe) id: string, @Body() body: unknown) {
+    return this.customerDetails.saveFuelSurcharge(id, null, parse(fuelSurchargeSchema, body) as FuelSurchargeInput);
+  }
+
+  @Put("customers/:id/fuel-surcharges/:rowId")
+  @RequirePermission("masters.customer.manage")
+  @HttpCode(204)
+  async updateCustomerFuel(
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("rowId", ParseUUIDPipe) rowId: string,
+    @Body() body: unknown,
+  ) {
+    await this.customerDetails.saveFuelSurcharge(id, rowId, parse(fuelSurchargeSchema, body) as FuelSurchargeInput);
+  }
+
+  @Delete("customers/:id/fuel-surcharges/:rowId")
+  @RequirePermission("masters.customer.manage")
+  @HttpCode(204)
+  async deleteCustomerFuel(
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("rowId", ParseUUIDPipe) rowId: string,
+  ) {
+    await this.customerDetails.remove("fuel", id, rowId);
+  }
+
+  @Get("customers/:id/charges")
+  @RequirePermission("masters.customer.view")
+  listCustomerCharges(@Param("id", ParseUUIDPipe) id: string) {
+    return this.customerDetails.listCharges(id);
+  }
+
+  @Post("customers/:id/charges")
+  @RequirePermission("masters.customer.manage")
+  createCustomerCharge(@Param("id", ParseUUIDPipe) id: string, @Body() body: unknown) {
+    return this.customerDetails.saveCharge(id, null, parse(customerChargeSchema, body) as CustomerChargeInput);
+  }
+
+  @Put("customers/:id/charges/:rowId")
+  @RequirePermission("masters.customer.manage")
+  @HttpCode(204)
+  async updateCustomerCharge(
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("rowId", ParseUUIDPipe) rowId: string,
+    @Body() body: unknown,
+  ) {
+    await this.customerDetails.saveCharge(id, rowId, parse(customerChargeSchema, body) as CustomerChargeInput);
+  }
+
+  @Delete("customers/:id/charges/:rowId")
+  @RequirePermission("masters.customer.manage")
+  @HttpCode(204)
+  async deleteCustomerCharge(
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("rowId", ParseUUIDPipe) rowId: string,
+  ) {
+    await this.customerDetails.remove("charge", id, rowId);
+  }
+
+  @Get("customers/:id/volumetrics")
+  @RequirePermission("masters.customer.view")
+  listCustomerVolumetrics(@Param("id", ParseUUIDPipe) id: string) {
+    return this.customerDetails.listVolumetrics(id);
+  }
+
+  @Post("customers/:id/volumetrics")
+  @RequirePermission("masters.customer.manage")
+  createCustomerVolumetric(@Param("id", ParseUUIDPipe) id: string, @Body() body: unknown) {
+    return this.customerDetails.saveVolumetric(id, null, parse(volumetricSchema, body) as VolumetricInput);
+  }
+
+  @Put("customers/:id/volumetrics/:rowId")
+  @RequirePermission("masters.customer.manage")
+  @HttpCode(204)
+  async updateCustomerVolumetric(
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("rowId", ParseUUIDPipe) rowId: string,
+    @Body() body: unknown,
+  ) {
+    await this.customerDetails.saveVolumetric(id, rowId, parse(volumetricSchema, body) as VolumetricInput);
+  }
+
+  @Delete("customers/:id/volumetrics/:rowId")
+  @RequirePermission("masters.customer.manage")
+  @HttpCode(204)
+  async deleteCustomerVolumetric(
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("rowId", ParseUUIDPipe) rowId: string,
+  ) {
+    await this.customerDetails.remove("volumetric", id, rowId);
+  }
+
+  @Get("customers/:id/contacts")
+  @RequirePermission("masters.customer.view")
+  listCustomerContacts(@Param("id", ParseUUIDPipe) id: string) {
+    return this.customerDetails.listContacts(id);
+  }
+
+  @Post("customers/:id/contacts")
+  @RequirePermission("masters.customer.manage")
+  createCustomerContact(@Param("id", ParseUUIDPipe) id: string, @Body() body: unknown) {
+    return this.customerDetails.saveContact(id, null, parse(contactSchema, body) as ContactInput);
+  }
+
+  @Put("customers/:id/contacts/:rowId")
+  @RequirePermission("masters.customer.manage")
+  @HttpCode(204)
+  async updateCustomerContact(
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("rowId", ParseUUIDPipe) rowId: string,
+    @Body() body: unknown,
+  ) {
+    await this.customerDetails.saveContact(id, rowId, parse(contactSchema, body) as ContactInput);
+  }
+
+  @Delete("customers/:id/contacts/:rowId")
+  @RequirePermission("masters.customer.manage")
+  @HttpCode(204)
+  async deleteCustomerContact(
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("rowId", ParseUUIDPipe) rowId: string,
+  ) {
+    await this.customerDetails.remove("contact", id, rowId);
+  }
 
   // ── Sales executives ─────────────────────────────────────────────────────
   @Get("sales-executives")

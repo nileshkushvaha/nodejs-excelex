@@ -1227,17 +1227,23 @@ model ChargeComponent {
 
 /// Whether the customer pays before or after the shipment moves.
 enum CustomerPaymentType {
-  CREDIT
   CASH
+  CHEQUE
+  CREDIT
   TOPAY
 }
 
 /// GST registration status, which decides how tax is computed on the invoice.
+/// GST registration status, and — in the same list — who the customer sells
+/// to. The legacy screen mixes the two, so B2B and B2C sit beside Registered
+/// rather than in a field of their own. Kept as one list because that is the
+/// list the staff know, and splitting it would make every existing record
+/// ambiguous.
 enum CustomerRegisterType {
   REGISTERED
   UNREGISTERED
-  COMPOSITION
-  SEZ
+  B2B
+  B2C
 }
 
 /// The units a customer's volumetric divisors are quoted in.
@@ -1246,11 +1252,52 @@ enum MeasurementUnit {
   INCH
 }
 
+/// What kind of party this is. A co-courier hands us traffic from its own
+/// network and a franchisee trades under the client's name, so they bill and
+/// rate differently from a customer who simply ships.
+enum CustomerKind {
+  CUSTOMER
+  CO_COURIER
+  FRANCHISEE
+}
+
+/// How often the customer is invoiced. ALL is the legacy name for "whenever a
+/// shipment is billable" — invoice per consignment, no cycle.
+enum BillingCycle {
+  ALL
+  DAILY
+  WEEKLY
+  FORTNIGHTLY
+  MONTHLY
+}
+
+/// Government business carries different documentation and payment terms.
+enum FirmType {
+  GOVT
+  NON_GOVT
+}
+
+/// Declared on the shipping bill for export consignments.
+enum ShipperType {
+  INDIVIDUAL
+  MSME
+}
+
+/// Whether a customer's charge rate is read as a percentage or as an amount.
+///
+/// Without this the value is ambiguous: 50 against Environmental Surcharge is
+/// fifty rupees, and 0.2 against Freight On Value is a fifth of a percent.
+/// The legacy form asks for it on every row, and it must be stored.
+enum ChargeValueType {
+  PERCENTAGE
+  AMOUNT
+}
+
 /// How a sales executive's incentive on this customer is worked out.
 enum IncentiveType {
   PERCENTAGE
-  FLAT
-  NONE
+  INCENTIVE
+  FIXED
 }
 
 /// @scope(client)
@@ -1312,8 +1359,7 @@ model Customer {
   tan           String?
   invoiceFormat String?   @map("invoice_format")
 
-  /// "Customer" or one of the other party kinds the legacy list mixes in.
-  customerType String               @default("CUSTOMER") @map("customer_type")
+  customerType CustomerKind         @default(CUSTOMER) @map("customer_type")
   registerType CustomerRegisterType @default(REGISTERED) @map("register_type")
 
   logoPath      String? @map("logo_path")
@@ -1321,7 +1367,7 @@ model Customer {
 
   // ── Billing ────────────────────────────────────────────────────────────
   paymentType CustomerPaymentType @default(CREDIT) @map("payment_type")
-  billingType String?             @map("billing_type")
+  billingType BillingCycle?       @map("billing_type")
 
   /// Money, so Decimal. A float here is a rounding error on every invoice.
   contractAmount Decimal? @map("contract_amount") @db.Decimal(14, 2)
@@ -1345,8 +1391,24 @@ model Customer {
   bankAdCode      String? @map("bank_ad_code")
   bankAccount     String? @map("bank_account")
   bankIfsc        String? @map("bank_ifsc")
-  firm            String?
-  shipperType     String? @map("shipper_type")
+  firm            FirmType?
+  shipperType     ShipperType? @map("shipper_type")
+
+  // ── Contract ───────────────────────────────────────────────────────────
+  // The legacy wizard has a Contract step with nothing in it. These are the
+  // terms that actually get argued over and then forgotten, and every one of
+  // them is something the booking or billing screens will need to ask about.
+  contractNo        String?   @map("contract_no")
+  contractStartDate DateTime? @map("contract_start_date") @db.Date
+  contractEndDate   DateTime? @map("contract_end_date") @db.Date
+
+  /// What the customer may owe before bookings are held. Nullable rather than
+  /// zero: no limit set and a limit of nothing are different instructions.
+  creditLimit     Decimal? @map("credit_limit") @db.Decimal(14, 2)
+  securityDeposit Decimal? @map("security_deposit") @db.Decimal(14, 2)
+
+  contractDocumentPath String? @map("contract_document_path")
+  contractNotes        String? @map("contract_notes")
 
   /// Letter of Undertaking — an exporter's zero-rated GST declaration.
   lutNumber    String?   @map("lut_number")
@@ -1361,7 +1423,7 @@ model Customer {
 
   // ── Sales and other ────────────────────────────────────────────────────
   salesExecutiveId String?       @map("sales_executive_id") @db.Uuid
-  incentiveType    IncentiveType @default(NONE) @map("incentive_type")
+  incentiveType    IncentiveType @default(PERCENTAGE) @map("incentive_type")
   incentivePercent Decimal       @default(0) @map("incentive_percent") @db.Decimal(7, 4)
 
   customerMessage String?  @map("customer_message")
@@ -1466,8 +1528,9 @@ model CustomerCharge {
   originId      String? @map("origin_id") @db.Uuid
   destinationId String? @map("destination_id") @db.Uuid
 
-  value        Decimal  @db.Decimal(14, 4)
-  minimumValue Decimal? @map("minimum_value") @db.Decimal(14, 4)
+  valueType    ChargeValueType @default(AMOUNT) @map("value_type")
+  value        Decimal         @db.Decimal(14, 4)
+  minimumValue Decimal?        @map("minimum_value") @db.Decimal(14, 4)
 
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
