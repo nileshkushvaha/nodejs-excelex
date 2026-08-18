@@ -10,12 +10,16 @@
 
 generator client {
   provider        = "prisma-client-js"
-  previewFeatures = []
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 // Prisma 7: the connection URL lives in prisma.config.ts, not here.
 datasource db {
-  provider = "postgresql"
+  provider   = "postgresql"
+  // Declared so the drift check knows the extension is intentional. Without
+  // it, every run reports the trigram indexes as unexplained and people learn
+  // to ignore the one check that catches an unreviewed schema change.
+  extensions = [pg_trgm]
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -962,6 +966,11 @@ model Destination {
   consignees Consignee[] @relation("ConsigneeDestination")
 
   shipperOrigins Shipper[] @relation("ShipperOrigin")
+  /// Everything the list screen searches — code, name and state — in one column
+  /// so a single trigram index can serve it. GENERATED ALWAYS in the
+  /// migration: it cannot drift from the fields it summarises, and no
+  /// code has to remember to maintain it. Never written by the app.
+  searchText     String?   @default(dbgenerated("((((COALESCE(code, ''::text) || ' '::text) || COALESCE(name, ''::text)) || ' '::text) || COALESCE(state_code, ''::text))")) @map("search_text")
 
   @@unique([clientId, id], name: "destination_client_id")
   /// The list is filtered and sorted on these in the database, so they are
@@ -970,6 +979,7 @@ model Destination {
   @@index([clientId, name])
   @@index([clientId, kind, isActive])
   @@index([clientId, stateCode])
+  @@index([searchText(ops: raw("gin_trgm_ops"))], type: Gin)
   @@map("destinations")
 }
 
@@ -1478,12 +1488,18 @@ model Customer {
   charges        CustomerCharge[]
   volumetrics    CustomerVolumetric[]
   contacts       CustomerContact[]
+  /// Everything the list screen searches — code, name, contact person, mobile and email — in one column
+  /// so a single trigram index can serve it. GENERATED ALWAYS in the
+  /// migration: it cannot drift from the fields it summarises, and no
+  /// code has to remember to maintain it. Never written by the app.
+  searchText     String?                 @default(dbgenerated("((((((((COALESCE(code, ''::text) || ' '::text) || COALESCE(name, ''::text)) || ' '::text) || COALESCE(contact_person, ''::text)) || ' '::text) || COALESCE(mobile, ''::text)) || ' '::text) || COALESCE(email, ''::text))")) @map("search_text")
 
   @@unique([clientId, id], name: "customer_client_id")
   @@index([clientId, code])
   @@index([clientId, name])
   @@index([clientId, serviceCentreId])
   @@index([clientId])
+  @@index([searchText(ops: raw("gin_trgm_ops"))], type: Gin)
   @@map("customers")
 }
 
@@ -1704,11 +1720,17 @@ model Consignee {
 
   destination   Destination?   @relation("ConsigneeDestination", fields: [clientId, destinationId], references: [clientId, id], onDelete: Restrict)
   serviceCentre ServiceCentre? @relation(fields: [clientId, serviceCentreId], references: [clientId, id], onDelete: Restrict)
+  /// Everything the list screen searches — code, name, address, telephone and mobile — in one column
+  /// so a single trigram index can serve it. GENERATED ALWAYS in the
+  /// migration: it cannot drift from the fields it summarises, and no
+  /// code has to remember to maintain it. Never written by the app.
+  searchText    String?        @default(dbgenerated("((((((((COALESCE(code, ''::text) || ' '::text) || COALESCE(name, ''::text)) || ' '::text) || COALESCE(address_line1, ''::text)) || ' '::text) || COALESCE(telephone1, ''::text)) || ' '::text) || COALESCE(mobile, ''::text))")) @map("search_text")
 
   @@index([clientId, code])
   @@index([clientId, name])
   @@index([clientId, destinationId])
   @@index([clientId])
+  @@index([searchText(ops: raw("gin_trgm_ops"))], type: Gin)
   @@map("consignees")
 }
 
@@ -1779,11 +1801,17 @@ model Shipper {
 
   origin        Destination?   @relation("ShipperOrigin", fields: [clientId, originId], references: [clientId, id], onDelete: Restrict)
   serviceCentre ServiceCentre? @relation(fields: [clientId, serviceCentreId], references: [clientId, id], onDelete: Restrict)
+  /// Everything the list screen searches — code, name, address, telephone, mobile and GST number — in one column
+  /// so a single trigram index can serve it. GENERATED ALWAYS in the
+  /// migration: it cannot drift from the fields it summarises, and no
+  /// code has to remember to maintain it. Never written by the app.
+  searchText    String?        @default(dbgenerated("((((((((((COALESCE(code, ''::text) || ' '::text) || COALESCE(name, ''::text)) || ' '::text) || COALESCE(address_line1, ''::text)) || ' '::text) || COALESCE(telephone1, ''::text)) || ' '::text) || COALESCE(mobile, ''::text)) || ' '::text) || COALESCE(gstin, ''::text))")) @map("search_text")
 
   @@index([clientId, code])
   @@index([clientId, name])
   @@index([clientId, originId])
   @@index([clientId])
+  @@index([searchText(ops: raw("gin_trgm_ops"))], type: Gin)
   @@map("shippers")
 }
 
