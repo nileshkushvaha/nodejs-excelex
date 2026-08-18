@@ -6,6 +6,7 @@ import { useActionState, useMemo, useState, useTransition } from "react";
 
 import { FilterBar, type FilterDefinition } from "@/components/filter-bar";
 import { ImportDialog } from "@/components/import-dialog";
+import { Pager } from "@/components/pager";
 import { ActiveBadge, MasterTable } from "@/components/master-table";
 import type { CustomerPage, CustomerRow } from "@/lib/api";
 import { deleteCustomer } from "./actions";
@@ -98,15 +99,6 @@ export function CustomersManager({
     query.delete("page");
     startTransition(() => router.replace(`${pathname}?${query.toString()}`));
   }
-
-  function goTo(target: number) {
-    const query = new URLSearchParams(params.toString());
-    query.set("page", String(target));
-    startTransition(() => router.replace(`${pathname}?${query.toString()}`));
-  }
-
-  const from = (page.page - 1) * page.pageSize + 1;
-  const to = Math.min(page.total, page.page * page.pageSize);
 
   return (
     <>
@@ -235,46 +227,8 @@ export function CustomersManager({
         templateHref="/api/v1/masters/customers/import/template"
       />
 
-      {page.pageCount > 1 ? (
-        <nav className="mt-4 flex flex-wrap items-center justify-between gap-3" aria-label="Pagination">
-          <p className="text-xs text-muted">
-            Showing {from.toLocaleString()}–{to.toLocaleString()} of {page.total.toLocaleString()}
-          </p>
+      <Pager page={page.page} pageCount={page.pageCount} total={page.total} pageSize={page.pageSize} />
 
-          <div className="flex items-center gap-1.5">
-            <PageButton label="Previous" disabled={page.page <= 1} onClick={() => goTo(page.page - 1)} />
-            <span className="px-2 text-xs tabular-nums text-muted">
-              Page {page.page} of {page.pageCount}
-            </span>
-            <PageButton
-              label="Next"
-              disabled={page.page >= page.pageCount}
-              onClick={() => goTo(page.page + 1)}
-            />
-          </div>
-        </nav>
-      ) : null}
     </>
-  );
-}
-
-function PageButton({
-  label,
-  disabled,
-  onClick,
-}: {
-  label: string;
-  disabled: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className="btn-secondary rounded-lg px-3 py-1.5 text-xs font-medium disabled:opacity-40"
-    >
-      {label}
-    </button>
   );
 }

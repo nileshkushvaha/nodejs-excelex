@@ -544,6 +544,42 @@ export const getCustomerVolumetrics = (id: string) =>
 export const getCustomerContacts = (id: string) =>
   get<CustomerContactRow[]>(`/api/v1/masters/customers/${id}/contacts`);
 
+export interface Consignee {
+  id: string;
+  code: string;
+  name: string;
+  contactPerson: string | null;
+  addressLine1: string | null;
+  addressLine2: string | null;
+  pinCode: string | null;
+  city: string | null;
+  stateCode: string | null;
+  countryCode: string;
+  telephone1: string | null;
+  telephone2: string | null;
+  fax: string | null;
+  email: string | null;
+  mobile: string | null;
+  industry: string | null;
+  eori: string | null;
+  vat: string | null;
+  isActive: boolean;
+  destination: { id: string; code: string; name: string } | null;
+  serviceCentre: { id: string; code: string; name: string } | null;
+}
+
+export interface ConsigneePage {
+  rows: Consignee[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+}
+
+export const getConsignees = (query: string) =>
+  get<ConsigneePage>(`/api/v1/masters/consignees?${query}`);
+export const getConsignee = (id: string) => get<Consignee>(`/api/v1/masters/consignees/${id}`);
+
 export const getServiceCentres = () => get<ServiceCentre[]>("/api/v1/masters/service-centres");
 export const getSalesExecutives = () =>
   get<SalesExecutive[]>("/api/v1/masters/sales-executives");

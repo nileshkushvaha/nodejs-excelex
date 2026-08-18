@@ -959,6 +959,8 @@ model Destination {
   customerChargeOrigins      CustomerCharge[]        @relation("CustomerChargeOrigin")
   customerChargeDestinations CustomerCharge[]        @relation("CustomerChargeDestination")
 
+  consignees Consignee[] @relation("ConsigneeDestination")
+
   @@unique([clientId, id], name: "destination_client_id")
   /// The list is filtered and sorted on these in the database, so they are
   /// indexed rather than left to a sequential scan over a few thousand rows.
@@ -1060,6 +1062,8 @@ model ServiceCentre {
   destination Destination? @relation(fields: [clientId, destinationId], references: [clientId, id], onDelete: Restrict)
 
   customers Customer[]
+
+  consignees Consignee[]
 
   @@unique([clientId, id], name: "service_centre_client_id")
   @@index([clientId, code])
@@ -1643,4 +1647,63 @@ model CustomerContact {
   @@index([clientId, customerId])
   @@index([clientId])
   @@map("customer_contacts")
+}
+
+/// @scope(client)
+/// A party goods are delivered to.
+///
+/// Client-wide rather than hung off a customer, because that is what the
+/// legacy screen is: an address book keyed by destination and code, shared
+/// across everyone who books. The same consignee receives from several
+/// customers, and duplicating it per customer would mean correcting an
+/// address in six places.
+///
+/// EORI and VAT are here because the screen collects them: both are customs
+/// identifiers for consignments entering the EU, and a consignee is where
+/// they belong — they identify the party receiving, not the party paying.
+model Consignee {
+  id       String @id @default(uuid(7)) @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+
+  /// Theirs, not ours. The legacy data uses five-digit numbers.
+  code String
+  name String
+
+  destinationId   String? @map("destination_id") @db.Uuid
+  serviceCentreId String? @map("service_centre_id") @db.Uuid
+
+  contactPerson String? @map("contact_person")
+  addressLine1  String? @map("address_line1")
+  addressLine2  String? @map("address_line2")
+  pinCode       String? @map("pin_code")
+  city          String?
+  stateCode     String? @map("state_code")
+  countryCode   String  @default("IN") @map("country_code")
+
+  telephone1 String? @map("telephone1")
+  telephone2 String? @map("telephone2")
+  fax        String?
+  email      String?
+  mobile     String?
+
+  /// Text until the industry master exists, like the same field on Customer.
+  industry String?
+
+  /// Customs identifiers for EU-bound consignments.
+  eori String?
+  vat  String?
+
+  isActive  Boolean   @default(true) @map("is_active")
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  destination   Destination?   @relation("ConsigneeDestination", fields: [clientId, destinationId], references: [clientId, id], onDelete: Restrict)
+  serviceCentre ServiceCentre? @relation(fields: [clientId, serviceCentreId], references: [clientId, id], onDelete: Restrict)
+
+  @@index([clientId, code])
+  @@index([clientId, name])
+  @@index([clientId, destinationId])
+  @@index([clientId])
+  @@map("consignees")
 }

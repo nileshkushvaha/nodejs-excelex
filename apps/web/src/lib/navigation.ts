@@ -138,7 +138,7 @@ export const NAVIGATION: readonly NavigationSection[] = [
           { label: "Customers", href: "/customers", permission: "masters.customer.view" },
           soon("Customer groups", "/customers/groups", "masters.customer.view"),
           soon("Shippers", "/customers/shippers", "masters.customer.view"),
-          soon("Consignees", "/customers/consignees", "masters.customer.view"),
+          { label: "Consignees", href: "/consignees", permission: "masters.customer.view" },
           soon("Customer rates", "/customers/rates", "masters.rate.view"),
         ],
       },

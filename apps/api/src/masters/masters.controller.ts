@@ -32,6 +32,7 @@ import {
   type FuelSurchargeInput,
   type VolumetricInput,
 } from "./customer-detail.service";
+import { ConsigneeService, type ConsigneeInput } from "./consignee.service";
 import { CustomerService, type CustomerInput } from "./customer.service";
 import { CustomerImportService } from "./import/customer-import.service";
 import { buildWorkbook, XLSX_CONTENT_TYPE } from "./import/workbook";
@@ -320,6 +321,64 @@ const contactSchema = z.object({
   defaultShipper: z.coerce.boolean().default(false),
 });
 
+/**
+ * A consignee.
+ *
+ * Only the code and the name are required. The rest of the screen is an
+ * address book entry filled in as it becomes known — a delivery booked today
+ * against a phone number and nothing else is still a delivery.
+ */
+/** The export and import share one column list, so they cannot drift apart. */
+const CONSIGNEE_HEADERS = [
+  "Destination Code",
+  "Consignee Code",
+  "Consignee Name",
+  "Contact Person",
+  "Address1",
+  "Address2",
+  "Pin Code",
+  "City",
+  "State",
+  "Telephone1",
+  "Telephone2",
+  "Fax",
+  "Email",
+  "Mobile",
+  "Industry",
+  "Service Center",
+  "EORI",
+  "VAT",
+  "Status",
+] as const;
+
+const consigneeSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .min(1, "A consignee needs a code.")
+    .max(20)
+    .regex(/^[A-Za-z0-9-]+$/, "A code may use letters, numbers and hyphens only."),
+  name: z.string().trim().min(1, "A consignee needs a name.").max(160),
+  destinationId: z.string().uuid().nullish().transform((v) => v ?? null),
+  serviceCentreId: z.string().uuid().nullish().transform((v) => v ?? null),
+  contactPerson: optionalText(120),
+  addressLine1: optionalText(200),
+  addressLine2: optionalText(200),
+  pinCode: optionalText(12),
+  city: optionalText(80),
+  stateCode: optionalText(10),
+  countryCode: z.string().trim().length(2).default("IN"),
+  telephone1: optionalText(40),
+  telephone2: optionalText(40),
+  fax: optionalText(40),
+  email: optionalText(320),
+  mobile: optionalText(20),
+  industry: optionalText(120),
+  eori: optionalText(30),
+  vat: optionalText(30),
+  isActive: z.coerce.boolean().default(true),
+});
+
 const zoneSchema = z.object({
   code: z
     .string()
@@ -480,6 +539,7 @@ export class MastersController {
     private readonly customers: CustomerService,
     private readonly customerDetails: CustomerDetailService,
     private readonly customerImport: CustomerImportService,
+    private readonly consignees: ConsigneeService,
   ) {}
 
   // ── Customers ────────────────────────────────────────────────────────────
@@ -771,6 +831,92 @@ export class MastersController {
     @Param("rowId", ParseUUIDPipe) rowId: string,
   ) {
     await this.customerDetails.remove("contact", id, rowId);
+  }
+
+  // ── Consignees ───────────────────────────────────────────────────────────
+  // Paged in the database: this is the largest master a courier accumulates,
+  // because every address anyone has ever delivered to ends up in it.
+  @Get("consignees")
+  @RequirePermission("masters.customer.view")
+  listConsignees(@Query() query: Record<string, string>) {
+    return this.consignees.list({
+      page: Number(query["page"] ?? 1) || 1,
+      pageSize: Number(query["pageSize"] ?? 20) || 20,
+      search: query["search"],
+      destinationId: query["destinationId"],
+      serviceCentreId: query["serviceCentreId"],
+      status: query["status"],
+    });
+  }
+
+  @Post("consignees")
+  @RequirePermission("masters.customer.manage")
+  createConsignee(@Body() body: unknown) {
+    return this.consignees.create(parse(consigneeSchema, body) as ConsigneeInput);
+  }
+
+  // Ahead of "consignees/:id", because Nest matches in declaration order.
+  @Get("consignees/export")
+  @RequirePermission("masters.customer.view")
+  @Header("content-type", XLSX_CONTENT_TYPE)
+  @Header("content-disposition", 'attachment; filename="consignees.xlsx"')
+  async exportConsignees(@Query() query: Record<string, string>): Promise<StreamableFile> {
+    const rows = await this.consignees.listForExport({
+      search: query["search"],
+      destinationId: query["destinationId"],
+      serviceCentreId: query["serviceCentreId"],
+      status: query["status"],
+    });
+
+    const file = await buildWorkbook(
+      "Consignees",
+      CONSIGNEE_HEADERS,
+      rows.map((row) => [
+        row.destination?.code,
+        row.code,
+        row.name,
+        row.contactPerson,
+        row.addressLine1,
+        row.addressLine2,
+        row.pinCode,
+        row.city,
+        row.stateCode,
+        row.telephone1,
+        row.telephone2,
+        row.fax,
+        row.email,
+        row.mobile,
+        row.industry,
+        row.serviceCentre?.name,
+        row.eori,
+        row.vat,
+        row.isActive ? "Active" : "In-Active",
+      ]),
+    );
+
+    return new StreamableFile(file);
+  }
+
+  @Get("consignees/:id")
+  @RequirePermission("masters.customer.view")
+  async consigneeById(@Param("id", ParseUUIDPipe) id: string) {
+    const row = await this.consignees.byId(id);
+    if (!row) throw new BadRequestException("Consignee not found.");
+    return row;
+  }
+
+  @Put("consignees/:id")
+  @RequirePermission("masters.customer.manage")
+  @HttpCode(204)
+  async updateConsignee(@Param("id", ParseUUIDPipe) id: string, @Body() body: unknown) {
+    await this.consignees.update(id, parse(consigneeSchema, body) as ConsigneeInput);
+  }
+
+  @Delete("consignees/:id")
+  @RequirePermission("masters.customer.manage")
+  @HttpCode(204)
+  async deleteConsignee(@Param("id", ParseUUIDPipe) id: string) {
+    await this.consignees.remove(id);
   }
 
   // ── Sales executives ─────────────────────────────────────────────────────
