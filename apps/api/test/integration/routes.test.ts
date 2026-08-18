@@ -152,6 +152,7 @@ describe("the routing table", () => {
       activityLog: "system/activity",
       loginHistory: "system/login-history",
       performance: "system/performance",
+      exception: "system/exceptions",
     };
 
     const paths = routes.map((route) => route.path).join(" ");

@@ -71,6 +71,7 @@ export const POLICIES = {
   activityLog: readOnly("settings.audit"),
   loginHistory: readOnly("system.login"),
   performance: readOnly("system.performance"),
+  exception: crud("system.exception"),
 } as const satisfies Record<string, Policy>;
 
 export type Resource = keyof typeof POLICIES;

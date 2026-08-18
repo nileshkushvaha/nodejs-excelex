@@ -5,6 +5,7 @@ import { ENVIRONMENT, type Environment } from "../core/config/environment";
 import { PrismaService } from "../core/database/prisma.service";
 import { NotificationService } from "../core/notifications/notification.service";
 import { ErrorReporter } from "../core/observability/error-reporter";
+import { ExceptionRecorder } from "../core/observability/exception-recorder";
 import { logEvent } from "../core/observability/log-event";
 import { MetricsService } from "../core/metrics/metrics.service";
 import { QUEUES, type JobEnvelope, type QueueName } from "./job.types";
@@ -51,6 +52,7 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
     private readonly registry: JobRegistry,
     private readonly reporter: ErrorReporter,
     private readonly notifications: NotificationService,
+    private readonly recorder: ExceptionRecorder,
     private readonly metrics: MetricsService,
   ) {}
 
@@ -105,6 +107,14 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
               entity: job.data.jobId ? { type: "job", id: job.data.jobId } : undefined,
             });
           }
+          this.recorder.record({
+            clientId: job.data?.clientId,
+            source: "job",
+            code: `job_failed:${job.name}`,
+            exception: error,
+            route: job.name,
+            context: { queue: name, jobId: job.data?.jobId, attempts: job.attemptsMade },
+          });
           this.reporter.captureException(error, {
             event: "job.failed",
             clientId: job.data?.clientId,

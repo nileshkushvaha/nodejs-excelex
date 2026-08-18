@@ -7,6 +7,7 @@ import { AllExceptionsFilter } from "./http/exception.filter";
 import { PrismaService } from "./database/prisma.service";
 import { MetricsModule } from "./metrics/metrics.module";
 import { ErrorReporter } from "./observability/error-reporter";
+import { ExceptionRecorder } from "./observability/exception-recorder";
 import { RateLimitGuard } from "./rate-limit/rate-limit.guard";
 import { RateLimiterService } from "./rate-limit/rate-limiter.service";
 import { RedisService } from "./redis/redis.service";
@@ -32,10 +33,11 @@ import { RedisService } from "./redis/redis.service";
     { provide: APP_GUARD, useClass: RateLimitGuard },
     RateLimiterService,
     ErrorReporter,
+    ExceptionRecorder,
     PrismaService,
     RedisService,
     CacheService,
   ],
-  exports: [ENVIRONMENT, PrismaService, RedisService, CacheService, RateLimiterService, ErrorReporter],
+  exports: [ENVIRONMENT, PrismaService, RedisService, CacheService, RateLimiterService, ErrorReporter, ExceptionRecorder],
 })
 export class CoreModule {}

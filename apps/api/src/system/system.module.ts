@@ -3,6 +3,7 @@ import { Module } from "@nestjs/common";
 import { JobsModule } from "../jobs/jobs.module";
 import { ActivityModule } from "./activity/activity.module";
 import { CacheModule } from "./cache/cache.module";
+import { ExceptionsModule } from "./exceptions/exceptions.module";
 import { LoginHistoryModule } from "./login-history/login-history.module";
 import { NotificationsModule } from "./notifications/notifications.module";
 import { PerformanceModule } from "./performance/performance.module";
@@ -27,6 +28,7 @@ import { SchedulerModule } from "./scheduler/scheduler.module";
     ActivityModule,
     LoginHistoryModule,
     NotificationsModule,
+    ExceptionsModule,
     PerformanceModule,
   ],
 })

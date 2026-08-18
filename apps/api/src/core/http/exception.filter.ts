@@ -17,6 +17,7 @@ import { AppError, InvariantError, type FieldError } from "../errors/app-error";
 import { translateFailure } from "../errors/translate";
 import { MetricsService } from "../metrics/metrics.service";
 import { ErrorReporter } from "../observability/error-reporter";
+import { ExceptionRecorder } from "../observability/exception-recorder";
 import { logEvent } from "../observability/log-event";
 
 /**
@@ -93,6 +94,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     @Optional() private readonly metrics?: MetricsService,
     @Optional() @Inject(ENVIRONMENT) environment?: Environment,
     @Optional() private readonly reporter?: ErrorReporter,
+    @Optional() private readonly recorder?: ExceptionRecorder,
   ) {
     this.development = (environment?.NODE_ENV ?? process.env.NODE_ENV) !== "production";
   }
@@ -225,6 +227,20 @@ export class AllExceptionsFilter implements ExceptionFilter {
         code: normalised.code,
         status: normalised.status,
         extra: { method: request.method, path: fields.path, internal: fields.internal },
+      });
+      const context = currentRequestContext();
+      this.recorder?.record({
+        clientId: context?.clientId,
+        source: "http",
+        code: normalised.code,
+        status: normalised.status,
+        exception,
+        requestId,
+        method: request.method,
+        route,
+        path: fields.path,
+        actorId: context?.actor?.userId,
+        ip: context?.ip,
       });
     } else if (normalised.status === 401 || normalised.status === 403 || normalised.status === 429) {
       // Refusals are worth a line: a burst of them is a signal.

@@ -1303,3 +1303,60 @@ export interface NotificationPage {
 }
 
 export const getNotifications = (query: string) => get<NotificationPage>(`/api/v1/notifications?${query}`);
+
+// ── System: exceptions ──────────────────────────────────────────────────────
+
+export interface ExceptionGroup {
+  id: string;
+  fingerprint: string;
+  title: string;
+  code: string;
+  exceptionName: string;
+  route: string | null;
+  source: string;
+  status: "OPEN" | "RESOLVED" | "IGNORED";
+  count: number;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  resolvedAt: string | null;
+  regressedAt: string | null;
+}
+
+export interface ExceptionGroupPage {
+  rows: ExceptionGroup[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+}
+
+export interface ExceptionEvent {
+  id: string;
+  createdAt: string;
+  requestId: string | null;
+  method: string | null;
+  path: string | null;
+  status: number | null;
+  message: string;
+  stack: string | null;
+  actorId: string | null;
+  ip: string | null;
+  context: Record<string, unknown> | null;
+}
+
+export interface ExceptionDetail {
+  group: ExceptionGroup;
+  events: ExceptionEvent[];
+  perDay: Array<{ day: string; count: number }>;
+}
+
+export interface ExceptionSummary {
+  openGroups: number;
+  eventsLast24h: number;
+  activeGroupsLast24h: number;
+  bySource: Record<string, number>;
+}
+
+export const getExceptionGroups = (query: string) => get<ExceptionGroupPage>(`/api/v1/system/exceptions?${query}`);
+export const getExceptionSummary = () => get<ExceptionSummary>("/api/v1/system/exceptions/summary");
+export const getExceptionDetail = (fingerprint: string) => get<ExceptionDetail>(`/api/v1/system/exceptions/${fingerprint}`);

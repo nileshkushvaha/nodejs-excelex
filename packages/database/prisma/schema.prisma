@@ -2432,3 +2432,88 @@ model Notification {
   @@index([clientId])
   @@map("notifications")
 }
+
+// ─────────────────────────────────────────────────────────────
+// EXCEPTIONS — client scope
+// ─────────────────────────────────────────────────────────────
+
+enum ExceptionGroupStatus {
+  OPEN
+  RESOLVED
+  IGNORED
+}
+
+/// @scope(client)
+/// One server-side failure, kept.
+///
+/// The log has every failure and the reporter alerts on them; this table is
+/// what the Exceptions screen reads — the same reference a person quoted,
+/// the route, the code, the exception's own message and stack — durable
+/// across restarts and per client, so an operator can answer "what broke for
+/// this account last week" without a log search. Only 5xx and background
+/// failures: a 404 is not an exception. Thirty days, then the sweep.
+model ExceptionEvent {
+  id       String @id @default(uuid(7)) @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+
+  /// Groups the same failure across requests: code + exception + route.
+  fingerprint String
+  /// "http", "job", "scheduler".
+  source String
+
+  requestId     String? @map("request_id")
+  method        String?
+  route         String?
+  path          String?
+  status        Int?
+  code          String
+  exceptionName String  @map("exception_name")
+  /// The exception's own text — internal, never sent to a browser.
+  message String
+  stack   String?
+  actorId String? @map("actor_id") @db.Uuid
+  ip      String?
+  /// Whatever the source knew: jobId, scheduleId, queue.
+  context Json?
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([clientId, fingerprint, createdAt])
+  @@index([clientId, createdAt])
+  @@index([clientId])
+  @@map("exception_events")
+}
+
+/// @scope(client)
+/// The state of one kind of failure: how often, since when, and whether
+/// somebody has dealt with it. Upserted on every event; a resolved group
+/// that sees a new event reopens, because it was not resolved.
+model ExceptionGroup {
+  id       String @id @default(uuid(7)) @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+
+  fingerprint   String
+  title         String
+  code          String
+  exceptionName String  @map("exception_name")
+  route         String?
+  source        String
+
+  status       ExceptionGroupStatus @default(OPEN)
+  count        Int                  @default(0)
+  firstSeenAt  DateTime             @map("first_seen_at") @db.Timestamptz(6)
+  lastSeenAt   DateTime             @map("last_seen_at") @db.Timestamptz(6)
+  lastEventId  String?              @map("last_event_id") @db.Uuid
+  resolvedAt   DateTime?            @map("resolved_at") @db.Timestamptz(6)
+  resolvedById String?              @map("resolved_by_id") @db.Uuid
+  /// Set when a resolved group saw a new event.
+  regressedAt DateTime? @map("regressed_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([clientId, fingerprint])
+  @@index([clientId, status, lastSeenAt])
+  @@index([clientId])
+  @@map("exception_groups")
+}

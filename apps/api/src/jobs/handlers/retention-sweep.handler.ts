@@ -73,11 +73,18 @@ export async function runRetentionSweep(envelope: JobEnvelope<RetentionSweepPayl
     where: { createdAt: { lt: new Date(Date.now() - 90 * 86_400_000) } },
   });
 
+  // Thirty days of exception events is enough to see a pattern; the groups
+  // keep their counts and first-seen dates whatever happens to the events.
+  const exceptionEvents = await tx.exceptionEvent.deleteMany({
+    where: { createdAt: { lt: new Date(Date.now() - 30 * 86_400_000) } },
+  });
+
   return {
     sessions: sessions.count,
     jobs: jobs.count,
     passwordResets: passwordResets.count,
     notifications: notifications.count,
+    exceptionEvents: exceptionEvents.count,
     loginAttempts: loginAttempts.count,
     horizons: {
       sessions: sessionsBefore.toISOString(),

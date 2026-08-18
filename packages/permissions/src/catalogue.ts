@@ -112,6 +112,8 @@ export const PERMISSION_DEFINITIONS = define([
   { key: "system.cache.manage", group: "System", label: "Manage cache", description: "Flush cache namespaces or individual keys. Safe but disruptive under load." },
   { key: "system.login.view", group: "System", label: "View login history", description: "See sign-in attempts — successes, failures and lockouts — for everyone in this account." },
   { key: "system.performance.view", group: "System", label: "View application performance", description: "See request latency, error rates, event-loop and database health for this deployment." },
+  { key: "system.exception.view", group: "System", label: "View exceptions", description: "See server-side failures grouped by cause, with their stacks and references." },
+  { key: "system.exception.manage", group: "System", label: "Manage exceptions", description: "Resolve, ignore and reopen exception groups." },
 ] as const satisfies readonly PermissionDefinition[]);
 
 /** Every permission key, as a union type. A typo is a compile error. */

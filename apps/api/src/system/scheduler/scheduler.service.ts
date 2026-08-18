@@ -6,6 +6,7 @@ import { ENVIRONMENT, type Environment } from "../../core/config/environment";
 import { PrismaService } from "../../core/database/prisma.service";
 import { NotificationService } from "../../core/notifications/notification.service";
 import { ErrorReporter } from "../../core/observability/error-reporter";
+import { ExceptionRecorder } from "../../core/observability/exception-recorder";
 import { DefaultSchedulesService } from "./default-schedules.service";
 import { logEvent } from "../../core/observability/log-event";
 import { RedisService } from "../../core/redis/redis.service";
@@ -61,6 +62,7 @@ export class SchedulerService implements OnApplicationBootstrap, OnModuleDestroy
     private readonly reporter: ErrorReporter,
     private readonly defaults: DefaultSchedulesService,
     private readonly notifications: NotificationService,
+    private readonly recorder: ExceptionRecorder,
   ) {}
 
   get enabled(): boolean {
@@ -152,6 +154,14 @@ export class SchedulerService implements OnApplicationBootstrap, OnModuleDestroy
             body: `${schedule.name} (${schedule.jobName}) could not be dispatched: ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`,
             href: "/system/scheduler",
             entity: { type: "job_schedule", id: schedule.id },
+          });
+          this.recorder.record({
+            clientId: schedule.clientId,
+            source: "scheduler",
+            code: `schedule_dispatch_failed:${schedule.jobName}`,
+            exception: error,
+            route: schedule.jobName,
+            context: { scheduleId: schedule.id, schedule: schedule.name },
           });
           this.reporter.captureException(error, {
             event: "scheduler.dispatch_failed",
