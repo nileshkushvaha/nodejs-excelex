@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  applyIncrease,
   chargeableWeight,
   convertWeight,
   fromScaled,
@@ -241,5 +242,50 @@ describe("the four things a lane price is not", () => {
   it("rounds the quote itself, so the invoice sees the rounded number", () => {
     const result = quote([line("INITIAL", "0.5", "80.4444")], { weight: "0.4" }, { rounding: "NEAREST" });
     expect(result.amount).toBe("80.0000");
+  });
+});
+
+describe("copying a tariff forward", () => {
+  it("applies a percentage exactly", () => {
+    expect(applyIncrease("100", "6")).toBe("106.0000");
+    expect(applyIncrease("850", "6")).toBe("901.0000");
+    expect(applyIncrease("400", "7.5")).toBe("430.0000");
+  });
+
+  it("leaves a rate alone at zero percent", () => {
+    expect(applyIncrease("850.5500", "0")).toBe("850.5500");
+  });
+
+  it("rounds only when asked", () => {
+    // 8.33% of 850 is 920.805, which is not a rupee anybody quotes.
+    expect(applyIncrease("850", "8.33")).toBe("920.8050");
+    expect(applyIncrease("850", "8.33", "NEAREST")).toBe("921.0000");
+    expect(applyIncrease("850", "8.33", "DOWN")).toBe("920.0000");
+  });
+
+  it("does not drift across many rows the way a float would", () => {
+    // Applied to a thousand identical rates, every result must be identical.
+    // A float would produce two or three distinct values here, and nobody
+    // could explain the odd one out three months later.
+    const results = new Set(
+      Array.from({ length: 1000 }, () => applyIncrease("1234.5600", "6.75")),
+    );
+
+    expect(results.size).toBe(1);
+    // 1234.56 × 1.0675 is exactly 1317.8928.
+    expect([...results][0]).toBe("1317.8928");
+  });
+
+  it("truncates rather than rounding up, which favours the customer", () => {
+    // 100 × 1.00005 is 100.005, which does not fit four places. The extra is
+    // dropped rather than rounded up: the difference is a hundredth of a
+    // paisa, and of the two directions to be wrong by it, undercharging is
+    // the one nobody writes a complaint about.
+    expect(applyIncrease("100", "0.005")).toBe("100.0050");
+    expect(applyIncrease("1", "0.00005")).toBe("1.0000");
+  });
+
+  it("refuses a percentage that is not a number", () => {
+    expect(() => applyIncrease("100", "six")).toThrow();
   });
 });

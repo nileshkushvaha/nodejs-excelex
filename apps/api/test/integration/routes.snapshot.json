@@ -106,6 +106,7 @@
   "POST /api/v1/masters/product-types",
   "POST /api/v1/masters/products",
   "POST /api/v1/masters/products/import",
+  "POST /api/v1/masters/rates/copy",
   "POST /api/v1/masters/rates/import",
   "POST /api/v1/masters/sales-executives",
   "POST /api/v1/masters/service-centres",

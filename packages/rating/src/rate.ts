@@ -398,3 +398,26 @@ export function selectCard(cards: readonly Card[], on: string, lane: Lane = {}):
     return b.effectiveFrom.localeCompare(a.effectiveFrom);
   })[0];
 }
+
+
+/**
+ * Raises a rate by a percentage, for copying a tariff forward.
+ *
+ * The client's copy screen offers a percentage and a rounding switch, which
+ * is how an annual increase is actually applied: last year's card, plus six
+ * percent, rounded to whole rupees.
+ *
+ * Computed in scaled integers like everything else here. A percentage applied
+ * with floating point drifts by a paisa on some rows and not others, which is
+ * exactly the kind of difference nobody can explain three months later when a
+ * customer queries one line of an invoice.
+ */
+export function applyIncrease(rate: string, percent: string, rounding: Rounding = "NONE"): string {
+  const scaled = toScaled(rate);
+  const factor = toScaled(percent);
+
+  // rate × (100 + percent) / 100, with the division last so the intermediate
+  // keeps its precision.
+  const increased = (scaled * (100n * SCALE + factor)) / (100n * SCALE);
+  return round(fromScaled(increased), rounding);
+}

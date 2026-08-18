@@ -26,6 +26,9 @@ importers:
       '@excelex/permissions':
         specifier: workspace:*
         version: link:../../packages/permissions
+      '@excelex/rating':
+        specifier: workspace:*
+        version: link:../../packages/rating
       '@nestjs/common':
         specifier: ^11.0.1
         version: 11.2.1(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)

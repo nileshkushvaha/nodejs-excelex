@@ -192,7 +192,7 @@ export const NAVIGATION: readonly NavigationSection[] = [
         permission: "masters.rate.view",
         children: [
           { label: "Rate cards", href: "/rates", permission: "masters.rate.view" },
-          soon("Rate update", "/rates/update", "masters.rate.manage"),
+          { label: "Copy rates", href: "/rates/copy", permission: "masters.rate.manage" },
           { label: "Rate import", href: "/rates?import=1", permission: "masters.rate.manage" },
           soon("Zone update", "/rates/zones", "masters.rate.manage"),
           { label: "Charges", href: "/rates/charges", permission: "masters.rate.view" },
@@ -397,7 +397,7 @@ export const QUICK_LINKS: readonly NavigationItem[] = [
   soon("Manifest", "/manifests", "operations.manifest.view"),
   soon("Manifest in-scan", "/manifests/in-scan", "operations.scan.record"),
   soon("DRS scan", "/delivery/drs", "operations.scan.record"),
-  soon("Rate update", "/rates/update", "masters.rate.manage"),
+  { label: "Copy rates", href: "/rates/copy", permission: "masters.rate.manage" },
   { label: "Rate import", href: "/rates?import=1", permission: "masters.rate.manage" },
   soon("Customer master", "/customers", "masters.customer.view"),
 ];

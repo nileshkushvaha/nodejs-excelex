@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   Delete,
   Get,
@@ -15,10 +16,37 @@ import {
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 
+import { z } from "zod";
+
 import { Can } from "../auth/auth.guard";
+import { parse } from "./masters.schemas";
 import { RateImportService } from "./import/rate-import.service";
 import { buildWorkbook, XLSX_CONTENT_TYPE } from "./import/workbook";
+import { RateCopyService, type RateCopyRequest } from "./rate-copy.service";
 import { RateService } from "./rate.service";
+
+const lane = z.object({
+  customerId: z.string().uuid().nullish(),
+  originId: z.string().uuid().nullish(),
+  destinationId: z.string().uuid().nullish(),
+  productId: z.string().uuid().nullish(),
+  zoneId: z.string().uuid().nullish(),
+  vendor: z.string().trim().max(120).nullish(),
+  service: z.string().trim().max(60).nullish(),
+  countryCode: z.string().trim().max(2).nullish(),
+});
+
+const rateCopySchema = z.object({
+  from: lane.extend({ effectiveFrom: z.string().trim().nullish() }),
+  // The target date is the one thing a copy must state: every copied rate
+  // takes effect from it, and defaulting it to today would silently reprice
+  // work already booked.
+  to: lane.extend({
+    effectiveFrom: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose the date the copy takes effect."),
+  }),
+  percentageIncrease: z.string().trim().default("0"),
+  rounding: z.enum(["NONE", "NEAREST", "UP", "DOWN"]).default("NONE"),
+});
 
 /**
  * Rates.
@@ -33,6 +61,7 @@ export class RatesController {
   constructor(
     private readonly rates: RateService,
     private readonly rateImport: RateImportService,
+    private readonly rateCopy: RateCopyService,
   ) {}
 
   @Get("rates")
@@ -100,6 +129,18 @@ export class RatesController {
     // Preview unless the caller says otherwise: a mistyped mode should not be
     // the difference between a report and thousands of written rates.
     return this.rateImport.run(file.buffer, file.originalname, mode === "commit" ? "commit" : "preview");
+  }
+
+  @Post("rates/copy")
+  @Can("zone", "create")
+  copy(@Body() body: unknown, @Query("mode") mode?: string) {
+    // Preview unless the caller says otherwise. This writes hundreds of
+    // rates in one call, and a mistyped mode should not be the difference
+    // between a report and a repriced tariff.
+    return this.rateCopy.run(
+      parse(rateCopySchema, body) as unknown as RateCopyRequest,
+      mode === "commit" ? "commit" : "preview",
+    );
   }
 
   @Get("rates/:id")
