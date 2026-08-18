@@ -7,6 +7,7 @@ import helmet from "helmet";
 
 import { AppModule } from "./app.module";
 import { ENVIRONMENT, type Environment } from "./core/config/environment";
+import { AllExceptionsFilter } from "./core/http/exception.filter";
 import { OriginCheckMiddleware } from "./core/http/origin-check.middleware";
 
 async function bootstrap(): Promise<void> {
@@ -20,6 +21,10 @@ async function bootstrap(): Promise<void> {
   // domain, so they are same-site with each other and SameSite separates nothing
   // between them. This is the CSRF control.
   app.use(new OriginCheckMiddleware(environment).handler());
+
+  // Every failure leaves through here, so one rule decides what a response
+  // may say: detail in development, a status and a reference in production.
+  app.useGlobalFilters(new AllExceptionsFilter());
 
   app.setGlobalPrefix("api");
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: "1" });
