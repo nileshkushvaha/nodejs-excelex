@@ -7,6 +7,7 @@ import {
 } from "@excelex/permissions";
 
 import { requireRequestContext } from "../core/context/request-context";
+import { ActorCache } from "../auth/actor-cache";
 import { PrismaService } from "../core/database/prisma.service";
 
 export interface RoleSummary {
@@ -27,7 +28,10 @@ export interface RoleSummary {
  */
 @Injectable()
 export class AccessService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly actors: ActorCache,
+  ) {}
 
   /** The catalogue, for a role editor. Served from code, which is its source of truth. */
   catalogue() {
@@ -168,6 +172,10 @@ export class AccessService {
    * "added billing.invoice.finalise" tells them everything.
    */
   async setRolePermissions(roleId: string, permissions: string[]) {
+    // Everyone holding this role is affected, and the cache is keyed by
+    // token rather than by role. Ten seconds of extra reads beats working
+    // out which sessions to drop.
+    this.actors.clear();
     const { clientId, actor } = requireRequestContext();
 
     for (const permission of permissions) {
@@ -220,6 +228,7 @@ export class AccessService {
   }
 
   async deleteRole(roleId: string) {
+    this.actors.clear();
     const { clientId, actor } = requireRequestContext();
 
     return this.prisma.forClient(clientId!, async (tx) => {
@@ -256,6 +265,8 @@ export class AccessService {
   }
 
   async assignRole(userId: string, roleId: string, branchId: string | null, expiresAt: Date | null) {
+    // The grant changed, so any cached resolution of it is now wrong.
+    this.actors.forgetUser(userId);
     const { clientId, actor } = requireRequestContext();
 
     return this.prisma.forClient(clientId!, async (tx) => {
@@ -308,6 +319,8 @@ export class AccessService {
   }
 
   async unassignRole(userId: string, roleId: string, branchId: string | null) {
+    // The grant changed, so any cached resolution of it is now wrong.
+    this.actors.forgetUser(userId);
     const { clientId, actor } = requireRequestContext();
 
     return this.prisma.forClient(clientId!, async (tx) => {
@@ -342,6 +355,8 @@ export class AccessService {
     reason: string | null,
     expiresAt: Date | null,
   ) {
+    // The grant changed, so any cached resolution of it is now wrong.
+    this.actors.forgetUser(userId);
     const { clientId, actor } = requireRequestContext();
 
     this.assertGrantable(permissionKey);
@@ -385,6 +400,8 @@ export class AccessService {
   }
 
   async clearDirectPermission(userId: string, permissionKey: string) {
+    // The grant changed, so any cached resolution of it is now wrong.
+    this.actors.forgetUser(userId);
     const { clientId, actor } = requireRequestContext();
 
     return this.prisma.forClient(clientId!, async (tx) => {

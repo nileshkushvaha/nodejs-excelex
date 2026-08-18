@@ -6,6 +6,7 @@ import { SecuritySettingsService } from "../settings/security-settings.service";
 import { effectivePermissions, toGrantSet, type UserWithGrants } from "./grants";
 
 import { PrismaService } from "../core/database/prisma.service";
+import { ActorCache } from "./actor-cache";
 import { SessionService } from "./session.service";
 
 export interface AuthenticatedActor {
@@ -35,6 +36,14 @@ export interface SignInResult {
  * Named once so the two call sites cannot drift — a missing include here would
  * silently resolve to fewer permissions rather than fail.
  */
+/**
+ * How much of the idle window may pass before it is slid forward.
+ *
+ * The saving is the point: at one request per second per user, this turns
+ * sixty writes a minute into one.
+ */
+const SLIDE_AFTER_MS = 60_000;
+
 const GRANT_INCLUDE = {
   userRoles: { include: { role: { include: { rolePermissions: true } } } },
   userPermissions: true,
@@ -48,6 +57,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly sessions: SessionService,
+    private readonly actors: ActorCache,
   ) {}
 
   /**
@@ -168,9 +178,16 @@ export class AuthService {
    */
   async authenticate(clientId: string, token: string): Promise<AuthenticatedActor | null> {
     const tokenHash = this.sessions.hash(token);
+
+    // A screen composes from several API calls and each one authenticates.
+    // Answering the second through seventh from memory is the difference
+    // between one round trip per screen and one per request.
+    const cached = this.actors.get(tokenHash);
+    if (cached) return cached;
+
     const now = new Date();
 
-    return this.prisma.forClient(clientId, async (tx) => {
+    const actor = await this.prisma.forClient(clientId, async (tx) => {
       const settings = SecuritySettingsService.toSettings(await tx.securitySettings.findFirst());
 
       const session = await tx.session.findFirst({
@@ -183,17 +200,34 @@ export class AuthService {
       if (session.idleExpiresAt <= now || session.absoluteExpiry <= now) return null;
       if (!session.user.isActive || session.user.deletedAt) return null;
 
-      await tx.session.update({
-        where: { id: session.id },
-        data: { idleExpiresAt: this.sessions.nextIdleExpiry(settings.idleTimeoutMinutes) },
-      });
+      // The idle window is slid at most once a minute rather than on every
+      // request. Sliding it every time is a write per read: row contention on
+      // sessions and write-ahead log proportional to traffic rather than to
+      // anything actually changing. A window measured in tens of minutes does
+      // not care about sixty seconds of drift, and the absolute expiry — the
+      // one that bounds a stolen token — is not touched by this at all.
+      const window = settings.idleTimeoutMinutes * 60_000;
+      const elapsed = window - (session.idleExpiresAt.getTime() - now.getTime());
+
+      if (elapsed >= SLIDE_AFTER_MS) {
+        await tx.session.update({
+          where: { id: session.id },
+          data: { idleExpiresAt: this.sessions.nextIdleExpiry(settings.idleTimeoutMinutes) },
+        });
+      }
 
       return this.toActor(session.user);
     });
+
+    if (actor) this.actors.set(tokenHash, actor);
+    return actor;
   }
 
   async signOut(clientId: string, token: string, actorId?: string): Promise<void> {
     const tokenHash = this.sessions.hash(token);
+    // Before the write, not after: a request in flight must not be able to
+    // read a cached actor for a session that is being revoked.
+    this.actors.forget(tokenHash);
 
     await this.prisma.forClient(clientId, async (tx) => {
       // Revoked, never deleted: the row is the evidence that the session existed

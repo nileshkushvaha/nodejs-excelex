@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, UnauthorizedException } from "@nestjs/
 import { hashPassword, verifyPassword } from "@excelex/database";
 import { passwordViolations } from "@excelex/permissions";
 
+import { ActorCache } from "../auth/actor-cache";
 import { SessionService } from "../auth/session.service";
 import { requireRequestContext } from "../core/context/request-context";
 import { PrismaService } from "../core/database/prisma.service";
@@ -41,6 +42,7 @@ export class ProfileService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly sessions: SessionService,
+    private readonly actors: ActorCache,
   ) {}
 
   async view(): Promise<ProfileView> {
@@ -205,6 +207,12 @@ export class ProfileService {
         data: { revokedAt: new Date() },
       });
 
+      // The revoked sessions may still have cached actors. Dropping every
+      // entry for this user is broader than needed and exactly right: the
+      // cost is one re-read, and the alternative is reasoning about which
+      // token hashes were in the updateMany.
+      this.actors.forgetUser(user.id);
+
       await tx.session.create({
         data: {
           clientId: clientId!,
@@ -273,6 +281,8 @@ export class ProfileService {
         where: { userId: actor!.userId, revokedAt: null, tokenHash: { not: currentHash } },
         data: { revokedAt: new Date() },
       });
+
+      this.actors.forgetUser(actor!.userId);
 
       if (count > 0) {
         await tx.auditEvent.create({

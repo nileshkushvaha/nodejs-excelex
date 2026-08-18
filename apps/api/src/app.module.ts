@@ -5,6 +5,7 @@ import { AccessController } from "./access/access.controller";
 import { AccessService } from "./access/access.service";
 import { AuthController } from "./auth/auth.controller";
 import { AuthGuard } from "./auth/auth.guard";
+import { ActorCache } from "./auth/actor-cache";
 import { AuthService } from "./auth/auth.service";
 import { SessionService } from "./auth/session.service";
 import { ENVIRONMENT, loadEnvironment } from "./core/config/environment";
@@ -53,6 +54,7 @@ import { SettingsController } from "./settings/settings.controller";
     { provide: ENVIRONMENT, useFactory: () => loadEnvironment() },
     PrismaService,
     SessionService,
+    ActorCache,
     AuthService,
     AccessService,
     ReferenceService,
