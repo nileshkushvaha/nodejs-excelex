@@ -1,3 +1,4 @@
+import { can } from "@/lib/can";
 import {
   getCharges,
   getCurrentSession,
@@ -26,7 +27,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       charges={charges ?? []}
       products={products ?? []}
       destinations={destinations ?? []}
-      canManage={session?.user.permissions.includes("masters.customer.manage") ?? false}
+      canManage={can(session, "customer", "update")}
     />
   );
 }

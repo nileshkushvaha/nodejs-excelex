@@ -1,5 +1,6 @@
 import { RolesManager } from "./roles-manager";
 import { getCurrentSession, getPermissionCatalogue, getRoles } from "@/lib/api";
+import { can } from "@/lib/can";
 
 export const metadata = { title: "Roles · ExcelEx" };
 
@@ -20,7 +21,7 @@ export default async function RolesPage() {
 
   // Presentation only. The API re-checks this on every mutation, so hiding the
   // save button is a courtesy, not the control.
-  const canManage = session?.user.permissions.includes("settings.role.manage") ?? false;
+  const canManage = can(session, "role", "update");
 
   return (
     <div className="animate-fade-up">

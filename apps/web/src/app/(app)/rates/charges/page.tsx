@@ -1,4 +1,5 @@
 import { getCharges, getCurrentSession } from "@/lib/api";
+import { can } from "@/lib/can";
 import { ChargesManager } from "./charges-manager";
 
 export const metadata = { title: "Charges · ExcelEx" };
@@ -26,7 +27,7 @@ export default async function ChargesPage() {
 
       <ChargesManager
         charges={charges}
-        canManage={session?.user.permissions.includes("masters.rate.manage") ?? false}
+        canManage={can(session, "zone", "update")}
       />
     </div>
   );

@@ -1,4 +1,5 @@
 import { getCountries, getCurrentSession, getGeneralSettings, getStates } from "@/lib/api";
+import { can } from "@/lib/can";
 import { GeneralForm } from "./general-form";
 
 export const metadata = { title: "General settings · ExcelEx" };
@@ -57,7 +58,7 @@ export default async function GeneralSettingsPage() {
         states={states}
         timezones={timezoneOptions()}
         currencies={currencies}
-        canManage={session?.user.permissions.includes("settings.general.manage") ?? false}
+        canManage={can(session, "clientSettings", "update")}
       />
     </div>
   );

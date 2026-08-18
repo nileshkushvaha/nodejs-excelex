@@ -1,3 +1,4 @@
+import { can } from "@/lib/can";
 import {
   getCurrentSession,
   getDestinationOptions,
@@ -39,7 +40,7 @@ export default async function ServiceCentresPage() {
         centres={centres}
         destinations={destinations ?? []}
         states={states ?? []}
-        canManage={session?.user.permissions.includes("masters.branch.manage") ?? false}
+        canManage={can(session, "serviceCentre", "update")}
       />
     </div>
   );

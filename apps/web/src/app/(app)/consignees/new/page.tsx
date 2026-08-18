@@ -1,5 +1,6 @@
 import { FormPage } from "@/components/form-page";
 import { getCurrentSession, getDestinationOptions, getServiceCentres, getStates } from "@/lib/api";
+import { can } from "@/lib/can";
 import { ConsigneeForm } from "../consignee-form";
 
 export const metadata = { title: "New consignee · ExcelEx" };
@@ -24,7 +25,7 @@ export default async function NewConsigneePage() {
         destinations={destinations ?? []}
         centres={centres ?? []}
         states={states ?? []}
-        canManage={session?.user.permissions.includes("masters.customer.manage") ?? false}
+        canManage={can(session, "customer", "update")}
       />
     </FormPage>
   );

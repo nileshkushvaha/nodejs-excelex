@@ -1,4 +1,5 @@
 import { getCurrentSession, getDestinationOptions, getStates, getZones } from "@/lib/api";
+import { can } from "@/lib/can";
 import { DestinationsManager } from "./destinations-manager";
 
 export const metadata = { title: "Destinations · ExcelEx" };
@@ -32,7 +33,7 @@ export default async function DestinationsPage() {
         destinations={destinations}
         zones={zones ?? []}
         states={states ?? []}
-        canManage={session?.user.permissions.includes("masters.destination.manage") ?? false}
+        canManage={can(session, "destination", "update")}
       />
     </div>
   );

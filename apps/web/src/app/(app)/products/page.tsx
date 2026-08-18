@@ -1,3 +1,4 @@
+import { can } from "@/lib/can";
 import {
   getCurrentSession,
   getProductGroups,
@@ -37,7 +38,7 @@ export default async function ProductsPage() {
         products={products}
         types={types ?? []}
         groups={groups ?? []}
-        canManage={session?.user.permissions.includes("masters.product.manage") ?? false}
+        canManage={can(session, "product", "update")}
       />
     </div>
   );

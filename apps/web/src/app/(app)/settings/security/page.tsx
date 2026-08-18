@@ -1,4 +1,5 @@
 import { getCurrentSession, getPasswordPolicy } from "@/lib/api";
+import { can } from "@/lib/can";
 import { PasswordPolicyForm } from "./password-policy-form";
 
 export const metadata = { title: "Password policy · ExcelEx" };
@@ -14,7 +15,7 @@ export default async function SecuritySettingsPage() {
     );
   }
 
-  const canManage = session?.user.permissions.includes("settings.security.manage") ?? false;
+  const canManage = can(session, "securitySettings", "update");
 
   return (
     <div className="animate-fade-up">

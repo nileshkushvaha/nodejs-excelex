@@ -7,7 +7,7 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
-import { resolvePermissions } from "@excelex/permissions";
+import { permissionFor, resolvePermissions, type Action, type Resource } from "@excelex/permissions";
 import type { Request } from "express";
 
 import { attachActor, currentRequestContext } from "../core/context/request-context";
@@ -20,9 +20,27 @@ export const REQUIRED_PERMISSION = "excelex:requiredPermission";
 /** Opt a route out of authentication. Explicit, so forgetting is not the default. */
 export const PublicRoute = () => SetMetadata(PUBLIC_ROUTE, true);
 
-/** Require a permission. The vocabulary becomes a typed constant in packages/permissions. */
+/**
+ * Require a permission outright.
+ *
+ * Kept for the routes that are not CRUD on a master — signing out, changing
+ * your own password, reading the permission catalogue. Anything that is an
+ * action on a resource should use `@Can` instead, so the rule lives in the
+ * policy table rather than in a string here.
+ */
 export const RequirePermission = (permission: string) =>
   SetMetadata(REQUIRED_PERMISSION, permission);
+
+/**
+ * Require the permission the policy table gives this action.
+ *
+ * `@Can("customer", "delete")` reads as the question being asked, and moves
+ * the answer to one table that the browser consults too. A typo is a compile
+ * error rather than a route that silently requires a permission nobody holds
+ * — which is what `@RequirePermission("masters.custmer.manage")` would be.
+ */
+export const Can = (resource: Resource, action: Action) =>
+  SetMetadata(REQUIRED_PERMISSION, permissionFor(resource, action));
 
 /**
  * Authentication and authorization, applied globally.

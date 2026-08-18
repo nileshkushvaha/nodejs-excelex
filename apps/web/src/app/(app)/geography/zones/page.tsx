@@ -1,4 +1,5 @@
 import { getCurrentSession, getZones } from "@/lib/api";
+import { can } from "@/lib/can";
 import { ZonesManager } from "./zones-manager";
 
 export const metadata = { title: "Zones · ExcelEx" };
@@ -26,7 +27,7 @@ export default async function ZonesPage() {
 
       <ZonesManager
         zones={zones}
-        canManage={session?.user.permissions.includes("masters.rate.manage") ?? false}
+        canManage={can(session, "zone", "update")}
       />
     </div>
   );

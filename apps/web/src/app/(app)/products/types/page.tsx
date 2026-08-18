@@ -1,4 +1,5 @@
 import { getCurrentSession, getProductTypes } from "@/lib/api";
+import { can } from "@/lib/can";
 import { ProductTypesManager } from "./product-types-manager";
 
 export const metadata = { title: "Product types · ExcelEx" };
@@ -26,7 +27,7 @@ export default async function ProductTypesPage() {
 
       <ProductTypesManager
         types={types}
-        canManage={session?.user.permissions.includes("masters.product.manage") ?? false}
+        canManage={can(session, "product", "update")}
       />
     </div>
   );

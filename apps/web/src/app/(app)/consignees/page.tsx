@@ -1,4 +1,5 @@
 import { getConsignees, getCurrentSession, getDestinationOptions, getServiceCentres } from "@/lib/api";
+import { can } from "@/lib/can";
 import { ConsigneesManager } from "./consignees-manager";
 
 export const metadata = { title: "Consignees · ExcelEx" };
@@ -49,7 +50,7 @@ export default async function ConsigneesPage({
         page={page}
         destinations={destinations ?? []}
         centres={(centres ?? []).map((row) => ({ id: row.id, code: row.code, name: row.name }))}
-        canManage={session?.user.permissions.includes("masters.customer.manage") ?? false}
+        canManage={can(session, "customer", "update")}
       />
     </div>
   );

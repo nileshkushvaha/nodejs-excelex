@@ -1,4 +1,5 @@
 import { getCurrentSession, getDepartments } from "@/lib/api";
+import { can } from "@/lib/can";
 import { DepartmentsManager } from "./departments-manager";
 
 export const metadata = { title: "Departments · ExcelEx" };
@@ -26,7 +27,7 @@ export default async function DepartmentsPage() {
 
       <DepartmentsManager
         departments={departments}
-        canManage={session?.user.permissions.includes("masters.organisation.manage") ?? false}
+        canManage={can(session, "department", "update")}
       />
     </div>
   );

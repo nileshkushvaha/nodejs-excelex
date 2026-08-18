@@ -73,6 +73,17 @@ export function attachActor(actor: ContextActor): void {
   (context as { actor?: ContextActor }).actor = actor;
 }
 
+/**
+ * The authenticated actor, or undefined outside an authenticated request.
+ *
+ * Undefined rather than throwing: the Gate asks this on every check and
+ * "there is nobody here" is a legitimate answer that resolves to a refusal,
+ * not an error to handle at every call site.
+ */
+export function currentActor(): ContextActor | undefined {
+  return storage.getStore()?.actor;
+}
+
 export function requireRequestContext(): RequestContext {
   const context = storage.getStore();
   if (!context) throw new Error("No request context is sealed for this execution.");

@@ -1,4 +1,5 @@
 import { getAccountGroups, getCurrentSession } from "@/lib/api";
+import { can } from "@/lib/can";
 import { GroupsManager } from "./groups-manager";
 
 export const metadata = { title: "Account groups · ExcelEx" };
@@ -26,7 +27,7 @@ export default async function AccountGroupsPage() {
 
       <GroupsManager
         groups={groups}
-        canManage={session?.user.permissions.includes("masters.rate.manage") ?? false}
+        canManage={can(session, "zone", "update")}
       />
     </div>
   );

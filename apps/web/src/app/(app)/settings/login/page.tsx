@@ -1,4 +1,5 @@
 import { getCurrentSession, getSecuritySettings } from "@/lib/api";
+import { can } from "@/lib/can";
 import { LoginSecurityForm } from "./login-security-form";
 
 export const metadata = { title: "Login security · ExcelEx" };
@@ -25,7 +26,7 @@ export default async function LoginSecurityPage() {
 
       <LoginSecurityForm
         settings={settings}
-        canManage={session?.user.permissions.includes("settings.security.manage") ?? false}
+        canManage={can(session, "securitySettings", "update")}
       />
     </div>
   );

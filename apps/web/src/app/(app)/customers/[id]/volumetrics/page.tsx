@@ -1,4 +1,5 @@
 import { getCurrentSession, getCustomerVolumetrics, getProducts } from "@/lib/api";
+import { can } from "@/lib/can";
 import { VolumetricsTab } from "./volumetrics-tab";
 
 export const metadata = { title: "Volumetric · ExcelEx" };
@@ -16,7 +17,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       customerId={id}
       rows={rows ?? []}
       products={products ?? []}
-      canManage={session?.user.permissions.includes("masters.customer.manage") ?? false}
+      canManage={can(session, "customer", "update")}
     />
   );
 }

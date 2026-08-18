@@ -1,3 +1,4 @@
+import { can } from "@/lib/can";
 import {
   getBranches,
   getCurrentSession,
@@ -55,7 +56,7 @@ export default async function CustomersPage({
         page={page}
         branches={(branches ?? []).map((row) => ({ id: row.id, code: row.code, name: row.name }))}
         centres={(centres ?? []).map((row) => ({ id: row.id, code: row.code, name: row.name }))}
-        canManage={session?.user.permissions.includes("masters.customer.manage") ?? false}
+        canManage={can(session, "customer", "update")}
       />
     </div>
   );

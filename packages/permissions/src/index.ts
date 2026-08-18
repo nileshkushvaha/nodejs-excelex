@@ -33,3 +33,12 @@ export {
   type PasswordPolicy,
   type PolicyRule,
 } from "./password-policy";
+
+export {
+  POLICIES,
+  permissionFor,
+  policyPermissions,
+  unknownPolicyPermissions,
+  type Action,
+  type Resource,
+} from "./policies";

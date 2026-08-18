@@ -1,4 +1,5 @@
 import { getCurrentSession, getSalesExecutives } from "@/lib/api";
+import { can } from "@/lib/can";
 import { SalesExecutivesManager } from "./sales-executives-manager";
 
 export const metadata = { title: "Sales executives · ExcelEx" };
@@ -26,7 +27,7 @@ export default async function SalesExecutivesPage() {
 
       <SalesExecutivesManager
         executives={executives}
-        canManage={session?.user.permissions.includes("masters.customer.manage") ?? false}
+        canManage={can(session, "customer", "update")}
       />
     </div>
   );

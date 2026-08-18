@@ -1,4 +1,5 @@
 import { getCurrentSession, getDepartments, getDesignations } from "@/lib/api";
+import { can } from "@/lib/can";
 import { DesignationsManager } from "./designations-manager";
 
 export const metadata = { title: "Designations · ExcelEx" };
@@ -31,7 +32,7 @@ export default async function DesignationsPage() {
       <DesignationsManager
         designations={designations}
         departments={departments ?? []}
-        canManage={session?.user.permissions.includes("masters.organisation.manage") ?? false}
+        canManage={can(session, "department", "update")}
       />
     </div>
   );

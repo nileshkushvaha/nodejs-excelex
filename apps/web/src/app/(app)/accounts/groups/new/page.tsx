@@ -1,5 +1,6 @@
 import { FormPage } from "@/components/form-page";
 import { getAccountGroups, getCurrentSession } from "@/lib/api";
+import { can } from "@/lib/can";
 import { GroupForm } from "../group-form";
 
 export const metadata = { title: "New account group · ExcelEx" };
@@ -17,7 +18,7 @@ export default async function NewGroupPage() {
       <GroupForm
         group={null}
         groups={groups ?? []}
-        canManage={session?.user.permissions.includes("masters.rate.manage") ?? false}
+        canManage={can(session, "zone", "update")}
       />
     </FormPage>
   );

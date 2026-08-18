@@ -1,3 +1,4 @@
+import { can } from "@/lib/can";
 import { notFound } from "next/navigation";
 
 import { FormPage } from "@/components/form-page";
@@ -37,7 +38,7 @@ export default async function EditConsigneePage({ params }: { params: Promise<{ 
         destinations={destinations ?? []}
         centres={centres ?? []}
         states={states ?? []}
-        canManage={session?.user.permissions.includes("masters.customer.manage") ?? false}
+        canManage={can(session, "customer", "update")}
       />
     </FormPage>
   );

@@ -2,7 +2,7 @@ import { BadRequestException, Body, Controller, Get, HttpCode, Put } from "@nest
 import { POLICY_LIMITS } from "@excelex/permissions";
 import { z } from "zod";
 
-import { RequirePermission } from "../auth/auth.guard";
+import { Can, RequirePermission } from "../auth/auth.guard";
 import { ClientSettingsService } from "./client-settings.service";
 import { PasswordPolicyService } from "./password-policy.service";
 import { SecuritySettingsService } from "./security-settings.service";
@@ -102,13 +102,13 @@ export class SettingsController {
   ) {}
 
   @Get("general")
-  @RequirePermission("settings.general.view")
+  @Can("clientSettings", "view")
   viewGeneral() {
     return this.general.view();
   }
 
   @Put("general")
-  @RequirePermission("settings.general.manage")
+  @Can("clientSettings", "update")
   @HttpCode(204)
   async updateGeneral(@Body() body: unknown): Promise<void> {
     const result = clientSettingsSchema.safeParse(body);

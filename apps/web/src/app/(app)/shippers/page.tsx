@@ -1,4 +1,5 @@
 import { getCurrentSession, getDestinationOptions, getServiceCentres, getShippers } from "@/lib/api";
+import { can } from "@/lib/can";
 import { ShippersManager } from "./shippers-manager";
 
 export const metadata = { title: "Shippers · ExcelEx" };
@@ -49,7 +50,7 @@ export default async function ShippersPage({
         page={page}
         origins={origins ?? []}
         centres={(centres ?? []).map((row) => ({ id: row.id, code: row.code, name: row.name }))}
-        canManage={session?.user.permissions.includes("masters.customer.manage") ?? false}
+        canManage={can(session, "customer", "update")}
       />
     </div>
   );

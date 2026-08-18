@@ -18,7 +18,7 @@ import {
 import { FileInterceptor } from "@nestjs/platform-express";
 import { z } from "zod";
 
-import { RequirePermission } from "../auth/auth.guard";
+import { Can } from "../auth/auth.guard";
 import { OrganisationService } from "./organisation.service";
 import { DestinationImportService } from "./import/destination-import.service";
 import { ProductImportService } from "./import/product-import.service";
@@ -633,7 +633,7 @@ export class MastersController {
   // Paged in the database. This master runs to thousands of rows per client,
   // so the filters go to SQL rather than to the browser.
   @Get("customers")
-  @RequirePermission("masters.customer.view")
+  @Can("customer", "view")
   listCustomers(@Query() query: Record<string, string>) {
     return this.customers.list({
       page: Number(query["page"] ?? 1) || 1,
@@ -647,7 +647,7 @@ export class MastersController {
   }
 
   @Post("customers")
-  @RequirePermission("masters.customer.manage")
+  @Can("customer", "create")
   createCustomer(@Body() body: unknown) {
     return this.customers.create(parse(customerSchema, body) as CustomerInput);
   }
@@ -655,7 +655,7 @@ export class MastersController {
   // Declared before "customers/:id", because Nest matches in declaration
   // order and "export" is not a uuid.
   @Get("customers/export")
-  @RequirePermission("masters.customer.view")
+  @Can("customer", "export")
   @Header("content-type", XLSX_CONTENT_TYPE)
   @Header("content-disposition", 'attachment; filename="customers.xlsx"')
   async exportCustomers(@Query() query: Record<string, string>): Promise<StreamableFile> {
@@ -721,7 +721,7 @@ export class MastersController {
   }
 
   @Post("customers/import")
-  @RequirePermission("masters.customer.manage")
+  @Can("customer", "import")
   @UseInterceptors(FileInterceptor("file", { limits: { fileSize: 10 * 1024 * 1024, files: 1 } }))
   importCustomers(
     @UploadedFile() file: { buffer: Buffer; originalname: string } | undefined,
@@ -744,7 +744,7 @@ export class MastersController {
   }
 
   @Get("customers/import/template")
-  @RequirePermission("masters.customer.view")
+  @Can("customer", "import")
   @Header("content-type", XLSX_CONTENT_TYPE)
   @Header("content-disposition", 'attachment; filename="customer-import-template.xlsx"')
   async customerTemplate(): Promise<StreamableFile> {
@@ -763,7 +763,7 @@ export class MastersController {
   }
 
   @Get("customers/:id")
-  @RequirePermission("masters.customer.view")
+  @Can("customer", "view")
   async customerById(@Param("id", ParseUUIDPipe) id: string) {
     const row = await this.customers.byId(id);
     if (!row) throw new BadRequestException("Customer not found.");
@@ -771,14 +771,14 @@ export class MastersController {
   }
 
   @Put("customers/:id")
-  @RequirePermission("masters.customer.manage")
+  @Can("customer", "update")
   @HttpCode(204)
   async updateCustomer(@Param("id", ParseUUIDPipe) id: string, @Body() body: unknown) {
     await this.customers.update(id, parse(customerSchema, body) as CustomerInput);
   }
 
   @Delete("customers/:id")
-  @RequirePermission("masters.customer.manage")
+  @Can("customer", "delete")
   @HttpCode(204)
   async deleteCustomer(@Param("id", ParseUUIDPipe) id: string) {
     await this.customers.remove(id);
@@ -789,19 +789,19 @@ export class MastersController {
   // none of these rows means anything without one, and the path is what makes
   // the ownership check impossible to forget.
   @Get("customers/:id/fuel-surcharges")
-  @RequirePermission("masters.customer.view")
+  @Can("customer", "view")
   listCustomerFuel(@Param("id", ParseUUIDPipe) id: string) {
     return this.customerDetails.listFuelSurcharges(id);
   }
 
   @Post("customers/:id/fuel-surcharges")
-  @RequirePermission("masters.customer.manage")
+  @Can("customer", "create")
   createCustomerFuel(@Param("id", ParseUUIDPipe) id: string, @Body() body: unknown) {
     return this.customerDetails.saveFuelSurcharge(id, null, parse(fuelSurchargeSchema, body) as FuelSurchargeInput);
   }
 
   @Put("customers/:id/fuel-surcharges/:rowId")
-  @RequirePermission("masters.customer.manage")
+  @Can("customer", "update")
   @HttpCode(204)
   async updateCustomerFuel(
     @Param("id", ParseUUIDPipe) id: string,
@@ -812,7 +812,7 @@ export class MastersController {
   }
 
   @Delete("customers/:id/fuel-surcharges/:rowId")
-  @RequirePermission("masters.customer.manage")
+  @Can("customer", "delete")
   @HttpCode(204)
   async deleteCustomerFuel(
     @Param("id", ParseUUIDPipe) id: string,
@@ -822,19 +822,19 @@ export class MastersController {
   }
 
   @Get("customers/:id/charges")
-  @RequirePermission("masters.customer.view")
+  @Can("customer", "view")
   listCustomerCharges(@Param("id", ParseUUIDPipe) id: string) {
     return this.customerDetails.listCharges(id);
   }
 
   @Post("customers/:id/charges")
-  @RequirePermission("masters.customer.manage")
+  @Can("customer", "create")
   createCustomerCharge(@Param("id", ParseUUIDPipe) id: string, @Body() body: unknown) {
     return this.customerDetails.saveCharge(id, null, parse(customerChargeSchema, body) as CustomerChargeInput);
   }
 
   @Put("customers/:id/charges/:rowId")
-  @RequirePermission("masters.customer.manage")
+  @Can("customer", "update")
   @HttpCode(204)
   async updateCustomerCharge(
     @Param("id", ParseUUIDPipe) id: string,
@@ -845,7 +845,7 @@ export class MastersController {
   }
 
   @Delete("customers/:id/charges/:rowId")
-  @RequirePermission("masters.customer.manage")
+  @Can("customer", "delete")
   @HttpCode(204)
   async deleteCustomerCharge(
     @Param("id", ParseUUIDPipe) id: string,
@@ -855,19 +855,19 @@ export class MastersController {
   }
 
   @Get("customers/:id/volumetrics")
-  @RequirePermission("masters.customer.view")
+  @Can("customer", "view")
   listCustomerVolumetrics(@Param("id", ParseUUIDPipe) id: string) {
     return this.customerDetails.listVolumetrics(id);
   }
 
   @Post("customers/:id/volumetrics")
-  @RequirePermission("masters.customer.manage")
+  @Can("customer", "create")
   createCustomerVolumetric(@Param("id", ParseUUIDPipe) id: string, @Body() body: unknown) {
     return this.customerDetails.saveVolumetric(id, null, parse(volumetricSchema, body) as VolumetricInput);
   }
 
   @Put("customers/:id/volumetrics/:rowId")
-  @RequirePermission("masters.customer.manage")
+  @Can("customer", "update")
   @HttpCode(204)
   async updateCustomerVolumetric(
     @Param("id", ParseUUIDPipe) id: string,
@@ -878,7 +878,7 @@ export class MastersController {
   }
 
   @Delete("customers/:id/volumetrics/:rowId")
-  @RequirePermission("masters.customer.manage")
+  @Can("customer", "delete")
   @HttpCode(204)
   async deleteCustomerVolumetric(
     @Param("id", ParseUUIDPipe) id: string,
@@ -888,19 +888,19 @@ export class MastersController {
   }
 
   @Get("customers/:id/contacts")
-  @RequirePermission("masters.customer.view")
+  @Can("customer", "view")
   listCustomerContacts(@Param("id", ParseUUIDPipe) id: string) {
     return this.customerDetails.listContacts(id);
   }
 
   @Post("customers/:id/contacts")
-  @RequirePermission("masters.customer.manage")
+  @Can("customer", "create")
   createCustomerContact(@Param("id", ParseUUIDPipe) id: string, @Body() body: unknown) {
     return this.customerDetails.saveContact(id, null, parse(contactSchema, body) as ContactInput);
   }
 
   @Put("customers/:id/contacts/:rowId")
-  @RequirePermission("masters.customer.manage")
+  @Can("customer", "update")
   @HttpCode(204)
   async updateCustomerContact(
     @Param("id", ParseUUIDPipe) id: string,
@@ -911,7 +911,7 @@ export class MastersController {
   }
 
   @Delete("customers/:id/contacts/:rowId")
-  @RequirePermission("masters.customer.manage")
+  @Can("customer", "delete")
   @HttpCode(204)
   async deleteCustomerContact(
     @Param("id", ParseUUIDPipe) id: string,
@@ -924,7 +924,7 @@ export class MastersController {
   // Paged in the database: this is the largest master a courier accumulates,
   // because every address anyone has ever delivered to ends up in it.
   @Get("consignees")
-  @RequirePermission("masters.customer.view")
+  @Can("consignee", "view")
   listConsignees(@Query() query: Record<string, string>) {
     return this.consignees.list({
       page: Number(query["page"] ?? 1) || 1,
@@ -937,14 +937,14 @@ export class MastersController {
   }
 
   @Post("consignees")
-  @RequirePermission("masters.customer.manage")
+  @Can("consignee", "create")
   createConsignee(@Body() body: unknown) {
     return this.consignees.create(parse(consigneeSchema, body) as ConsigneeInput);
   }
 
   // Ahead of "consignees/:id", because Nest matches in declaration order.
   @Get("consignees/export")
-  @RequirePermission("masters.customer.view")
+  @Can("consignee", "export")
   @Header("content-type", XLSX_CONTENT_TYPE)
   @Header("content-disposition", 'attachment; filename="consignees.xlsx"')
   async exportConsignees(@Query() query: Record<string, string>): Promise<StreamableFile> {
@@ -985,7 +985,7 @@ export class MastersController {
   }
 
   @Get("consignees/:id")
-  @RequirePermission("masters.customer.view")
+  @Can("consignee", "view")
   async consigneeById(@Param("id", ParseUUIDPipe) id: string) {
     const row = await this.consignees.byId(id);
     if (!row) throw new BadRequestException("Consignee not found.");
@@ -993,14 +993,14 @@ export class MastersController {
   }
 
   @Put("consignees/:id")
-  @RequirePermission("masters.customer.manage")
+  @Can("consignee", "update")
   @HttpCode(204)
   async updateConsignee(@Param("id", ParseUUIDPipe) id: string, @Body() body: unknown) {
     await this.consignees.update(id, parse(consigneeSchema, body) as ConsigneeInput);
   }
 
   @Delete("consignees/:id")
-  @RequirePermission("masters.customer.manage")
+  @Can("consignee", "delete")
   @HttpCode(204)
   async deleteConsignee(@Param("id", ParseUUIDPipe) id: string) {
     await this.consignees.remove(id);
@@ -1008,7 +1008,7 @@ export class MastersController {
 
   // ── Shippers ─────────────────────────────────────────────────────────────
   @Get("shippers")
-  @RequirePermission("masters.customer.view")
+  @Can("shipper", "view")
   listShippers(@Query() query: Record<string, string>) {
     return this.shippers.list({
       page: Number(query["page"] ?? 1) || 1,
@@ -1021,14 +1021,14 @@ export class MastersController {
   }
 
   @Post("shippers")
-  @RequirePermission("masters.customer.manage")
+  @Can("shipper", "create")
   createShipper(@Body() body: unknown) {
     return this.shippers.create(parse(shipperSchema, body) as ShipperInput);
   }
 
   // Ahead of "shippers/:id", because Nest matches in declaration order.
   @Get("shippers/export")
-  @RequirePermission("masters.customer.view")
+  @Can("shipper", "export")
   @Header("content-type", XLSX_CONTENT_TYPE)
   @Header("content-disposition", 'attachment; filename="shippers.xlsx"')
   async exportShippers(@Query() query: Record<string, string>): Promise<StreamableFile> {
@@ -1079,7 +1079,7 @@ export class MastersController {
   }
 
   @Get("shippers/:id")
-  @RequirePermission("masters.customer.view")
+  @Can("shipper", "view")
   async shipperById(@Param("id", ParseUUIDPipe) id: string) {
     const row = await this.shippers.byId(id);
     if (!row) throw new BadRequestException("Shipper not found.");
@@ -1087,14 +1087,14 @@ export class MastersController {
   }
 
   @Put("shippers/:id")
-  @RequirePermission("masters.customer.manage")
+  @Can("shipper", "update")
   @HttpCode(204)
   async updateShipper(@Param("id", ParseUUIDPipe) id: string, @Body() body: unknown) {
     await this.shippers.update(id, parse(shipperSchema, body) as ShipperInput);
   }
 
   @Delete("shippers/:id")
-  @RequirePermission("masters.customer.manage")
+  @Can("shipper", "delete")
   @HttpCode(204)
   async deleteShipper(@Param("id", ParseUUIDPipe) id: string) {
     await this.shippers.remove(id);
@@ -1104,26 +1104,26 @@ export class MastersController {
   // The chart of accounts. Under the rate permissions for now, because the
   // people who maintain heads are the people who maintain what they price.
   @Get("account-groups")
-  @RequirePermission("masters.rate.view")
+  @Can("accountGroup", "view")
   listAccountGroups() {
     return this.accountGroups.list();
   }
 
   @Post("account-groups")
-  @RequirePermission("masters.rate.manage")
+  @Can("accountGroup", "create")
   createAccountGroup(@Body() body: unknown) {
     return this.accountGroups.create(parse(accountGroupSchema, body) as AccountGroupInput);
   }
 
   @Put("account-groups/:id")
-  @RequirePermission("masters.rate.manage")
+  @Can("accountGroup", "update")
   @HttpCode(204)
   async updateAccountGroup(@Param("id", ParseUUIDPipe) id: string, @Body() body: unknown) {
     await this.accountGroups.update(id, parse(accountGroupSchema, body) as AccountGroupInput);
   }
 
   @Delete("account-groups/:id")
-  @RequirePermission("masters.rate.manage")
+  @Can("accountGroup", "delete")
   @HttpCode(204)
   async deleteAccountGroup(@Param("id", ParseUUIDPipe) id: string) {
     await this.accountGroups.remove(id);
@@ -1131,26 +1131,26 @@ export class MastersController {
 
   // ── Sales executives ─────────────────────────────────────────────────────
   @Get("sales-executives")
-  @RequirePermission("masters.customer.view")
+  @Can("salesExecutive", "view")
   listSalesExecutives() {
     return this.salesExecutives.list();
   }
 
   @Post("sales-executives")
-  @RequirePermission("masters.customer.manage")
+  @Can("salesExecutive", "create")
   createSalesExecutive(@Body() body: unknown) {
     return this.salesExecutives.create(parse(salesExecutiveSchema, body));
   }
 
   @Put("sales-executives/:id")
-  @RequirePermission("masters.customer.manage")
+  @Can("salesExecutive", "update")
   @HttpCode(204)
   async updateSalesExecutive(@Param("id", ParseUUIDPipe) id: string, @Body() body: unknown) {
     await this.salesExecutives.update(id, parse(salesExecutiveSchema, body));
   }
 
   @Delete("sales-executives/:id")
-  @RequirePermission("masters.customer.manage")
+  @Can("salesExecutive", "delete")
   @HttpCode(204)
   async deleteSalesExecutive(@Param("id", ParseUUIDPipe) id: string) {
     await this.salesExecutives.remove(id);
@@ -1160,26 +1160,26 @@ export class MastersController {
   // Unpaged: a client runs a handful, not thousands. The moment that stops
   // being true this moves to the paged pattern the destinations use.
   @Get("service-centres")
-  @RequirePermission("masters.branch.view")
+  @Can("serviceCentre", "view")
   listServiceCentres(@Query("search") search?: string) {
     return this.serviceCentres.list(search);
   }
 
   @Post("service-centres")
-  @RequirePermission("masters.branch.manage")
+  @Can("serviceCentre", "create")
   createServiceCentre(@Body() body: unknown) {
     return this.serviceCentres.create(parse(serviceCentreSchema, body));
   }
 
   @Put("service-centres/:id")
-  @RequirePermission("masters.branch.manage")
+  @Can("serviceCentre", "update")
   @HttpCode(204)
   async updateServiceCentre(@Param("id", ParseUUIDPipe) id: string, @Body() body: unknown) {
     await this.serviceCentres.update(id, parse(serviceCentreSchema, body));
   }
 
   @Delete("service-centres/:id")
-  @RequirePermission("masters.branch.manage")
+  @Can("serviceCentre", "delete")
   @HttpCode(204)
   async deleteServiceCentre(@Param("id", ParseUUIDPipe) id: string) {
     await this.serviceCentres.remove(id);
@@ -1190,7 +1190,7 @@ export class MastersController {
   // thousand rows, so sending it whole to filter five of them wastes the trip
   // and leaves the browser unable to count what it was not sent.
   @Get("destinations")
-  @RequirePermission("masters.destination.view")
+  @Can("destination", "view")
   listDestinations(@Query() query: Record<string, string>) {
     const sortable = ["code", "name", "stateCode", "serviceType", "isActive"] as const;
     const sort = sortable.find((field) => field === query["sort"]) ?? "code";
@@ -1213,33 +1213,33 @@ export class MastersController {
 
   /** Unpaged, for the self-referencing branch pickers on the form. */
   @Get("destinations/options")
-  @RequirePermission("masters.destination.view")
+  @Can("destination", "view")
   destinationOptions() {
     return this.destinations.listAll();
   }
 
   @Post("destinations")
-  @RequirePermission("masters.destination.manage")
+  @Can("destination", "create")
   createDestination(@Body() body: unknown) {
     return this.destinations.create(parse(destinationSchema, body));
   }
 
   @Put("destinations/:id")
-  @RequirePermission("masters.destination.manage")
+  @Can("destination", "update")
   @HttpCode(204)
   async updateDestination(@Param("id", ParseUUIDPipe) id: string, @Body() body: unknown) {
     await this.destinations.update(id, parse(destinationSchema, body));
   }
 
   @Delete("destinations/:id")
-  @RequirePermission("masters.destination.manage")
+  @Can("destination", "delete")
   @HttpCode(204)
   async deleteDestination(@Param("id", ParseUUIDPipe) id: string) {
     await this.destinations.remove(id);
   }
 
   @Post("destinations/import")
-  @RequirePermission("masters.destination.manage")
+  @Can("destination", "import")
   @UseInterceptors(FileInterceptor("file", { limits: { fileSize: 10 * 1024 * 1024, files: 1 } }))
   importDestinations(
     @UploadedFile() file: { buffer: Buffer; originalname: string } | undefined,
@@ -1269,7 +1269,7 @@ export class MastersController {
    * export becomes a way to run something on the machine that opens it.
    */
   @Get("destinations/export")
-  @RequirePermission("masters.destination.view")
+  @Can("destination", "export")
   @Header("content-type", "text/csv; charset=utf-8")
   @Header("content-disposition", 'attachment; filename="destinations.csv"')
   async exportDestinations(@Query("kind") kind?: string): Promise<string> {
@@ -1308,7 +1308,7 @@ export class MastersController {
 
   /** One destination by id, for its edit page. */
   @Get("destinations/:id")
-  @RequirePermission("masters.destination.view")
+  @Can("destination", "view")
   async destinationById(@Param("id", ParseUUIDPipe) id: string) {
     const row = await this.destinations.byId(id);
     if (!row) throw new BadRequestException("Destination not found.");
@@ -1316,7 +1316,7 @@ export class MastersController {
   }
 
   @Get("destinations/import/template")
-  @RequirePermission("masters.destination.view")
+  @Can("destination", "import")
   @Header("content-type", "text/csv; charset=utf-8")
   @Header("content-disposition", 'attachment; filename="destination-import-template.csv"')
   destinationTemplate(): string {
@@ -1327,19 +1327,19 @@ export class MastersController {
   // Under the rate permissions: a charge is what a rate card prices, and the
   // people who set rates are the people who maintain them.
   @Get("charges")
-  @RequirePermission("masters.rate.view")
+  @Can("charge", "view")
   listCharges() {
     return this.charges.list();
   }
 
   @Post("charges")
-  @RequirePermission("masters.rate.manage")
+  @Can("charge", "create")
   createCharge(@Body() body: unknown) {
     return this.charges.create(toChargeInput(parse(chargeSchema, body)));
   }
 
   @Get("charges/:id")
-  @RequirePermission("masters.rate.view")
+  @Can("charge", "view")
   async chargeById(@Param("id", ParseUUIDPipe) id: string) {
     const row = await this.charges.byId(id);
     if (!row) throw new BadRequestException("Charge not found.");
@@ -1347,14 +1347,14 @@ export class MastersController {
   }
 
   @Put("charges/:id")
-  @RequirePermission("masters.rate.manage")
+  @Can("charge", "update")
   @HttpCode(204)
   async updateCharge(@Param("id", ParseUUIDPipe) id: string, @Body() body: unknown) {
     await this.charges.update(id, toChargeInput(parse(chargeSchema, body)));
   }
 
   @Delete("charges/:id")
-  @RequirePermission("masters.rate.manage")
+  @Can("charge", "delete")
   @HttpCode(204)
   async deleteCharge(@Param("id", ParseUUIDPipe) id: string) {
     await this.charges.remove(id);
@@ -1362,26 +1362,26 @@ export class MastersController {
 
   // ── Zones ────────────────────────────────────────────────────────────────
   @Get("zones")
-  @RequirePermission("masters.rate.view")
+  @Can("zone", "view")
   listZones() {
     return this.zones.list();
   }
 
   @Post("zones")
-  @RequirePermission("masters.rate.manage")
+  @Can("zone", "create")
   createZone(@Body() body: unknown) {
     return this.zones.create(parse(zoneSchema, body));
   }
 
   @Put("zones/:id")
-  @RequirePermission("masters.rate.manage")
+  @Can("zone", "update")
   @HttpCode(204)
   async updateZone(@Param("id", ParseUUIDPipe) id: string, @Body() body: unknown) {
     await this.zones.update(id, parse(zoneSchema, body));
   }
 
   @Delete("zones/:id")
-  @RequirePermission("masters.rate.manage")
+  @Can("zone", "delete")
   @HttpCode(204)
   async deleteZone(@Param("id", ParseUUIDPipe) id: string) {
     await this.zones.remove(id);
@@ -1407,19 +1407,19 @@ export class MastersController {
 
   // ── Products ─────────────────────────────────────────────────────────────
   @Get("product-types")
-  @RequirePermission("masters.product.view")
+  @Can("productType", "view")
   listProductTypes() {
     return this.products.listTypes();
   }
 
   @Post("product-types")
-  @RequirePermission("masters.product.manage")
+  @Can("productType", "create")
   createProductType(@Body() body: unknown) {
     return this.products.createType(parse(productTypeSchema, body));
   }
 
   @Get("product-types/:id")
-  @RequirePermission("masters.product.view")
+  @Can("productType", "view")
   async productTypeById(@Param("id", ParseUUIDPipe) id: string) {
     const row = await this.products.typeById(id);
     if (!row) throw new BadRequestException("Product type not found.");
@@ -1427,33 +1427,33 @@ export class MastersController {
   }
 
   @Put("product-types/:id")
-  @RequirePermission("masters.product.manage")
+  @Can("productType", "update")
   @HttpCode(204)
   async updateProductType(@Param("id", ParseUUIDPipe) id: string, @Body() body: unknown) {
     await this.products.updateType(id, parse(productTypeSchema, body));
   }
 
   @Delete("product-types/:id")
-  @RequirePermission("masters.product.manage")
+  @Can("productType", "delete")
   @HttpCode(204)
   async deleteProductType(@Param("id", ParseUUIDPipe) id: string) {
     await this.products.removeType(id);
   }
 
   @Get("product-groups")
-  @RequirePermission("masters.product.view")
+  @Can("productGroup", "view")
   listProductGroups() {
     return this.products.listGroups();
   }
 
   @Get("products")
-  @RequirePermission("masters.product.view")
+  @Can("product", "view")
   listProducts() {
     return this.products.listProducts();
   }
 
   @Post("products")
-  @RequirePermission("masters.product.manage")
+  @Can("product", "create")
   createProduct(@Body() body: unknown) {
     const data = parse(productSchema, body);
     return this.products.createProduct({
@@ -1465,7 +1465,7 @@ export class MastersController {
   }
 
   @Put("products/:id")
-  @RequirePermission("masters.product.manage")
+  @Can("product", "update")
   @HttpCode(204)
   async updateProduct(@Param("id", ParseUUIDPipe) id: string, @Body() body: unknown) {
     const data = parse(productSchema, body);
@@ -1485,7 +1485,7 @@ export class MastersController {
    * afterwards. Preview is the default for the same reason.
    */
   @Post("products/import")
-  @RequirePermission("masters.product.manage")
+  @Can("product", "import")
   @UseInterceptors(
     FileInterceptor("file", {
       // Held in memory rather than written to disk: nothing here needs to
@@ -1514,7 +1514,7 @@ export class MastersController {
 
   /** A blank file with the accepted headings, so nobody has to guess them. */
   @Get("products/import/template")
-  @RequirePermission("masters.product.view")
+  @Can("product", "import")
   @Header("content-type", "text/csv; charset=utf-8")
   @Header("content-disposition", 'attachment; filename="product-import-template.csv"')
   productTemplate(): string {
@@ -1522,7 +1522,7 @@ export class MastersController {
   }
 
   @Delete("products/:id")
-  @RequirePermission("masters.product.manage")
+  @Can("product", "delete")
   @HttpCode(204)
   async deleteProduct(@Param("id", ParseUUIDPipe) id: string) {
     await this.products.deleteProduct(id);
@@ -1530,20 +1530,20 @@ export class MastersController {
 
   // ── Departments ──────────────────────────────────────────────────────────
   @Get("departments")
-  @RequirePermission("masters.organisation.view")
+  @Can("department", "view")
   listDepartments() {
     return this.organisation.listDepartments();
   }
 
   @Post("departments")
-  @RequirePermission("masters.organisation.manage")
+  @Can("department", "create")
   createDepartment(@Body() body: unknown) {
     const data = parse(departmentSchema, body);
     return this.organisation.createDepartment({ ...data, description: data.description ?? null });
   }
 
   @Put("departments/:id")
-  @RequirePermission("masters.organisation.manage")
+  @Can("department", "update")
   @HttpCode(204)
   async updateDepartment(@Param("id", ParseUUIDPipe) id: string, @Body() body: unknown) {
     const data = parse(departmentSchema, body);
@@ -1551,7 +1551,7 @@ export class MastersController {
   }
 
   @Delete("departments/:id")
-  @RequirePermission("masters.organisation.manage")
+  @Can("department", "delete")
   @HttpCode(204)
   async deleteDepartment(@Param("id", ParseUUIDPipe) id: string) {
     await this.organisation.deleteDepartment(id);
@@ -1559,13 +1559,13 @@ export class MastersController {
 
   // ── Designations ─────────────────────────────────────────────────────────
   @Get("designations")
-  @RequirePermission("masters.organisation.view")
+  @Can("designation", "view")
   listDesignations() {
     return this.organisation.listDesignations();
   }
 
   @Post("designations")
-  @RequirePermission("masters.organisation.manage")
+  @Can("designation", "create")
   createDesignation(@Body() body: unknown) {
     const data = parse(designationSchema, body);
     return this.organisation.createDesignation({
@@ -1576,7 +1576,7 @@ export class MastersController {
   }
 
   @Put("designations/:id")
-  @RequirePermission("masters.organisation.manage")
+  @Can("designation", "update")
   @HttpCode(204)
   async updateDesignation(@Param("id", ParseUUIDPipe) id: string, @Body() body: unknown) {
     const data = parse(designationSchema, body);
@@ -1588,7 +1588,7 @@ export class MastersController {
   }
 
   @Delete("designations/:id")
-  @RequirePermission("masters.organisation.manage")
+  @Can("designation", "delete")
   @HttpCode(204)
   async deleteDesignation(@Param("id", ParseUUIDPipe) id: string) {
     await this.organisation.deleteDesignation(id);

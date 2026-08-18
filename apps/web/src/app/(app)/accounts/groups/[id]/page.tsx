@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import { FormPage } from "@/components/form-page";
 import { getAccountGroups, getCurrentSession } from "@/lib/api";
+import { can } from "@/lib/can";
 import { GroupForm } from "../group-form";
 
 export const metadata = { title: "Edit account group · ExcelEx" };
@@ -25,7 +26,7 @@ export default async function EditGroupPage({ params }: { params: Promise<{ id: 
       <GroupForm
         group={group}
         groups={groups ?? []}
-        canManage={session?.user.permissions.includes("masters.rate.manage") ?? false}
+        canManage={can(session, "zone", "update")}
       />
     </FormPage>
   );
