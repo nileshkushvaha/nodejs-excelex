@@ -30,9 +30,22 @@ export function normaliseHeader(header: string): string {
     .replace(/[^a-z0-9]+/g, "");
 }
 
+/**
+ * Excel's own escape: a leading apostrophe marks the rest as text and is not
+ * part of the value. Exports write one in front of anything starting with =,
+ * +, - or @ so a cell cannot execute as a formula; without stripping it here,
+ * a value that made the round trip would gain a permanent apostrophe.
+ *
+ * Only stripped ahead of those four characters. A name that genuinely starts
+ * with an apostrophe keeps it.
+ */
+function stripFormulaGuard(text: string): string {
+  return /^'[=+\-@]/.test(text) ? text.slice(1) : text;
+}
+
 function cellToString(value: ExcelJS.CellValue): string {
   if (value === null || value === undefined) return "";
-  if (typeof value === "string") return value.trim();
+  if (typeof value === "string") return stripFormulaGuard(value.trim());
   if (typeof value === "number" || typeof value === "boolean") return String(value);
   if (value instanceof Date) return value.toISOString();
 

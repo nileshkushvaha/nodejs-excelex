@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  StreamableFile,
   Body,
   Controller,
   Delete,
@@ -33,6 +34,7 @@ import {
 } from "./customer-detail.service";
 import { CustomerService, type CustomerInput } from "./customer.service";
 import { CustomerImportService } from "./import/customer-import.service";
+import { buildWorkbook, XLSX_CONTENT_TYPE } from "./import/workbook";
 import { SalesExecutiveService } from "./sales-executive.service";
 import { ServiceCentreService } from "./service-centre.service";
 import { ZoneService } from "./zone.service";
@@ -507,9 +509,9 @@ export class MastersController {
   // order and "export" is not a uuid.
   @Get("customers/export")
   @RequirePermission("masters.customer.view")
-  @Header("content-type", "text/csv; charset=utf-8")
-  @Header("content-disposition", 'attachment; filename="customers.csv"')
-  async exportCustomers(@Query() query: Record<string, string>): Promise<string> {
+  @Header("content-type", XLSX_CONTENT_TYPE)
+  @Header("content-disposition", 'attachment; filename="customers.xlsx"')
+  async exportCustomers(@Query() query: Record<string, string>): Promise<StreamableFile> {
     const rows = await this.customers.listForExport({
       search: query["search"],
       branchId: query["branchId"],
@@ -518,65 +520,57 @@ export class MastersController {
       status: query["status"],
     });
 
-    // A leading =, +, - or @ makes a spreadsheet treat the cell as a formula,
-    // so a customer named "=cmd|..." would execute on open. Prefixed with an
-    // apostrophe, which Excel strips on display and never evaluates.
-    const cell = (value: unknown): string => {
-      const text = value === null || value === undefined ? "" : String(value);
-      const guarded = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
-      return `"${guarded.replace(/"/g, '""')}"`;
-    };
-    const day = (value: Date | null) => (value ? value.toISOString().slice(0, 10) : "");
     const yesNo = (value: boolean) => (value ? "Yes" : "No");
 
     // The client's own CustomerMaster headings, in their order, so an export
     // is a valid import: pull the list, edit it in Excel, upload it back.
-    const lines = [CustomerImportService.TEMPLATE_HEADERS.join(",")];
-    for (const row of rows) {
-      lines.push(
-        [
-          cell(row.code),
-          cell(row.name),
-          cell(row.contactPerson),
-          cell(row.addressLine1),
-          cell(row.addressLine2),
-          cell(row.addressLine3),
-          cell(row.addressLine4),
-          cell(row.pinCode),
-          cell(row.telephone1),
-          cell(row.telephone2),
-          cell(row.email),
-          cell(row.mobile),
-          cell(row.fax),
-          cell(row.stateCode),
-          cell(row.serviceCentre?.name),
-          cell(day(row.startDate)),
-          cell(row.isActive ? "Active" : "In-Active"),
-          cell(row.origin?.code),
-          cell(row.gstin),
-          cell(row.aadhaar),
-          cell(row.passportNo),
-          cell(row.pan),
-          cell(row.tan),
-          cell(row.invoiceFormat),
-          cell(yesNo(row.customerType === "CO_COURIER")),
-          cell(row.paymentType),
-          cell(row.billingType),
-          cell(row.contractAmount),
-          cell(row.creditPercent),
-          cell(row.contractHead),
-          cell(yesNo(row.fuelSurcharge)),
-          cell(row.salesExecutive?.code),
-          cell(yesNo(row.globalCustomer)),
-          cell(row.accountEmail),
-          cell(row.registerType),
-          cell(yesNo(row.taxApplicable)),
-          cell(yesNo(row.eInvoice)),
-        ].join(","),
-      );
-    }
+    const file = await buildWorkbook(
+      "Customers",
+      CustomerImportService.TEMPLATE_HEADERS,
+      rows.map((row) => [
+        row.code,
+        row.name,
+        row.contactPerson,
+        row.addressLine1,
+        row.addressLine2,
+        row.addressLine3,
+        row.addressLine4,
+        row.pinCode,
+        row.telephone1,
+        row.telephone2,
+        row.email,
+        row.mobile,
+        row.fax,
+        row.stateCode,
+        row.serviceCentre?.name,
+        row.startDate,
+        row.isActive ? "Active" : "In-Active",
+        row.origin?.code,
+        row.gstin,
+        row.aadhaar,
+        row.passportNo,
+        row.pan,
+        row.tan,
+        row.invoiceFormat,
+        yesNo(row.customerType === "CO_COURIER"),
+        row.paymentType,
+        row.billingType,
+        // Decimals are strings on the way out. Excel will read them as
+        // numbers; what matters is that nothing rounds them on the way here.
+        row.contractAmount === null ? null : String(row.contractAmount),
+        row.creditPercent === null ? null : String(row.creditPercent),
+        row.contractHead,
+        yesNo(row.fuelSurcharge),
+        row.salesExecutive?.code,
+        yesNo(row.globalCustomer),
+        row.accountEmail,
+        row.registerType,
+        yesNo(row.taxApplicable),
+        yesNo(row.eInvoice),
+      ]),
+    );
 
-    return `${lines.join("\n")}\n`;
+    return new StreamableFile(file);
   }
 
   @Post("customers/import")
@@ -604,17 +598,21 @@ export class MastersController {
 
   @Get("customers/import/template")
   @RequirePermission("masters.customer.view")
-  @Header("content-type", "text/csv; charset=utf-8")
-  @Header("content-disposition", 'attachment; filename="customer-import-template.csv"')
-  customerTemplate(): string {
+  @Header("content-type", XLSX_CONTENT_TYPE)
+  @Header("content-disposition", 'attachment; filename="customer-import-template.xlsx"')
+  async customerTemplate(): Promise<StreamableFile> {
+    // One filled row, because an empty template leaves people guessing what
+    // "Register_type" wants and typing something the importer will reject.
     const example = [
       "111146", "TTE TECHNOLOGY INDIA PVT LTD", "Kamal Khanna", "Plot 21, Sector 34", "",
-      "122001", "Gurugram", "HR", "HR", "0124 4000000", "", "9821889052",
-      "accounts@tte.example", "EXCELEX EXPRESS LOGISTICS LLP", "DEL", "DEL",
-      "06AAACT1234A1Z5", "AAACT1234A", "", "Customer", "Registered", "Credit",
-      "Monthly", "30", "500000", "", "RAH", "Active",
+      "Gurugram", "Haryana", "122001", "0124 4000000", "", "accounts@tte.example",
+      "9821889052", "", "HR", "EXCELEX EXPRESS LOGISTICS LLP", new Date("2026-01-01T00:00:00Z"),
+      "Active", "DEL", "06AAACT1234A1Z5", "", "", "AAACT1234A", "", "", "No", "Credit",
+      "Monthly", "500000", "10", "", "Yes", "RAH", "No", "", "Registered", "Yes", "No",
     ];
-    return `${CustomerImportService.TEMPLATE_HEADERS.join(",")}\n${example.join(",")}\n`;
+
+    const file = await buildWorkbook("Customers", CustomerImportService.TEMPLATE_HEADERS, [example]);
+    return new StreamableFile(file);
   }
 
   @Get("customers/:id")

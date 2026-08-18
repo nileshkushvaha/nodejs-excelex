@@ -92,7 +92,7 @@ export function ImportDialog({
         onClose();
       }}
       title={title}
-      description="Upload an .xlsx or .csv. Nothing is written until you confirm the preview."
+      description="Upload an .xlsx. Nothing is written until you confirm the preview."
     >
       <div className="space-y-4">
         {error ? (
@@ -110,7 +110,7 @@ export function ImportDialog({
               <input
                 ref={inputRef}
                 type="file"
-                accept=".xlsx,.csv"
+                accept=".xlsx"
                 onChange={(event) => {
                   setFile(event.target.files?.[0] ?? null);
                   setReport(null);
