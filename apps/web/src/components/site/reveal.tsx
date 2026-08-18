@@ -5,13 +5,20 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 /**
  * Fades a section in the first time it is scrolled to, and never again.
  *
- * An IntersectionObserver rather than a scroll listener: the browser does the
- * work off the main thread, and a marketing page has a dozen of these. It
- * disconnects on the first hit, because a section that re-animates every time
- * it passes the viewport is a section nobody can read.
+ * The observer does the work — the browser handles it off the main thread, and
+ * a marketing page has a dozen of these. It disconnects on the first hit,
+ * because a section that re-animates every time it passes the viewport is a
+ * section nobody can read.
  *
- * Starts visible and is hidden by an effect, so a reader without JavaScript —
- * or one whose JS has not run yet — sees the content rather than a blank page.
+ * There is a scroll fallback behind it doing the same geometry check by hand.
+ * That is not belt-and-braces for its own sake: this component's failure mode
+ * is invisible content, which is the worst thing a page can do, and an
+ * observer that never fires — a tab rendered while hidden, an engine quirk,
+ * anything — would leave the whole page blank. Verified the hard way: a
+ * screenshot of this site in a backgrounded pane is an empty column.
+ *
+ * It also starts visible and is hidden by an effect, so a reader whose
+ * JavaScript has not run sees the content rather than nothing.
  */
 export function Reveal({
   children,
@@ -33,24 +40,45 @@ export function Reveal({
     // Someone who has asked for less motion gets the content, not the fade.
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
+    const near = () => node.getBoundingClientRect().top < window.innerHeight * 0.9;
+
     // Already on screen at load: leave it alone rather than fading in content
     // the reader is looking at.
-    if (node.getBoundingClientRect().top < window.innerHeight * 0.9) return;
+    if (near()) return;
 
     setShown(false);
+
+    let live = true;
+    const reveal = () => {
+      if (!live) return;
+      live = false;
+      setShown(true);
+      observer.disconnect();
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+
+    function onScroll() {
+      if (near()) reveal();
+    }
+
     const observer = new IntersectionObserver(
       (entries) => {
-        for (const entry of entries) {
-          if (!entry.isIntersecting) continue;
-          setShown(true);
-          observer.disconnect();
-        }
+        if (entries.some((entry) => entry.isIntersecting)) reveal();
       },
       { rootMargin: "0px 0px -10% 0px" },
     );
 
     observer.observe(node);
-    return () => observer.disconnect();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+
+    return () => {
+      live = false;
+      observer.disconnect();
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
   }, []);
 
   return (

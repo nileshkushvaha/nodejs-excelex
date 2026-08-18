@@ -65,16 +65,28 @@ export function Hero() {
         <div>
           {/* Every slide is rendered and the inactive ones hidden, so the block
               keeps the height of its tallest and nothing below it jumps when
-              the banner turns. */}
-          <div className="relative min-h-[22rem] sm:min-h-[20rem]">
+              the banner turns.
+
+              They stack in one grid cell rather than being absolutely
+              positioned, so the cell sizes itself to the tallest of them. The
+              first version reserved a min-height instead and the longest
+              headline overflowed it by 53px on a phone, landing on top of the
+              dots. A guessed height cannot survive copy it has never seen, and
+              this copy comes from a CMS. */}
+          <div className="grid">
             {SLIDES.map((slide, position) => (
               <div
                 key={slide.title}
                 aria-hidden={position !== index}
-                className={`absolute inset-0 transition-[opacity,transform] duration-700 ease-out ${
+                // Asymmetric on purpose. A plain crossfade puts two headlines
+                // on the same pixels at half opacity each, which on a narrow
+                // screen is unreadable soup — caught on a 375px screenshot
+                // showing both slides at once. So the outgoing one leaves
+                // quickly and the incoming one waits for it to finish.
+                className={`col-start-1 row-start-1 transition-[opacity,transform] ease-out ${
                   position === index
-                    ? "translate-y-0 opacity-100"
-                    : "pointer-events-none translate-y-4 opacity-0"
+                    ? "translate-y-0 opacity-100 delay-200 duration-500"
+                    : "pointer-events-none translate-y-4 opacity-0 duration-200"
                 }`}
               >
                 <span className="glass inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-medium text-accent-text">
@@ -130,17 +142,23 @@ export function Hero() {
           </div>
         </div>
 
-        <div className="relative hidden lg:block">
-          <RouteArt className="animate-float mx-auto w-full max-w-lg" />
+        {/* On a phone this sits under the copy rather than beside it. It was
+            hidden entirely at first, which left half the screen empty below
+            the buttons — the artwork is a better answer to that space than
+            nothing is. */}
+        <div className="relative">
+          <RouteArt className="animate-float mx-auto w-full max-w-xs sm:max-w-sm lg:max-w-lg" />
 
           {/* Two glass chips pinned to the artwork. They are the only numbers
               above the fold, and they sit on the picture rather than beside it
-              so the eye does not have to leave one to reach the other. */}
-          <div className="glass absolute -left-2 top-8 rounded-2xl px-4 py-3">
+              so the eye does not have to leave one to reach the other. Pinned
+              off the artwork's edges, so they need the room only a wide screen
+              has. */}
+          <div className="glass absolute -left-2 top-8 hidden rounded-2xl px-4 py-3 lg:block">
             <p className="text-2xl font-semibold tabular-nums text-fg">{STATS[0]?.value.toLocaleString()}+</p>
             <p className="text-xs text-muted">{STATS[0]?.label}</p>
           </div>
-          <div className="glass absolute -right-2 bottom-10 rounded-2xl px-4 py-3">
+          <div className="glass absolute -right-2 bottom-10 hidden rounded-2xl px-4 py-3 lg:block">
             <p className="text-2xl font-semibold tabular-nums text-fg">{STATS[2]?.value}%</p>
             <p className="text-xs text-muted">{STATS[2]?.label}</p>
           </div>
