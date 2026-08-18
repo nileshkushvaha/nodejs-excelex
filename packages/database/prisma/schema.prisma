@@ -244,6 +244,9 @@ model Branch {
 
   // Unconditional composite unique — required as a composite FK target.
   // Partial unique indexes cannot back a foreign key (audit finding B4).
+
+  customers Customer[]
+
   @@unique([clientId, id], name: "branch_client_id")
   /// Uniqueness of code is a PARTIAL unique index (deleted_at IS NULL), created
   /// in the migration — Prisma cannot express one. Without that, a soft-deleted
@@ -698,6 +701,7 @@ model Designation {
 
   department Department? @relation(fields: [clientId, departmentId], references: [clientId, id], onDelete: Restrict)
 
+  @@unique([clientId, id], name: "designation_client_id")
   @@index([clientId, code])
   @@index([clientId, departmentId])
   @@index([clientId])
@@ -860,6 +864,11 @@ model Product {
   productType  ProductType?  @relation(fields: [clientId, productTypeId], references: [clientId, id], onDelete: Restrict)
   productGroup ProductGroup? @relation(fields: [clientId, productGroupId], references: [clientId, id], onDelete: Restrict)
 
+  customerFuelSurcharges CustomerFuelSurcharge[]
+  customerCharges        CustomerCharge[]
+  customerVolumetrics    CustomerVolumetric[]
+
+  @@unique([clientId, id], name: "product_client_id")
   @@index([clientId, code])
   @@index([clientId])
   @@map("products")
@@ -944,6 +953,11 @@ model Destination {
   servesAsMain   Destination[]   @relation("DestinationMainBranch")
   manifestBranch Destination?    @relation("DestinationManifestBranch", fields: [clientId, manifestBranchId], references: [clientId, id], onDelete: Restrict)
   servesManifest Destination[]   @relation("DestinationManifestBranch")
+
+  customerOrigins            Customer[]              @relation("CustomerOrigin")
+  fuelSurchargeDestinations  CustomerFuelSurcharge[] @relation("FuelSurchargeDestination")
+  customerChargeOrigins      CustomerCharge[]        @relation("CustomerChargeOrigin")
+  customerChargeDestinations CustomerCharge[]        @relation("CustomerChargeDestination")
 
   @@unique([clientId, id], name: "destination_client_id")
   /// The list is filtered and sorted on these in the database, so they are
@@ -1045,6 +1059,9 @@ model ServiceCentre {
 
   destination Destination? @relation(fields: [clientId, destinationId], references: [clientId, id], onDelete: Restrict)
 
+  customers Customer[]
+
+  @@unique([clientId, id], name: "service_centre_client_id")
   @@index([clientId, code])
   @@index([clientId, name])
   @@index([clientId])
@@ -1078,6 +1095,9 @@ model SalesExecutive {
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  customers Customer[]
+
+  @@unique([clientId, id], name: "sales_executive_client_id")
   @@index([clientId, code])
   @@index([clientId, name])
   @@index([clientId])
@@ -1167,6 +1187,8 @@ model Charge {
   components ChargeComponent[] @relation("ChargeParent")
   partOf     ChargeComponent[] @relation("ChargeComponentOf")
 
+  customerCharges CustomerCharge[]
+
   @@unique([clientId, id], name: "charge_client_id")
   @@index([clientId, code])
   @@index([clientId, sequence])
@@ -1197,4 +1219,356 @@ model ChargeComponent {
   @@index([clientId, componentId])
   @@index([clientId])
   @@map("charge_components")
+}
+
+// ─────────────────────────────────────────────────────────────
+// CUSTOMERS — client scope
+// ─────────────────────────────────────────────────────────────
+
+/// Whether the customer pays before or after the shipment moves.
+enum CustomerPaymentType {
+  CREDIT
+  CASH
+  TOPAY
+}
+
+/// GST registration status, which decides how tax is computed on the invoice.
+enum CustomerRegisterType {
+  REGISTERED
+  UNREGISTERED
+  COMPOSITION
+  SEZ
+}
+
+/// The units a customer's volumetric divisors are quoted in.
+enum MeasurementUnit {
+  CENTIMETER
+  INCH
+}
+
+/// How a sales executive's incentive on this customer is worked out.
+enum IncentiveType {
+  PERCENTAGE
+  FLAT
+  NONE
+}
+
+/// @scope(client)
+/// A business that ships with this client.
+///
+/// The legacy screen presents this as a five-step wizard inside a tab, but
+/// there is one row behind all five steps and no step depends on another, so
+/// it is one record here. The four sibling tabs are separate tables below —
+/// they are lists, not fields.
+///
+/// A note on the columns that are plain text rather than foreign keys:
+/// area, industry, vendor, contract head, ledger head and best rate all point
+/// at masters that do not exist yet. They are stored as typed text now so
+/// nothing is lost on import, and each becomes a real reference when its
+/// master is built. Storing them is reversible; discarding them is not.
+model Customer {
+  id       String @id @default(uuid(7)) @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+
+  /// The customer code the client's staff quote on the phone. Theirs, not ours.
+  code String
+  name String
+
+  // ── Personal details ───────────────────────────────────────────────────
+  contactPerson String? @map("contact_person")
+  addressLine1  String? @map("address_line1")
+  addressLine2  String? @map("address_line2")
+  pinCode       String? @map("pin_code")
+  city          String?
+  /// Where the customer sits. Free text until the pincode master lands.
+  stateCode     String? @map("state_code")
+  countryCode   String  @default("IN") @map("country_code")
+
+  telephone1 String? @map("telephone1")
+  telephone2 String? @map("telephone2")
+  fax        String?
+  /// Semicolon-separated, matching what the legacy screen accepts.
+  email      String?
+  mobile     String?
+
+  /// The state whose GST rules apply to the invoice. Not always where the
+  /// customer sits — a Delhi office can be billed against a Haryana branch.
+  billingStateCode String? @map("billing_state_code")
+
+  serviceCentreId String? @map("service_centre_id") @db.Uuid
+  /// The destination a shipment is booked from by default.
+  originId        String? @map("origin_id") @db.Uuid
+  branchId        String? @map("branch_id") @db.Uuid
+
+  startDate     DateTime  @default(now()) @map("start_date") @db.Date
+  gstin         String?
+  aadhaar       String?
+  /// Kept because the legacy KYC screen collects it. Date only — a date of
+  /// birth has no time of day, and storing one invites a timezone shift that
+  /// moves somebody's birthday.
+  aadhaarDob    DateTime? @map("aadhaar_dob") @db.Date
+  passportNo    String?   @map("passport_no")
+  pan           String?
+  tan           String?
+  invoiceFormat String?   @map("invoice_format")
+
+  /// "Customer" or one of the other party kinds the legacy list mixes in.
+  customerType String               @default("CUSTOMER") @map("customer_type")
+  registerType CustomerRegisterType @default(REGISTERED) @map("register_type")
+
+  logoPath      String? @map("logo_path")
+  signaturePath String? @map("signature_path")
+
+  // ── Billing ────────────────────────────────────────────────────────────
+  paymentType CustomerPaymentType @default(CREDIT) @map("payment_type")
+  billingType String?             @map("billing_type")
+
+  /// Money, so Decimal. A float here is a rounding error on every invoice.
+  contractAmount Decimal? @map("contract_amount") @db.Decimal(14, 2)
+  creditDays     Int      @default(0) @map("credit_days")
+
+  registrationNo String? @map("registration_no")
+  /// Free text printed on the invoice — packing notes, PO requirements.
+  instructions   String?
+
+  /// Rounding thresholds the legacy screen calls Rupee and Paisa.
+  roundRupee Decimal? @map("round_rupee") @db.Decimal(12, 2)
+  roundPaisa Decimal? @map("round_paisa") @db.Decimal(12, 2)
+
+  /// Accounting heads. Text until the accounts master exists.
+  contractHead   String? @map("contract_head")
+  ledgerHead     String? @map("ledger_head")
+  contractOrigin String? @map("contract_origin")
+
+  businessChannel String? @map("business_channel")
+  iecNo           String? @map("iec_no")
+  bankAdCode      String? @map("bank_ad_code")
+  bankAccount     String? @map("bank_account")
+  bankIfsc        String? @map("bank_ifsc")
+  firm            String?
+  shipperType     String? @map("shipper_type")
+
+  /// Letter of Undertaking — an exporter's zero-rated GST declaration.
+  lutNumber    String?   @map("lut_number")
+  lutIssueDate DateTime? @map("lut_issue_date") @db.Date
+  lutTillDate  DateTime? @map("lut_till_date") @db.Date
+
+  nfei          Boolean @default(false)
+  fuelSurcharge Boolean @default(true) @map("fuel_surcharge")
+  taxApplicable Boolean @default(true) @map("tax_applicable")
+  noTariff      Boolean @default(false) @map("no_tariff")
+  inclusiveTax  Boolean @default(false) @map("inclusive_tax")
+
+  // ── Sales and other ────────────────────────────────────────────────────
+  salesExecutiveId String?       @map("sales_executive_id") @db.Uuid
+  incentiveType    IncentiveType @default(NONE) @map("incentive_type")
+  incentivePercent Decimal       @default(0) @map("incentive_percent") @db.Decimal(7, 4)
+
+  customerMessage String?  @map("customer_message")
+  accountEmail    String?  @map("account_email")
+  bestRate        String?  @map("best_rate")
+  monthlySales    Decimal? @map("monthly_sales") @db.Decimal(14, 2)
+  defaultVendor   String?  @map("default_vendor")
+  area            String?
+  industry        String?
+
+  globalCustomer  Boolean         @default(false) @map("global_customer")
+  measurementUnit MeasurementUnit @default(CENTIMETER) @map("measurement_unit")
+  geoLocation     String?         @map("geo_location")
+
+  disableCustomerOrigin Boolean @default(false) @map("disable_customer_origin")
+  enableTaxDutiesPaidBy Boolean @default(false) @map("enable_tax_duties_paid_by")
+  enableAwbNo           Boolean @default(false) @map("enable_awb_no")
+
+  // ── Notification ───────────────────────────────────────────────────────
+  eStatement      Boolean @default(false) @map("e_statement")
+  eInvoice        Boolean @default(false) @map("e_invoice")
+  allowZeroAmount Boolean @default(false) @map("allow_zero_amount")
+
+  isActive  Boolean   @default(true) @map("is_active")
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  serviceCentre  ServiceCentre?  @relation(fields: [clientId, serviceCentreId], references: [clientId, id], onDelete: Restrict)
+  origin         Destination?    @relation("CustomerOrigin", fields: [clientId, originId], references: [clientId, id], onDelete: Restrict)
+  branch         Branch?         @relation(fields: [clientId, branchId], references: [clientId, id], onDelete: Restrict)
+  salesExecutive SalesExecutive? @relation(fields: [clientId, salesExecutiveId], references: [clientId, id], onDelete: Restrict)
+
+  fuelSurcharges CustomerFuelSurcharge[]
+  charges        CustomerCharge[]
+  volumetrics    CustomerVolumetric[]
+  contacts       CustomerContact[]
+
+  @@unique([clientId, id], name: "customer_client_id")
+  @@index([clientId, code])
+  @@index([clientId, name])
+  @@index([clientId, serviceCentreId])
+  @@index([clientId])
+  @@map("customers")
+}
+
+/// @scope(client)
+/// The fuel surcharge percentage agreed with one customer.
+///
+/// Effective-dated, and narrowed by any combination of vendor, product,
+/// destination and service — the most specific row that covers a shipment
+/// wins. Dates are the reason this is a table rather than a column: a rate
+/// agreed last April must still price an invoice raised against last April.
+model CustomerFuelSurcharge {
+  id         String @id @default(uuid(7)) @db.Uuid
+  clientId   String @map("client_id") @db.Uuid
+  customerId String @map("customer_id") @db.Uuid
+
+  fromDate DateTime @map("from_date") @db.Date
+  toDate   DateTime @map("to_date") @db.Date
+
+  vendor        String?
+  productId     String? @map("product_id") @db.Uuid
+  destinationId String? @map("destination_id") @db.Uuid
+  service       String?
+
+  percentage Decimal @default(0) @db.Decimal(7, 4)
+
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  customer    Customer     @relation(fields: [clientId, customerId], references: [clientId, id], onDelete: Cascade)
+  product     Product?     @relation(fields: [clientId, productId], references: [clientId, id], onDelete: Restrict)
+  destination Destination? @relation("FuelSurchargeDestination", fields: [clientId, destinationId], references: [clientId, id], onDelete: Restrict)
+
+  @@index([clientId, customerId])
+  @@index([clientId, customerId, fromDate, toDate])
+  @@index([clientId])
+  @@map("customer_fuel_surcharges")
+}
+
+/// @scope(client)
+/// A charge from the charge master, priced for one customer.
+///
+/// The charge master says what the line is called and how it is calculated;
+/// this says what this customer pays for it, between which dates, and on which
+/// lanes. Value is the rate — a percentage or an amount, depending on the
+/// charge's own calculation base.
+model CustomerCharge {
+  id         String @id @default(uuid(7)) @db.Uuid
+  clientId   String @map("client_id") @db.Uuid
+  customerId String @map("customer_id") @db.Uuid
+  chargeId   String @map("charge_id") @db.Uuid
+
+  fromDate DateTime @map("from_date") @db.Date
+  toDate   DateTime @map("to_date") @db.Date
+
+  vendor        String?
+  service       String?
+  productId     String? @map("product_id") @db.Uuid
+  originId      String? @map("origin_id") @db.Uuid
+  destinationId String? @map("destination_id") @db.Uuid
+
+  value        Decimal  @db.Decimal(14, 4)
+  minimumValue Decimal? @map("minimum_value") @db.Decimal(14, 4)
+
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  customer    Customer     @relation(fields: [clientId, customerId], references: [clientId, id], onDelete: Cascade)
+  charge      Charge       @relation(fields: [clientId, chargeId], references: [clientId, id], onDelete: Restrict)
+  product     Product?     @relation(fields: [clientId, productId], references: [clientId, id], onDelete: Restrict)
+  origin      Destination? @relation("CustomerChargeOrigin", fields: [clientId, originId], references: [clientId, id], onDelete: Restrict)
+  destination Destination? @relation("CustomerChargeDestination", fields: [clientId, destinationId], references: [clientId, id], onDelete: Restrict)
+
+  @@index([clientId, customerId])
+  @@index([clientId, customerId, fromDate, toDate])
+  @@index([clientId])
+  @@map("customer_charges")
+}
+
+/// @scope(client)
+/// How volume converts to chargeable weight for one customer.
+///
+/// The divisor is negotiated, which is why it lives here and not on the
+/// product: the same carton priced at 5000 for one customer and 6000 for
+/// another is a commercial term, not a physical fact.
+model CustomerVolumetric {
+  id         String @id @default(uuid(7)) @db.Uuid
+  clientId   String @map("client_id") @db.Uuid
+  customerId String @map("customer_id") @db.Uuid
+
+  productId String? @map("product_id") @db.Uuid
+  vendor    String?
+  service   String?
+
+  /// Cubic feet factor, and the divisors for each unit the dimensions may be
+  /// entered in. Zero means "not agreed", not "divide by zero" — the booking
+  /// screen falls back to the client default when it is zero.
+  cft              Decimal @default(0) @db.Decimal(12, 4)
+  centimetreDivide Decimal @default(0) @map("centimetre_divide") @db.Decimal(12, 2)
+  inchDivide       Decimal @default(0) @map("inch_divide") @db.Decimal(12, 2)
+
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  customer Customer @relation(fields: [clientId, customerId], references: [clientId, id], onDelete: Cascade)
+  product  Product? @relation(fields: [clientId, productId], references: [clientId, id], onDelete: Restrict)
+
+  @@index([clientId, customerId])
+  @@index([clientId])
+  @@map("customer_volumetrics")
+}
+
+/// @scope(client)
+/// A person or pickup address belonging to a customer.
+///
+/// The legacy screen calls this "Customer Address", but it collects a contact
+/// person, their KYC and an address together, and a customer has several — a
+/// billing contact, a warehouse, a default shipper. Named for what it is.
+model CustomerContact {
+  id         String @id @default(uuid(7)) @db.Uuid
+  clientId   String @map("client_id") @db.Uuid
+  customerId String @map("customer_id") @db.Uuid
+
+  /// Billing, pickup, escalation. Text until the contact-type master exists.
+  contactType String   @map("contact_type")
+  fromDate    DateTime @map("from_date") @db.Date
+
+  name        String
+  designation String?
+  email       String?
+  mobile      String
+  landline    String?
+  extension   String?
+
+  addressLine1 String? @map("address_line1")
+  addressLine2 String? @map("address_line2")
+  addressLine3 String? @map("address_line3")
+  pinCode      String  @map("pin_code")
+  city         String?
+  stateCode    String? @map("state_code")
+  countryCode  String  @default("IN") @map("country_code")
+
+  remark     String?
+  passportNo String? @map("passport_no")
+  aadhaar    String?
+  gstin      String?
+  pan        String?
+  iecNo      String? @map("iec_no")
+  adCode     String? @map("ad_code")
+  lutNo      String? @map("lut_no")
+  kycPath    String? @map("kyc_path")
+
+  /// The address a booking defaults to when this customer is chosen.
+  defaultShipper Boolean @default(false) @map("default_shipper")
+
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  customer Customer @relation(fields: [clientId, customerId], references: [clientId, id], onDelete: Cascade)
+
+  @@index([clientId, customerId])
+  @@index([clientId])
+  @@map("customer_contacts")
 }
