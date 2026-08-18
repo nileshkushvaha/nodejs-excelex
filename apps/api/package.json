@@ -24,18 +24,20 @@
   "dependencies": {
     "@excelex/database": "workspace:*",
     "@excelex/permissions": "workspace:*",
+    "@excelex/rating": "workspace:*",
     "@nestjs/common": "^11.0.1",
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
+    "bullmq": "^6.1.2",
     "cookie-parser": "^1.4.7",
     "dotenv": "^17.4.2",
     "exceljs": "^4.4.0",
     "helmet": "^8.3.0",
+    "ioredis": "^6.0.0",
     "jszip": "^3.10.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "zod": "^4.4.3",
-    "@excelex/rating": "workspace:*"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",

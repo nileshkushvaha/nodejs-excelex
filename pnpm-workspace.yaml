@@ -7,7 +7,11 @@ packages:
 # here is a deliberate exception. Add new ones as `name: true` — pnpm will write a
 # placeholder entry itself when it blocks something new.
 allowBuilds:
-  unrs-resolver: true      # native resolver used by the ESLint config Nest ships
-  prisma: true             # CLI: fetches/prepares query engine binaries
-  "@prisma/client": true   # generates the typed client
-  "@prisma/engines": true  # engine binaries
+  unrs-resolver: true # native resolver used by the ESLint config Nest ships
+  # Declined deliberately: an optional native accelerator behind BullMQ's
+  # serialiser. Refusing it keeps a compile step and an arbitrary postinstall
+  # out of the install, and costs a speedup this workload will never notice.
+  msgpackr-extract: false
+  prisma: true # CLI: fetches/prepares query engine binaries
+  "@prisma/client": true # generates the typed client
+  "@prisma/engines": true # engine binaries

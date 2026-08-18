@@ -2088,3 +2088,101 @@ model RateLine {
   @@index([clientId])
   @@map("rate_lines")
 }
+
+// ─────────────────────────────────────────────────────────────
+// JOBS — client scope
+// ─────────────────────────────────────────────────────────────
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+/// @scope(client)
+/// A unit of background work, and what happened to it.
+///
+/// The queue itself is Redis, which is where the work is claimed and retried.
+/// This table is the record: it survives a Redis flush, it is client-scoped
+/// so one client cannot see another's work, and it is what the queue monitor
+/// reads. Redis answers "what is running now"; this answers "what happened
+/// last Tuesday", which is the question support actually gets.
+model Job {
+  id       String @id @default(uuid(7)) @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+
+  queue String
+  name  String
+
+  /// What the job needs to do its work. Never credentials — a job that needs
+  /// to act as somebody carries their user id and re-resolves their grants.
+  payload Json @default("{}")
+
+  status      JobStatus @default(QUEUED)
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(3) @map("max_attempts")
+
+  /// Set for a job that should not run yet. The scheduler and any delayed
+  /// enqueue both use it.
+  scheduledFor DateTime? @map("scheduled_for") @db.Timestamptz(6)
+  startedAt    DateTime? @map("started_at") @db.Timestamptz(6)
+  finishedAt   DateTime? @map("finished_at") @db.Timestamptz(6)
+  durationMs   Int?      @map("duration_ms")
+
+  /// The last failure, kept in full. A stack trace here is the difference
+  /// between fixing a failed import and asking the customer to try again.
+  error  String?
+  result Json?
+
+  /// Who asked for it. Null for scheduled work, which nobody asked for
+  /// personally.
+  requestedById String? @map("requested_by_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([clientId, status, createdAt])
+  @@index([clientId, queue, createdAt])
+  @@index([clientId])
+  @@map("jobs")
+}
+
+/// @scope(client)
+/// Work that runs on a timetable.
+///
+/// The cron expression and the switch live here rather than in code, so a
+/// client can turn off their own nightly export without a deploy. What the
+/// schedule *does* is still code — a name the worker knows — because a
+/// schedule that could name arbitrary work would be a way to run arbitrary
+/// work.
+model JobSchedule {
+  id       String @id @default(uuid(7)) @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+
+  name        String
+  description String?
+  queue       String
+  /// The job name the worker dispatches on. Must be one the worker knows.
+  jobName     String  @map("job_name")
+  payload     Json    @default("{}")
+
+  /// Standard five-field cron, interpreted in the timezone below rather than
+  /// in the server's, because "nightly" means nightly where the client is.
+  cron     String
+  timezone String @default("Asia/Kolkata")
+
+  isActive   Boolean    @default(true) @map("is_active")
+  lastRunAt  DateTime?  @map("last_run_at") @db.Timestamptz(6)
+  nextRunAt  DateTime?  @map("next_run_at") @db.Timestamptz(6)
+  lastStatus JobStatus? @map("last_status")
+
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([clientId, isActive])
+  @@index([clientId])
+  @@map("job_schedules")
+}

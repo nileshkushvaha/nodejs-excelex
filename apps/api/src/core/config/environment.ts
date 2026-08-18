@@ -34,6 +34,27 @@ const environmentSchema = z
     SESSION_ABSOLUTE_HOURS: z.coerce.number().int().positive().default(12),
 
     WEB_ORIGIN: z.string().default("http://localhost:3000"),
+
+    /**
+     * Where the job queue lives.
+     *
+     * Redis rather than the database, because claiming work without two
+     * workers taking the same job is what a queue is for, and Postgres can be
+     * made to do it but not well. The record of what ran stays in Postgres.
+     */
+    REDIS_URL: z.string().default("redis://localhost:6379"),
+
+    /**
+     * Whether this process runs the workers as well as serving requests.
+     *
+     * True in development, where one process is the whole system. In
+     * production the workers run as their own deployment, so a rate import
+     * cannot starve the API of event loop, and so they can be scaled apart.
+     */
+    RUN_WORKERS: z
+      .string()
+      .default("true")
+      .transform((value) => value === "true"),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== "production") return;
