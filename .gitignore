@@ -6,3 +6,7 @@ dist/
 .env.local
 *.log
 .DS_Store
+
+# TypeScript incremental build state. Tracking it makes a clean build
+# silently emit nothing, because tsc believes the output already exists.
+*.tsbuildinfo

@@ -627,6 +627,42 @@ export interface AccountGroup {
   parent: { id: string; code: string; name: string } | null;
 }
 
+export interface LookupRow {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  sequence: number;
+  isActive: boolean;
+}
+
+export const getLookups = (kind: string) =>
+  get<LookupRow[]>(`/api/v1/masters/lookups/${kind}`);
+
+export interface PinCode {
+  id: string;
+  code: string;
+  city: string | null;
+  area: string | null;
+  stateCode: string | null;
+  countryCode: string;
+  oda: boolean;
+  isActive: boolean;
+  destination: { id: string; code: string; name: string } | null;
+  zone: { id: string; code: string; name: string } | null;
+}
+
+export interface PinCodePage {
+  rows: PinCode[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+}
+
+export const getPinCodes = (query: string) =>
+  get<PinCodePage>(`/api/v1/masters/pin-codes?${query}`);
+
 export const getAccountGroups = () => get<AccountGroup[]>("/api/v1/masters/account-groups");
 
 export const getShippers = (query: string) => get<ShipperPage>(`/api/v1/masters/shippers?${query}`);

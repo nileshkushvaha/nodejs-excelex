@@ -99,6 +99,8 @@ DECLARE
     'consignees',
     'shippers',
     'account_groups',
+    'lookups',
+    'pin_codes',
     'sessions',
     'invitations',
     'audit_events'
@@ -284,7 +286,7 @@ BEGIN
                         'product_types','product_groups','products','zones','destinations','service_centres','sales_executives',
                         'charges','charge_components',
                         'customers','customer_fuel_surcharges','customer_charges',
-                        'customer_volumetrics','customer_contacts','consignees','shippers','account_groups',
+                        'customer_volumetrics','customer_contacts','consignees','shippers','account_groups','lookups','pin_codes',
                         'sessions','invitations','audit_events')
       AND NOT (c.relrowsecurity AND c.relforcerowsecurity);
   IF bad > 0 THEN RAISE EXCEPTION '% client table(s) missing ENABLE+FORCE RLS', bad; END IF;

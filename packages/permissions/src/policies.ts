@@ -31,6 +31,9 @@ export const POLICIES = {
   consignee: crud("masters.customer"),
   shipper: crud("masters.customer"),
   salesExecutive: crud("masters.customer"),
+  vendor: crud("masters.vendor"),
+  lookup: crud("masters.customer"),
+  pinCode: crud("masters.destination"),
 
   destination: crud("masters.destination"),
   serviceCentre: crud("masters.branch"),

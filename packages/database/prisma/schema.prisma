@@ -893,6 +893,8 @@ model Zone {
   updatedAt    DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
   destinations Destination[]
 
+  pinCodes PinCode[]
+
   @@unique([clientId, id], name: "zone_client_id")
   @@index([clientId, code])
   @@index([clientId])
@@ -971,6 +973,8 @@ model Destination {
   /// migration: it cannot drift from the fields it summarises, and no
   /// code has to remember to maintain it. Never written by the app.
   searchText     String?   @default(dbgenerated("((((COALESCE(code, ''::text) || ' '::text) || COALESCE(name, ''::text)) || ' '::text) || COALESCE(state_code, ''::text))")) @map("search_text")
+
+  pinCodes PinCode[] @relation("PinCodeDestination")
 
   @@unique([clientId, id], name: "destination_client_id")
   /// The list is filtered and sorted on these in the database, so they are
@@ -1855,4 +1859,92 @@ model AccountGroup {
   @@index([clientId, parentId])
   @@index([clientId])
   @@map("account_groups")
+}
+
+// ─────────────────────────────────────────────────────────────
+// LOOKUPS — client scope
+// ─────────────────────────────────────────────────────────────
+
+/// What kind of list a lookup row belongs to.
+///
+/// One table rather than six, because these are all the same thing: a code, a
+/// name, and a switch. Six tables would be six migrations, six services and
+/// six screens to say nothing different. The kind is what separates them, and
+/// the unique index includes it so two kinds may share a code.
+///
+/// A lookup graduates to its own table when it grows a field the others do
+/// not have — which is exactly what happened to Product Type and Zone, and
+/// why they are not in here.
+enum LookupKind {
+  VENDOR
+  INDUSTRY
+  AREA
+  CONTENT_TYPE
+  INSTRUCTION
+  CUSTOMER_GROUP
+}
+
+/// @scope(client)
+/// A short list the rest of the system chooses from.
+model Lookup {
+  id       String @id @default(uuid(7)) @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+
+  kind LookupKind
+  code String
+  name String
+
+  description String?
+  /// Where the client wants it in a dropdown. Ties break on code.
+  sequence    Int     @default(0)
+
+  isActive  Boolean   @default(true) @map("is_active")
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([clientId, kind, code])
+  @@index([clientId, kind])
+  @@index([clientId])
+  @@map("lookups")
+}
+
+/// @scope(client)
+/// A pin code, and what the network knows about it.
+///
+/// Its own table rather than a lookup: a pin code is the join between an
+/// address and the network — which destination serves it, which zone prices
+/// it — and every one of those is a field the lookups do not have. It is also
+/// the master the booking screen hits on every keystroke.
+model PinCode {
+  id       String @id @default(uuid(7)) @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+
+  code String
+  city String?
+  /// Free text until an area is chosen from the lookup list.
+  area String?
+
+  stateCode   String? @map("state_code")
+  countryCode String  @default("IN") @map("country_code")
+
+  destinationId String? @map("destination_id") @db.Uuid
+  zoneId        String? @map("zone_id") @db.Uuid
+
+  /// Out of delivery area: priced differently and often delivered by a third
+  /// party, so it is a property of the pin code rather than of the shipment.
+  oda Boolean @default(false)
+
+  isActive  Boolean   @default(true) @map("is_active")
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  destination Destination? @relation("PinCodeDestination", fields: [clientId, destinationId], references: [clientId, id], onDelete: Restrict)
+  zone        Zone?        @relation(fields: [clientId, zoneId], references: [clientId, id], onDelete: Restrict)
+
+  @@index([clientId, code])
+  @@index([clientId, destinationId])
+  @@index([clientId])
+  @@map("pin_codes")
 }

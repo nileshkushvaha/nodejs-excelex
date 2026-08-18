@@ -21,6 +21,29 @@ import {
  * rather than inferred from which controllers happen to have an endpoint.
  */
 export const MASTERS: Record<string, MasterSpec> = {
+  "pin-codes": {
+    key: "pin_code",
+    label: { one: "Pin code", many: "Pin codes" },
+    resource: "pinCode",
+    model: "pinCode",
+    lookups: [
+      { name: "destination", model: "destination" },
+      { name: "zone", model: "zone" },
+    ],
+    include: { destination: true, zone: true },
+    columns: [
+      text("Pin Code", "code", { required: true, aliases: ["pincode", "code"] }),
+      text("City", "city"),
+      text("Area", "area"),
+      text("State", "stateCode", { upper: true }),
+      reference("Destination", "destinationId", "destination"),
+      reference("Zone", "zoneId", "zone"),
+      flag("ODA", "oda"),
+      status(),
+    ],
+    example: ["110001", "New Delhi", "Connaught Place", "DL", "DEL", "Z1", "No", "Active"],
+  },
+
   zones: {
     key: "zone",
     label: { one: "Zone", many: "Zones" },

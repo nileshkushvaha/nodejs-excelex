@@ -123,6 +123,11 @@ describe("the routing table", () => {
       consignee: "consignees",
       shipper: "shippers",
       salesExecutive: "sales-executives",
+      // The six short lists share one route, so vendors and the generic
+      // lookup resource both point at it. The segment is the list's name.
+      lookup: "lookups/:kind",
+      vendor: "lookups/:kind",
+      pinCode: "pin-codes",
       destination: "destinations",
       serviceCentre: "service-centres",
       branch: "branches",
