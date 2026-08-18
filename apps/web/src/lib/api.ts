@@ -71,6 +71,13 @@ async function get<T>(path: string): Promise<T | null> {
 export interface ActionResult {
   ok: boolean;
   error?: string;
+  /**
+   * The response body, when the endpoint returned one.
+   *
+   * Only a create has anything to say — the id of what it made, so the caller
+   * can send the user to it rather than back to a list to hunt for it.
+   */
+  data?: unknown;
 }
 
 /**
@@ -91,7 +98,12 @@ export async function apiMutate(
     return { ok: false, error: "Could not reach the server. Nothing was changed." };
   }
 
-  if (response.ok) return { ok: true };
+  // 204 is the normal answer to a PUT or DELETE here, and calling .json() on
+  // an empty body throws.
+  if (response.ok) {
+    if (response.status === 204) return { ok: true };
+    return { ok: true, data: await response.json().catch(() => undefined) };
+  }
 
   const payload = (await response.json().catch(() => null)) as
     | { message?: string | string[] }
@@ -436,6 +448,102 @@ export const getDepartments = () => get<Department[]>("/api/v1/masters/departmen
 export const getDesignations = () => get<Designation[]>("/api/v1/masters/designations");
 export const getDestinationOptions = () =>
   get<Destination[]>("/api/v1/masters/destinations/options");
+export interface CustomerRow {
+  id: string;
+  code: string;
+  name: string;
+  contactPerson: string | null;
+  mobile: string | null;
+  email: string | null;
+  isActive: boolean;
+  contractHead: string | null;
+  branch: { id: string; code: string; name: string } | null;
+  serviceCentre: { id: string; code: string; name: string } | null;
+}
+
+export interface CustomerPage {
+  rows: CustomerRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+}
+
+/**
+ * One customer, whole.
+ *
+ * Loose on purpose: the form has ninety fields and typing each one here would
+ * be a second copy of the schema to keep in step with the first. The server
+ * validates; this only has to carry the values to the inputs.
+ */
+export type Customer = Record<string, string | number | boolean | null> & {
+  id: string;
+  code: string;
+  name: string;
+};
+
+export interface CustomerFuelSurchargeRow {
+  id: string;
+  fromDate: string;
+  toDate: string;
+  vendor: string | null;
+  service: string | null;
+  percentage: string;
+  product: { id: string; code: string; name: string } | null;
+  destination: { id: string; code: string; name: string } | null;
+}
+
+export interface CustomerChargeRow {
+  id: string;
+  charge: { id: string; code: string; name: string };
+  fromDate: string;
+  toDate: string;
+  vendor: string | null;
+  service: string | null;
+  valueType: "PERCENTAGE" | "AMOUNT";
+  value: string;
+  minimumValue: string | null;
+  product: { id: string; code: string; name: string } | null;
+  origin: { id: string; code: string; name: string } | null;
+  destination: { id: string; code: string; name: string } | null;
+}
+
+export interface CustomerVolumetricRow {
+  id: string;
+  vendor: string | null;
+  service: string | null;
+  cft: string;
+  centimetreDivide: string;
+  inchDivide: string;
+  product: { id: string; code: string; name: string } | null;
+}
+
+export interface CustomerContactRow {
+  id: string;
+  contactType: string;
+  fromDate: string;
+  name: string;
+  designation: string | null;
+  email: string | null;
+  mobile: string;
+  city: string | null;
+  pinCode: string;
+  defaultShipper: boolean;
+  [key: string]: unknown;
+}
+
+export const getCustomers = (query: string) =>
+  get<CustomerPage>(`/api/v1/masters/customers?${query}`);
+export const getCustomer = (id: string) => get<Customer>(`/api/v1/masters/customers/${id}`);
+export const getCustomerFuelSurcharges = (id: string) =>
+  get<CustomerFuelSurchargeRow[]>(`/api/v1/masters/customers/${id}/fuel-surcharges`);
+export const getCustomerCharges = (id: string) =>
+  get<CustomerChargeRow[]>(`/api/v1/masters/customers/${id}/charges`);
+export const getCustomerVolumetrics = (id: string) =>
+  get<CustomerVolumetricRow[]>(`/api/v1/masters/customers/${id}/volumetrics`);
+export const getCustomerContacts = (id: string) =>
+  get<CustomerContactRow[]>(`/api/v1/masters/customers/${id}/contacts`);
+
 export const getServiceCentres = () => get<ServiceCentre[]>("/api/v1/masters/service-centres");
 export const getSalesExecutives = () =>
   get<SalesExecutive[]>("/api/v1/masters/sales-executives");

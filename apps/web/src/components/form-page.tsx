@@ -43,13 +43,25 @@ export function FormPage({
 }
 
 /** A titled panel, matching the grouped layout of the legacy forms. */
-export function FormPanel({ title, children }: { title: string; children: ReactNode }) {
+export function FormPanel({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  /** One line, for a section whose purpose is not obvious from its name. */
+  description?: string;
+  children: ReactNode;
+}) {
   return (
     <fieldset className="card rounded-xl">
       <legend className="brand-gradient ml-4 rounded-full px-3 py-0.5 text-xs font-semibold text-white">
         {title}
       </legend>
-      <div className="p-5 pt-3">{children}</div>
+      <div className="p-5 pt-3">
+        {description ? <p className="mb-4 text-sm text-muted">{description}</p> : null}
+        {children}
+      </div>
     </fieldset>
   );
 }

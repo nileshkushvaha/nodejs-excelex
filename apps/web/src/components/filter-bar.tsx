@@ -8,8 +8,12 @@ export type FilterDefinition<T> =
       key: string;
       label: string;
       placeholder?: string;
-      /** The text this filter matches against, per row. */
-      match: (row: T) => string;
+      /**
+       * The text this filter matches against, per row. Omitted when the bar
+       * drives a server query instead — a paged master filters in SQL, and
+       * there is no full row list here to match against.
+       */
+      match?: (row: T) => string;
       /** Text filters take the most room, so they can span columns. */
       span?: 2 | 3;
     }
@@ -18,7 +22,8 @@ export type FilterDefinition<T> =
       key: string;
       label: string;
       options: ReadonlyArray<{ value: string; label: string }>;
-      match: (row: T, value: string) => boolean;
+      /** Omitted when the bar drives a server query. */
+      match?: (row: T, value: string) => boolean;
       /** Preselected value. A filter that starts set must say so. */
       initial?: string;
       /** Omit to render an "All" entry; give a label to name it. */
@@ -61,6 +66,9 @@ export function useFilterBar<T>(rows: readonly T[], definitions: ReadonlyArray<F
       definitions.every((definition) => {
         const value = values[definition.key] ?? "";
         if (!value.trim()) return true;
+
+        // No match function means this filter is answered by the server.
+        if (!definition.match) return true;
 
         return definition.kind === "text"
           ? definition.match(row).toLowerCase().includes(value.trim().toLowerCase())
