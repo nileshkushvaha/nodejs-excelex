@@ -32,6 +32,7 @@ import {
   type FuelSurchargeInput,
   type VolumetricInput,
 } from "./customer-detail.service";
+import { AccountGroupService, type AccountGroupInput } from "./account-group.service";
 import { ConsigneeService, type ConsigneeInput } from "./consignee.service";
 import { CustomerService, type CustomerInput } from "./customer.service";
 import { ShipperService, type ShipperInput } from "./shipper.service";
@@ -423,6 +424,18 @@ const shipperSchema = z.object({
   isActive: z.coerce.boolean().default(true),
 });
 
+const accountGroupSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .min(1, "A group needs a code.")
+    .max(20)
+    .regex(/^[A-Za-z0-9-]+$/, "A code may use letters, numbers and hyphens only."),
+  name: z.string().trim().min(2, "A group needs a name.").max(120),
+  parentId: z.string().uuid().nullish().transform((v) => v ?? null),
+  isActive: z.coerce.boolean().default(true),
+});
+
 const consigneeSchema = z.object({
   code: z
     .string()
@@ -613,6 +626,7 @@ export class MastersController {
     private readonly customerImport: CustomerImportService,
     private readonly consignees: ConsigneeService,
     private readonly shippers: ShipperService,
+    private readonly accountGroups: AccountGroupService,
   ) {}
 
   // ── Customers ────────────────────────────────────────────────────────────
@@ -1084,6 +1098,35 @@ export class MastersController {
   @HttpCode(204)
   async deleteShipper(@Param("id", ParseUUIDPipe) id: string) {
     await this.shippers.remove(id);
+  }
+
+  // ── Account groups ───────────────────────────────────────────────────────
+  // The chart of accounts. Under the rate permissions for now, because the
+  // people who maintain heads are the people who maintain what they price.
+  @Get("account-groups")
+  @RequirePermission("masters.rate.view")
+  listAccountGroups() {
+    return this.accountGroups.list();
+  }
+
+  @Post("account-groups")
+  @RequirePermission("masters.rate.manage")
+  createAccountGroup(@Body() body: unknown) {
+    return this.accountGroups.create(parse(accountGroupSchema, body) as AccountGroupInput);
+  }
+
+  @Put("account-groups/:id")
+  @RequirePermission("masters.rate.manage")
+  @HttpCode(204)
+  async updateAccountGroup(@Param("id", ParseUUIDPipe) id: string, @Body() body: unknown) {
+    await this.accountGroups.update(id, parse(accountGroupSchema, body) as AccountGroupInput);
+  }
+
+  @Delete("account-groups/:id")
+  @RequirePermission("masters.rate.manage")
+  @HttpCode(204)
+  async deleteAccountGroup(@Param("id", ParseUUIDPipe) id: string) {
+    await this.accountGroups.remove(id);
   }
 
   // ── Sales executives ─────────────────────────────────────────────────────

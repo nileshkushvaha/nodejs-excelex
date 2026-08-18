@@ -195,6 +195,7 @@ export const NAVIGATION: readonly NavigationSection[] = [
           soon("Rate import", "/rates/import", "masters.rate.manage"),
           soon("Zone update", "/rates/zones", "masters.rate.manage"),
           { label: "Charges", href: "/rates/charges", permission: "masters.rate.view" },
+          { label: "Account groups", href: "/accounts/groups", permission: "masters.rate.view" },
           soon("Fuel surcharge", "/rates/fuel", "masters.rate.manage"),
           soon("Tax setup", "/rates/tax", "masters.rate.manage"),
         ],

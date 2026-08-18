@@ -618,6 +618,17 @@ export interface ShipperPage {
   pageCount: number;
 }
 
+export interface AccountGroup {
+  id: string;
+  code: string;
+  name: string;
+  isActive: boolean;
+  childCount: number;
+  parent: { id: string; code: string; name: string } | null;
+}
+
+export const getAccountGroups = () => get<AccountGroup[]>("/api/v1/masters/account-groups");
+
 export const getShippers = (query: string) => get<ShipperPage>(`/api/v1/masters/shippers?${query}`);
 export const getShipper = (id: string) => get<Shipper>(`/api/v1/masters/shippers/${id}`);
 

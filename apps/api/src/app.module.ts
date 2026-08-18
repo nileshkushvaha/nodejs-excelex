@@ -19,6 +19,7 @@ import { ProductImportService } from "./masters/import/product-import.service";
 import { DestinationService } from "./masters/destination.service";
 import { ProductService } from "./masters/product.service";
 import { ChargeService } from "./masters/charge.service";
+import { AccountGroupService } from "./masters/account-group.service";
 import { ConsigneeService } from "./masters/consignee.service";
 import { ShipperService } from "./masters/shipper.service";
 import { CustomerImportService } from "./masters/import/customer-import.service";
@@ -65,6 +66,7 @@ import { SettingsController } from "./settings/settings.controller";
     CustomerImportService,
     ConsigneeService,
     ShipperService,
+    AccountGroupService,
     ChargeService,
     ProfileService,
     PasswordPolicyService,

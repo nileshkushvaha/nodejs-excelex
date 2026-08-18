@@ -1786,3 +1786,45 @@ model Shipper {
   @@index([clientId])
   @@map("shippers")
 }
+
+// ─────────────────────────────────────────────────────────────
+// ACCOUNTING — client scope
+// ─────────────────────────────────────────────────────────────
+
+/// @scope(client)
+/// A node in the chart of accounts.
+///
+/// Groups nest: Sundry Debtors sits under Current Assets, which sits under
+/// Assets. The tree is what a trial balance is summed over, so the shape
+/// matters as much as the rows.
+///
+/// This is also where the customer's Contract Head and Ledger Head are
+/// eventually going to point. They are text today because this master did
+/// not exist; when they become references, this is the table.
+model AccountGroup {
+  id       String @id @default(uuid(7)) @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+
+  code String
+  name String
+
+  /// The group this one sits under. Null is a root of the tree.
+  ///
+  /// A group cannot be its own ancestor, which the database cannot express
+  /// and the service checks by walking up from the proposed parent.
+  parentId String? @map("parent_id") @db.Uuid
+
+  isActive  Boolean   @default(true) @map("is_active")
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  parent   AccountGroup?  @relation("AccountGroupTree", fields: [clientId, parentId], references: [clientId, id], onDelete: Restrict)
+  children AccountGroup[] @relation("AccountGroupTree")
+
+  @@unique([clientId, id], name: "account_group_client_id")
+  @@index([clientId, code])
+  @@index([clientId, parentId])
+  @@index([clientId])
+  @@map("account_groups")
+}
