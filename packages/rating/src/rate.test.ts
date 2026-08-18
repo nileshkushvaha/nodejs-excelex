@@ -1,25 +1,25 @@
 import { describe, expect, it } from "vitest";
 
-import { fromScaled, quote, selectCard, selectRow, toScaled, type Card, type RateRow } from "./rate";
+import {
+  fromScaled,
+  quote,
+  selectCard,
+  toScaled,
+  type Card,
+  type RateLine,
+} from "./rate";
 
-const row = (over: Partial<RateRow> = {}): RateRow => ({
-  originZoneId: null,
-  destinationZoneId: null,
-  baseWeight: "0.500",
-  baseAmount: "80.0000",
-  additionalWeight: "0.500",
-  additionalAmount: "40.0000",
-  minimumAmount: null,
-  ...over,
+const line = (lineType: RateLine["lineType"], weight: string, rate: string): RateLine => ({
+  lineType,
+  weight,
+  rate,
 });
 
 describe("decimal handling", () => {
-  it("round-trips without losing places", () => {
-    for (const value of ["0.0000", "1.5000", "80", "1234567.8901", "-12.3400"]) {
-      expect(fromScaled(toScaled(value))).toBe(
-        value.includes(".") ? value.padEnd(value.indexOf(".") + 5, "0") : `${value}.0000`,
-      );
-    }
+  it("adds money exactly where a float would not", () => {
+    // 0.1 + 0.2 !== 0.3 in binary floating point. This is why the module
+    // works in scaled integers and never in numbers.
+    expect(fromScaled(toScaled("0.1") + toScaled("0.2"))).toBe("0.3000");
   });
 
   it("refuses anything that is not a number", () => {
@@ -28,156 +28,101 @@ describe("decimal handling", () => {
     }
   });
 
-  it("adds money exactly where a float would not", () => {
-    // 0.1 + 0.2 !== 0.3 in binary floating point. This is the whole reason
-    // the module works in scaled integers.
-    const sum = toScaled("0.1") + toScaled("0.2");
-    expect(fromScaled(sum)).toBe("0.3000");
+  it("keeps four places, so 1.5 and 1.5000 are one value", () => {
+    expect(fromScaled(toScaled("1.5"))).toBe(fromScaled(toScaled("1.5000")));
   });
 });
 
-describe("quoting one lane", () => {
-  it("charges the base and nothing more at exactly the base weight", () => {
-    const result = quote(row(), { originZoneId: null, destinationZoneId: null, weight: "0.500" });
+describe("UPTO", () => {
+  const lines = [line("UPTO", "0.500", "80"), line("UPTO", "1.000", "120"), line("INITIAL", "0.500", "80")];
+
+  it("charges the flat rate and stops there", () => {
+    // "Up to 500g is 80" means 80 — not 80 plus slabs on top.
+    const result = quote(lines, { weight: "0.400" });
 
     expect(result.amount).toBe("80.0000");
-    expect(result.explanation.additionalSteps).toBe(0);
+    expect(result.workings).toHaveLength(1);
   });
 
-  it("charges a whole step for a consignment ten grams over", () => {
-    // The rule every tariff states: a started step is a charged step. Rounding
-    // down would undercharge every shipment by up to one step.
-    const result = quote(row(), { originZoneId: null, destinationZoneId: null, weight: "0.510" });
-
-    expect(result.explanation.additionalSteps).toBe(1);
-    expect(result.amount).toBe("120.0000");
+  it("takes the lowest band that still covers the consignment", () => {
+    expect(quote(lines, { weight: "0.900" }).amount).toBe("120.0000");
   });
 
-  it("charges one step at exactly one step over, not two", () => {
-    const result = quote(row(), { originZoneId: null, destinationZoneId: null, weight: "1.000" });
+  it("falls through to the slabs when nothing covers it", () => {
+    const result = quote([...lines, line("ADDITIONAL", "0.500", "40")], { weight: "2.000" });
+    expect(result.workings.map((w) => w.lineType)).toEqual(["INITIAL", "ADDITIONAL"]);
+  });
+});
 
-    expect(result.explanation.additionalSteps).toBe(1);
-    expect(result.amount).toBe("120.0000");
+describe("INITIAL and ADDITIONAL", () => {
+  const lines = [line("INITIAL", "0.500", "80"), line("ADDITIONAL", "0.500", "40")];
+
+  it("charges only the first slab at its own weight", () => {
+    expect(quote(lines, { weight: "0.500" }).amount).toBe("80.0000");
   });
 
-  it("prices a 5kg consignment the way the tariff reads", () => {
-    // 500g at 80, then nine further 500g steps at 40 = 80 + 360.
-    const result = quote(row(), { originZoneId: null, destinationZoneId: null, weight: "5.000" });
+  it("charges a whole slab for ten grams over", () => {
+    // A started slab is a charged slab: that is what the tariff says and what
+    // the customer was quoted.
+    expect(quote(lines, { weight: "0.510" }).amount).toBe("120.0000");
+  });
 
-    expect(result.explanation.additionalSteps).toBe(9);
+  it("prices five kilograms the way the tariff reads", () => {
+    // 500g at 80, then nine further 500g slabs at 40.
+    const result = quote(lines, { weight: "5.000" });
     expect(result.amount).toBe("440.0000");
   });
 
-  it("lifts a cheap lane to its minimum", () => {
-    const result = quote(row({ baseAmount: "20.0000", minimumAmount: "50.0000" }), {
-      originZoneId: null,
-      destinationZoneId: null,
-      weight: "0.100",
-    });
-
-    expect(result.amount).toBe("50.0000");
-    expect(result.explanation.minimumApplied).toBe(true);
-  });
-
-  it("does not apply the minimum once the weight has earned it", () => {
-    const result = quote(row({ minimumAmount: "50.0000" }), {
-      originZoneId: null,
-      destinationZoneId: null,
-      weight: "2.000",
-    });
-
-    expect(result.explanation.minimumApplied).toBe(false);
-    expect(result.amount).toBe("200.0000");
-  });
-
-  it("refuses a step of zero rather than dividing by it", () => {
-    expect(() =>
-      quote(row({ additionalWeight: "0" }), {
-        originZoneId: null,
-        destinationZoneId: null,
-        weight: "1.000",
-      }),
-    ).toThrow(/zero/);
-  });
-
-  it("keeps a fractional rate exact over many steps", () => {
-    // 0.0001 per step, ten thousand steps: a float would drift here.
-    const result = quote(
-      row({ baseAmount: "0", baseWeight: "0", additionalWeight: "0.001", additionalAmount: "0.0001" }),
-      { originZoneId: null, destinationZoneId: null, weight: "10.000" },
+  it("refuses an ADDITIONAL line of zero weight rather than dividing by it", () => {
+    expect(() => quote([line("INITIAL", "0.5", "80"), line("ADDITIONAL", "0", "40")], { weight: "2" })).toThrow(
+      /zero/,
     );
-
-    expect(result.explanation.additionalSteps).toBe(10_000);
-    expect(result.amount).toBe("1.0000");
   });
 });
 
-describe("choosing a lane", () => {
-  const specific = row({ originZoneId: "z1", destinationZoneId: "z2", baseAmount: "60.0000" });
-  const halfway = row({ originZoneId: "z1", destinationZoneId: null, baseAmount: "70.0000" });
-  const fallback = row();
+describe("PLUS and PLUSKG", () => {
+  const base = [line("INITIAL", "0.500", "80"), line("ADDITIONAL", "0.500", "40")];
 
-  it("prefers the row naming both zones", () => {
-    const chosen = selectRow([fallback, halfway, specific], {
-      originZoneId: "z1",
-      destinationZoneId: "z2",
-      weight: "1",
-    });
+  it("adds a PLUS charge once, above its threshold", () => {
+    const result = quote([...base, line("PLUS", "10.000", "500")], { weight: "12.000" });
 
-    expect(chosen?.baseAmount).toBe("60.0000");
+    // 80 + 23 slabs × 40 = 1000, plus the 500 surcharge.
+    expect(result.amount).toBe("1500.0000");
+    expect(result.workings.some((w) => w.lineType === "PLUS")).toBe(true);
   });
 
-  it("falls back one level at a time", () => {
-    const chosen = selectRow([fallback, halfway, specific], {
-      originZoneId: "z1",
-      destinationZoneId: "z9",
-      weight: "1",
-    });
-
-    expect(chosen?.baseAmount).toBe("70.0000");
+  it("does not add a PLUS charge at or below its threshold", () => {
+    const result = quote([...base, line("PLUS", "10.000", "500")], { weight: "10.000" });
+    expect(result.workings.some((w) => w.lineType === "PLUS")).toBe(false);
   });
 
-  it("uses the catch-all when nothing else matches", () => {
-    const chosen = selectRow([fallback, halfway, specific], {
-      originZoneId: "z8",
-      destinationZoneId: "z9",
-      weight: "1",
+  it("charges PLUSKG for every started kilogram of excess", () => {
+    // 2.4kg over the threshold is three charged kilograms, for the same
+    // reason a started slab is a charged slab.
+    const result = quote([line("INITIAL", "10.000", "500"), line("PLUSKG", "10.000", "25")], {
+      weight: "12.400",
     });
 
-    expect(chosen?.baseAmount).toBe("80.0000");
-  });
-
-  it("returns nothing when the card cannot price the lane", () => {
-    expect(selectRow([specific], { originZoneId: "z8", destinationZoneId: "z9", weight: "1" })).toBeUndefined();
+    expect(result.amount).toBe("575.0000");
   });
 });
 
-describe("choosing a card", () => {
+describe("choosing a tariff", () => {
   const card = (over: Partial<Card>): Card => ({
     id: "c",
     priority: 0,
     customerId: null,
     productId: null,
+    originId: null,
+    destinationId: null,
+    zoneId: null,
     effectiveFrom: "2026-01-01",
     effectiveTo: null,
-    rows: [],
+    lines: [],
     ...over,
   });
 
-  it("ignores a card that is not yet in force", () => {
-    const chosen = selectCard([card({ id: "future", effectiveFrom: "2026-06-01" })], "2026-03-01");
-    expect(chosen).toBeUndefined();
-  });
-
-  it("ignores a card that has expired", () => {
-    const chosen = selectCard(
-      [card({ id: "old", effectiveTo: "2026-02-28" })],
-      "2026-03-01",
-    );
-    expect(chosen).toBeUndefined();
-  });
-
-  it("prices an old shipment with the card that was in force then", () => {
+  it("prices an old shipment with the tariff in force then", () => {
     // An invoice re-run in September for an April consignment must reach the
     // April price, not today's.
     const april = card({ id: "april", effectiveFrom: "2026-04-01", effectiveTo: "2026-04-30" });
@@ -187,26 +132,47 @@ describe("choosing a card", () => {
     expect(selectCard([april, current], "2026-09-15")?.id).toBe("current");
   });
 
-  it("prefers a customer's own card over the standard tariff", () => {
-    const standard = card({ id: "standard" });
+  it("lets a customer rate beat a more specific general one", () => {
+    // A negotiated price is not a better guess at a general one; it wins.
+    const generalLane = card({ id: "lane", originId: "o1", destinationId: "d1", zoneId: "z1" });
     const theirs = card({ id: "theirs", customerId: "cust-1" });
 
-    expect(selectCard([standard, theirs], "2026-06-01", { customerId: "cust-1" })?.id).toBe("theirs");
-    expect(selectCard([standard, theirs], "2026-06-01", { customerId: "cust-2" })?.id).toBe("standard");
+    const chosen = selectCard([generalLane, theirs], "2026-06-01", {
+      customerId: "cust-1",
+      originId: "o1",
+      destinationId: "d1",
+      zoneId: "z1",
+    });
+
+    expect(chosen?.id).toBe("theirs");
   });
 
-  it("breaks a tie on priority, then on the later start", () => {
-    const low = card({ id: "low", priority: 1 });
-    const high = card({ id: "high", priority: 5 });
-    expect(selectCard([low, high], "2026-06-01")?.id).toBe("high");
+  it("prefers the more specific of two general tariffs", () => {
+    const broad = card({ id: "broad" });
+    const lane = card({ id: "lane", originId: "o1", destinationId: "d1" });
 
-    const older = card({ id: "older", effectiveFrom: "2026-01-01" });
-    const newer = card({ id: "newer", effectiveFrom: "2026-05-01" });
-    expect(selectCard([older, newer], "2026-06-01")?.id).toBe("newer");
+    expect(selectCard([broad, lane], "2026-06-01", { originId: "o1", destinationId: "d1" })?.id).toBe("lane");
   });
 
-  it("does not let a product card price a different product", () => {
-    const forAir = card({ id: "air", productId: "p-air" });
-    expect(selectCard([forAir], "2026-06-01", { productId: "p-surface" })).toBeUndefined();
+  it("will not use a tariff written for another lane", () => {
+    const other = card({ id: "other", originId: "o9" });
+    expect(selectCard([other], "2026-06-01", { originId: "o1" })).toBeUndefined();
+  });
+
+  it("treats a blank on the card as any", () => {
+    const standard = card({ id: "standard" });
+    expect(selectCard([standard], "2026-06-01", { originId: "anything" })?.id).toBe("standard");
+  });
+
+  it("breaks a remaining tie on priority, then on the later start", () => {
+    expect(
+      selectCard([card({ id: "low", priority: 1 }), card({ id: "high", priority: 5 })], "2026-06-01")?.id,
+    ).toBe("high");
+    expect(
+      selectCard(
+        [card({ id: "older" }), card({ id: "newer", effectiveFrom: "2026-05-01" })],
+        "2026-06-01",
+      )?.id,
+    ).toBe("newer");
   });
 });

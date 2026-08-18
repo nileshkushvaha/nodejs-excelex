@@ -897,8 +897,8 @@ model Zone {
 
   pinCodes PinCode[]
 
-  rateRowOrigins      RateCardRow[] @relation("RateRowOrigin")
-  rateRowDestinations RateCardRow[] @relation("RateRowDestination")
+  rateZones       RateCard[] @relation("RateZone")
+  rateOriginZones RateCard[] @relation("RateOriginZone")
 
   @@unique([clientId, id], name: "zone_client_id")
   @@index([clientId, code])
@@ -980,6 +980,9 @@ model Destination {
   searchText     String?   @default(dbgenerated("((((COALESCE(code, ''::text) || ' '::text) || COALESCE(name, ''::text)) || ' '::text) || COALESCE(state_code, ''::text))")) @map("search_text")
 
   pinCodes PinCode[] @relation("PinCodeDestination")
+
+  rateOrigins      RateCard[] @relation("RateOrigin")
+  rateDestinations RateCard[] @relation("RateDestination")
 
   @@unique([clientId, id], name: "destination_client_id")
   /// The list is filtered and sorted on these in the database, so they are
@@ -1960,45 +1963,82 @@ model PinCode {
 // RATING — client scope
 // ─────────────────────────────────────────────────────────────
 
-/// Who a rate card is for.
+/// Who a rate is for.
 ///
-/// A sell card prices what a customer pays; a buy card prices what a vendor
-/// charges us. They are the same shape and must never be confused, which is
-/// why the distinction is an enum on the row rather than a naming convention
-/// in the code.
-enum RateCardKind {
+/// A sell rate is what a customer pays; a buy rate is what a vendor charges
+/// us. Same shape, opposite direction, and confusing the two would invoice a
+/// customer at cost — which is why it is a column rather than a convention.
+enum RateKind {
   SELL
   BUY
 }
 
-/// @scope(client)
-/// A priced agreement, effective between two dates.
+/// The unit a tariff is quoted in.
+enum WeightUnit {
+  KGS
+  LBS
+}
+
+/// How one line of a tariff is read.
 ///
-/// Effective dating is the whole point. An invoice raised in April must still
-/// be explainable in September with the card that priced it, so a rate change
-/// is a new card rather than an edit to the old one. Nothing here is ever
-/// updated in place once it has priced a shipment.
+/// These are the client's own five, and between them they express every
+/// courier tariff: a flat charge up to a weight, a first slab, a repeating
+/// slab, and two ways of charging for everything above a threshold.
+enum RateLineType {
+  /// Flat charge for anything at or below this weight.
+  UPTO
+  /// The first slab: this weight costs this much.
+  INITIAL
+  /// Each further slab of this weight costs this much.
+  ADDITIONAL
+  /// Above this weight, add this amount once.
+  PLUS
+  /// Above this weight, add this amount for every kilogram.
+  PLUSKG
+}
+
+/// @scope(client)
+/// A tariff for one lane, effective from a date.
+///
+/// The key is wide because the client's own rate file is: origin, customer,
+/// date, vendor, product, service, zone, country and destination all narrow
+/// which rate applies. Every one of those is optional except the date —
+/// a blank means "any", which is how a standard tariff is written.
+///
+/// Effective dating is the point. A rate change is a new row, not an edit,
+/// because an invoice raised in April must still be explainable in September
+/// with the tariff that priced it.
 model RateCard {
   id       String @id @default(uuid(7)) @db.Uuid
   clientId String @map("client_id") @db.Uuid
 
-  code String
-  name String
-  kind RateCardKind @default(SELL)
+  kind RateKind @default(SELL)
 
-  /// Null means the card applies to everyone it is not overridden for.
-  customerId String? @map("customer_id") @db.Uuid
+  customerId    String? @map("customer_id") @db.Uuid
+  originId      String? @map("origin_id") @db.Uuid
+  destinationId String? @map("destination_id") @db.Uuid
+  productId     String? @map("product_id") @db.Uuid
+  zoneId        String? @map("zone_id") @db.Uuid
+  originZoneId  String? @map("origin_zone_id") @db.Uuid
+
   /// Free text until the vendor lookup becomes a reference.
-  vendor     String?
-  productId  String? @map("product_id") @db.Uuid
+  vendor      String?
+  service     String?
+  countryCode String? @map("country_code")
+  contractNo  String? @map("contract_no")
 
   effectiveFrom DateTime  @map("effective_from") @db.Date
-  /// Null is an open-ended card — the common case for a standard tariff.
   effectiveTo   DateTime? @map("effective_to") @db.Date
 
-  /// The order cards are considered in when several could apply. Higher wins,
-  /// so a customer's own card can be given precedence over the standard one
-  /// without deactivating anything.
+  unit WeightUnit @default(KGS)
+  /// Committed transit days for the lane. Quoted with the rate, so it belongs
+  /// with it rather than in a separate table nobody updates.
+  days Int?
+
+  /// Charged once per airway bill, on top of the weight calculation.
+  awbCharge Decimal? @map("awb_charge") @db.Decimal(14, 4)
+
+  /// Which rate wins when several could apply. Higher first.
   priority Int @default(0)
 
   isActive  Boolean   @default(true) @map("is_active")
@@ -2006,57 +2046,45 @@ model RateCard {
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  customer Customer?     @relation(fields: [clientId, customerId], references: [clientId, id], onDelete: Restrict)
-  product  Product?      @relation(fields: [clientId, productId], references: [clientId, id], onDelete: Restrict)
-  rows     RateCardRow[]
+  customer    Customer?    @relation(fields: [clientId, customerId], references: [clientId, id], onDelete: Restrict)
+  product     Product?     @relation(fields: [clientId, productId], references: [clientId, id], onDelete: Restrict)
+  origin      Destination? @relation("RateOrigin", fields: [clientId, originId], references: [clientId, id], onDelete: Restrict)
+  destination Destination? @relation("RateDestination", fields: [clientId, destinationId], references: [clientId, id], onDelete: Restrict)
+  zone        Zone?        @relation("RateZone", fields: [clientId, zoneId], references: [clientId, id], onDelete: Restrict)
+  originZone  Zone?        @relation("RateOriginZone", fields: [clientId, originZoneId], references: [clientId, id], onDelete: Restrict)
+  lines       RateLine[]
 
   @@unique([clientId, id], name: "rate_card_client_id")
-  @@index([clientId, code])
-  @@index([clientId, customerId])
+  @@index([clientId, customerId, effectiveFrom])
   @@index([clientId, effectiveFrom, effectiveTo])
   @@index([clientId])
   @@map("rate_cards")
 }
 
 /// @scope(client)
-/// One lane on a rate card: a zone pair, and what it costs.
+/// One line of a tariff: a type, a weight and a rate.
 ///
-/// The shape is the one Indian courier tariffs actually use — a base weight
-/// with a base amount, then a rate for each additional step. "First 500g is
-/// ₹80, every further 500g is ₹40" is two numbers and two weights, not a
-/// table of slabs, and modelling it as slabs would mean generating hundreds
-/// of rows for a card somebody wrote on one line.
-model RateCardRow {
+/// The client's rate file is one row per line with the whole key repeated, so
+/// this is the row that file becomes. Lines are read in weight order, and
+/// what each type means is documented on RateLineType rather than in the
+/// pricing code, because a tariff is a contract before it is an algorithm.
+model RateLine {
   id         String @id @default(uuid(7)) @db.Uuid
   clientId   String @map("client_id") @db.Uuid
   rateCardId String @map("rate_card_id") @db.Uuid
 
-  /// Null on either side means "any zone", so a card can price one lane
-  /// specifically and everything else with a fallback row.
-  originZoneId      String? @map("origin_zone_id") @db.Uuid
-  destinationZoneId String? @map("destination_zone_id") @db.Uuid
-
-  /// Kilograms, to three places: couriers price in grams and 0.001 is the
-  /// smallest unit anybody quotes.
-  baseWeight Decimal @default(0.5) @map("base_weight") @db.Decimal(10, 3)
-  baseAmount Decimal @map("base_amount") @db.Decimal(14, 4)
-
-  /// The step above the base, and what each step costs.
-  additionalWeight Decimal @default(0.5) @map("additional_weight") @db.Decimal(10, 3)
-  additionalAmount Decimal @default(0) @map("additional_amount") @db.Decimal(14, 4)
-
-  /// A floor for the lane, applied after the weight calculation.
-  minimumAmount Decimal? @map("minimum_amount") @db.Decimal(14, 4)
+  lineType RateLineType @map("line_type")
+  /// The weight this line applies at, in the card's own unit.
+  weight   Decimal      @db.Decimal(10, 3)
+  rate     Decimal      @db.Decimal(14, 4)
 
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  rateCard        RateCard @relation(fields: [clientId, rateCardId], references: [clientId, id], onDelete: Cascade)
-  originZone      Zone?    @relation("RateRowOrigin", fields: [clientId, originZoneId], references: [clientId, id], onDelete: Restrict)
-  destinationZone Zone?    @relation("RateRowDestination", fields: [clientId, destinationZoneId], references: [clientId, id], onDelete: Restrict)
+  rateCard RateCard @relation(fields: [clientId, rateCardId], references: [clientId, id], onDelete: Cascade)
 
-  @@index([clientId, rateCardId])
+  @@index([clientId, rateCardId, weight])
   @@index([clientId])
-  @@map("rate_card_rows")
+  @@map("rate_lines")
 }

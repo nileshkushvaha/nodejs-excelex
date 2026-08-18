@@ -42,97 +42,154 @@ export function fromScaled(value: bigint): string {
   return `${negative ? "-" : ""}${whole}.${fraction}`;
 }
 
-export interface RateRow {
-  /** Null means the row applies to any zone on that side. */
-  readonly originZoneId: string | null;
-  readonly destinationZoneId: string | null;
-  readonly baseWeight: string;
-  readonly baseAmount: string;
-  readonly additionalWeight: string;
-  readonly additionalAmount: string;
-  readonly minimumAmount: string | null;
+/**
+ * How one line of a tariff is read.
+ *
+ * These five are the client's own, taken from their rate file rather than
+ * invented. What each means is stated here because a tariff is a contract
+ * before it is an algorithm, and the person checking an invoice is reading
+ * this list, not the code below it.
+ */
+export type RateLineType = "UPTO" | "INITIAL" | "ADDITIONAL" | "PLUS" | "PLUSKG";
+
+export interface RateLine {
+  readonly lineType: RateLineType;
+  /** The weight the line applies at, in the card's own unit. */
+  readonly weight: string;
+  readonly rate: string;
 }
 
 export interface Consignment {
-  readonly originZoneId: string | null;
-  readonly destinationZoneId: string | null;
-  /** Chargeable weight in kilograms, already the greater of actual and volumetric. */
+  /** Chargeable weight, already the greater of actual and volumetric. */
   readonly weight: string;
 }
 
 export interface Quote {
   readonly amount: string;
-  /** How it was reached, so an invoice query has an answer. */
-  readonly explanation: {
-    readonly baseWeight: string;
-    readonly baseAmount: string;
-    readonly additionalSteps: number;
-    readonly additionalAmount: string;
-    readonly minimumApplied: boolean;
-  };
+  /** Every line that contributed, so an invoice query has an answer. */
+  readonly workings: ReadonlyArray<{
+    readonly lineType: RateLineType;
+    readonly weight: string;
+    readonly rate: string;
+    readonly amount: string;
+    readonly note: string;
+  }>;
 }
 
 /**
- * The most specific row that covers a lane.
+ * Prices one consignment against one tariff.
  *
- * A row naming both zones beats one naming a single zone, which beats the
- * catch-all. Without an order, a card with a specific lane and a fallback
- * would price by whichever row the database returned first.
- */
-export function selectRow(rows: readonly RateRow[], consignment: Consignment): RateRow | undefined {
-  const matches = rows.filter(
-    (row) =>
-      (row.originZoneId === null || row.originZoneId === consignment.originZoneId) &&
-      (row.destinationZoneId === null || row.destinationZoneId === consignment.destinationZoneId),
-  );
-
-  const specificity = (row: RateRow) =>
-    (row.originZoneId === null ? 0 : 1) + (row.destinationZoneId === null ? 0 : 1);
-
-  return matches.sort((a, b) => specificity(b) - specificity(a))[0];
-}
-
-/**
- * Prices one consignment against one row.
+ * The order is the order a tariff is read in:
  *
- * The rule is the one every Indian courier tariff states: a base weight for a
- * base amount, then a whole step charged for every started step above it. A
- * consignment 10 grams over its base pays a full additional step, because
- * that is what the tariff says and what the customer was quoted — rounding it
- * down would undercharge every shipment by up to one step.
+ *   1. UPTO — a flat charge for anything at or below its weight. The lowest
+ *      one that covers the consignment wins, and it ends the calculation:
+ *      "up to 500g is ₹80" means ₹80, not ₹80 plus slabs.
+ *   2. INITIAL — the first slab. Its weight is included in its rate.
+ *   3. ADDITIONAL — each further slab of its weight. A started slab is a
+ *      charged slab, because that is what the tariff says and what the
+ *      customer was quoted; rounding down would undercharge every shipment.
+ *   4. PLUS and PLUSKG — charged above their threshold, once or per kilogram.
+ *
+ * Everything is computed in scaled integers. No value here is ever a
+ * JavaScript number with a fraction: 0.1 + 0.2 is not 0.3, and an invoice is
+ * the last place to find that out.
  */
-export function quote(row: RateRow, consignment: Consignment): Quote {
+export function quote(lines: readonly RateLine[], consignment: Consignment): Quote {
   const weight = toScaled(consignment.weight);
-  const baseWeight = toScaled(row.baseWeight);
-  const baseAmount = toScaled(row.baseAmount);
-  const stepWeight = toScaled(row.additionalWeight);
-  const stepAmount = toScaled(row.additionalAmount);
+  const workings: Array<{
+    lineType: RateLineType;
+    weight: string;
+    rate: string;
+    amount: string;
+    note: string;
+  }> = [];
 
-  if (stepWeight <= 0n) {
-    throw new Error("An additional weight step of zero cannot price anything.");
+  const of = (type: RateLineType) =>
+    lines
+      .filter((line) => line.lineType === type)
+      .sort((a, b) => (toScaled(a.weight) < toScaled(b.weight) ? -1 : 1));
+
+  // 1. A flat charge that covers the whole consignment ends the matter.
+  const upto = of("UPTO").find((line) => weight <= toScaled(line.weight));
+  if (upto) {
+    workings.push({
+      lineType: "UPTO",
+      weight: upto.weight,
+      rate: upto.rate,
+      amount: fromScaled(toScaled(upto.rate)),
+      note: `Flat charge up to ${upto.weight}`,
+    });
+    return { amount: fromScaled(toScaled(upto.rate)), workings };
   }
 
-  let steps = 0n;
-  if (weight > baseWeight) {
-    const over = weight - baseWeight;
-    // Ceiling division: a started step is a charged step.
-    steps = (over + stepWeight - 1n) / stepWeight;
+  let total = 0n;
+
+  // 2. The first slab, whose weight is included in its rate.
+  const initial = of("INITIAL")[0];
+  let covered = 0n;
+  if (initial) {
+    total += toScaled(initial.rate);
+    covered = toScaled(initial.weight);
+    workings.push({
+      lineType: "INITIAL",
+      weight: initial.weight,
+      rate: initial.rate,
+      amount: initial.rate,
+      note: `First ${initial.weight}`,
+    });
   }
 
-  const computed = baseAmount + steps * stepAmount;
-  const minimum = row.minimumAmount === null ? 0n : toScaled(row.minimumAmount);
-  const amount = computed < minimum ? minimum : computed;
+  // 3. Repeating slabs above it.
+  const additional = of("ADDITIONAL")[0];
+  if (additional && weight > covered) {
+    const step = toScaled(additional.weight);
+    if (step <= 0n) throw new Error("An ADDITIONAL line with a weight of zero cannot price anything.");
 
-  return {
-    amount: fromScaled(amount),
-    explanation: {
-      baseWeight: row.baseWeight,
-      baseAmount: row.baseAmount,
-      additionalSteps: Number(steps),
-      additionalAmount: fromScaled(steps * stepAmount),
-      minimumApplied: computed < minimum,
-    },
-  };
+    // Ceiling division: a started slab is a charged slab.
+    const steps = (weight - covered + step - 1n) / step;
+    const amount = steps * toScaled(additional.rate);
+    total += amount;
+    workings.push({
+      lineType: "ADDITIONAL",
+      weight: additional.weight,
+      rate: additional.rate,
+      amount: fromScaled(amount),
+      note: `${steps} × ${additional.weight} above ${fromScaled(covered)}`,
+    });
+  }
+
+  // 4. Anything charged for being over a threshold.
+  for (const line of of("PLUS")) {
+    if (weight <= toScaled(line.weight)) continue;
+    total += toScaled(line.rate);
+    workings.push({
+      lineType: "PLUS",
+      weight: line.weight,
+      rate: line.rate,
+      amount: line.rate,
+      note: `Above ${line.weight}`,
+    });
+  }
+
+  for (const line of of("PLUSKG")) {
+    const threshold = toScaled(line.weight);
+    if (weight <= threshold) continue;
+
+    // Per kilogram of excess, rounded up: a part kilogram is a charged one,
+    // for the same reason a started slab is.
+    const excessKg = (weight - threshold + SCALE - 1n) / SCALE;
+    const amount = excessKg * toScaled(line.rate);
+    total += amount;
+    workings.push({
+      lineType: "PLUSKG",
+      weight: line.weight,
+      rate: line.rate,
+      amount: fromScaled(amount),
+      note: `${excessKg}kg above ${line.weight}`,
+    });
+  }
+
+  return { amount: fromScaled(total), workings };
 }
 
 export interface Card {
@@ -140,9 +197,21 @@ export interface Card {
   readonly priority: number;
   readonly customerId: string | null;
   readonly productId: string | null;
+  readonly originId: string | null;
+  readonly destinationId: string | null;
+  readonly zoneId: string | null;
   readonly effectiveFrom: string;
   readonly effectiveTo: string | null;
-  readonly rows: readonly RateRow[];
+  readonly lines: readonly RateLine[];
+}
+
+/** What a shipment is, for the purpose of choosing a tariff. */
+export interface Lane {
+  readonly customerId?: string | null;
+  readonly productId?: string | null;
+  readonly originId?: string | null;
+  readonly destinationId?: string | null;
+  readonly zoneId?: string | null;
 }
 
 /**
@@ -156,26 +225,42 @@ export interface Card {
  * reason customer cards exist, and it must not depend on the order rows come
  * back in.
  */
-export function selectCard(
-  cards: readonly Card[],
-  on: string,
-  context: { customerId?: string | null; productId?: string | null } = {},
-): Card | undefined {
+export function selectCard(cards: readonly Card[], on: string, lane: Lane = {}): Card | undefined {
+  // A blank on the card means "any", which is how a standard tariff is
+  // written. A value must match, or the card is not for this shipment.
+  const matches = (cardValue: string | null, laneValue: string | null | undefined) =>
+    cardValue === null || cardValue === laneValue;
+
   const applicable = cards.filter((card) => {
     if (card.effectiveFrom > on) return false;
     if (card.effectiveTo !== null && card.effectiveTo < on) return false;
-    if (card.customerId !== null && card.customerId !== context.customerId) return false;
-    if (card.productId !== null && card.productId !== context.productId) return false;
-    return true;
+    return (
+      matches(card.customerId, lane.customerId) &&
+      matches(card.productId, lane.productId) &&
+      matches(card.originId, lane.originId) &&
+      matches(card.destinationId, lane.destinationId) &&
+      matches(card.zoneId, lane.zoneId)
+    );
   });
 
+  /**
+   * The most specific tariff wins, counted by how many of its fields are
+   * filled in. A rate written for one customer on one lane beats the standard
+   * tariff; without this, a client with both would price by whichever row the
+   * database happened to return first.
+   */
+  const specificity = (card: Card) =>
+    [card.customerId, card.productId, card.originId, card.destinationId, card.zoneId].filter(
+      (value) => value !== null,
+    ).length;
+
   return applicable.sort((a, b) => {
+    // A customer's own rate outranks anything general, however specific the
+    // general one is: it is a negotiated price, not a better guess.
     const customer = Number(b.customerId !== null) - Number(a.customerId !== null);
     if (customer !== 0) return customer;
 
-    const product = Number(b.productId !== null) - Number(a.productId !== null);
-    if (product !== 0) return product;
-
+    if (specificity(b) !== specificity(a)) return specificity(b) - specificity(a);
     if (b.priority !== a.priority) return b.priority - a.priority;
     return b.effectiveFrom.localeCompare(a.effectiveFrom);
   })[0];
