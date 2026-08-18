@@ -6,6 +6,7 @@ import { SecuritySettingsService } from "../settings/security-settings.service";
 import { effectivePermissions, toGrantSet, type UserWithGrants } from "./grants";
 
 import { PrismaService } from "../core/database/prisma.service";
+import { NotificationService } from "../core/notifications/notification.service";
 import { LoginHistoryService } from "../system/login-history/login-history.service";
 import { ActorCache } from "./actor-cache";
 import { SessionService } from "./session.service";
@@ -60,6 +61,7 @@ export class AuthService {
     private readonly sessions: SessionService,
     private readonly actors: ActorCache,
     private readonly loginHistory: LoginHistoryService,
+    private readonly notifications: NotificationService,
   ) {}
 
   /**
@@ -298,8 +300,15 @@ export class AuthService {
    */
   private async recordFailure(
     clientId: string,
-    user: { id: string; email: string; failedLoginAttempts: number; isActive: boolean },
-    settings: { lockAfterFailedAttempts: boolean; maxFailedAttempts: number; lockoutMinutes: number },
+    user: { id: string; email: string; fullName: string; failedLoginAttempts: number; isActive: boolean },
+    settings: {
+      lockAfterFailedAttempts: boolean;
+      maxFailedAttempts: number;
+      lockoutMinutes: number;
+      notifyUserOnFailedAttempts: boolean;
+      notifyUserOnLock: boolean;
+      notifyAdminOnLock: boolean;
+    },
     host: string,
     ip?: string,
     userAgent?: string,
@@ -348,6 +357,58 @@ export class AuthService {
         userAgent,
       });
     });
+
+    // The notices the security settings promise. After the transaction, so a
+    // mail server or a notification table that misbehaves cannot undo the
+    // counter — and each is fire-and-forget for the same reason.
+    const where = `${host}${ip ? ` (${ip})` : ""}`;
+    if (shouldLock) {
+      if (settings.notifyUserOnLock) {
+        void this.notifications.notify({
+          clientId,
+          userIds: [user.id],
+          kind: "auth.account_locked",
+          severity: "WARNING",
+          title: "Your account was locked",
+          body: `Too many failed sign-in attempts from ${where}. ${
+            settings.lockoutMinutes === 0
+              ? "An administrator must unlock it."
+              : `It unlocks in ${settings.lockoutMinutes} minutes, or you can reset your password now.`
+          }`,
+          href: "/forgot-password",
+          entity: { type: "user", id: user.id },
+          email: { template: "auth.account_locked" },
+        });
+      }
+      if (settings.notifyAdminOnLock) {
+        void this.notifications.notify({
+          clientId,
+          permission: "settings.user.manage",
+          exclude: [user.id],
+          kind: "auth.account_locked.admin",
+          severity: "WARNING",
+          title: `${user.fullName}'s account was locked`,
+          body: `${user.email} was locked after ${attempts} failed sign-in attempts from ${where}. Unlock it from Users if this was them.`,
+          href: `/users/${user.id}`,
+          entity: { type: "user", id: user.id },
+          email: { template: "auth.account_locked.admin" },
+        });
+      }
+    } else if (settings.notifyUserOnFailedAttempts && attempts === Math.max(1, settings.maxFailedAttempts - 2)) {
+      // Once per lock cycle, at "two more and you are locked" — not on every
+      // wrong password, which would teach people to ignore the message.
+      void this.notifications.notify({
+        clientId,
+        userIds: [user.id],
+        kind: "auth.failed_attempts",
+        severity: "INFO",
+        title: "Failed sign-in attempts on your account",
+        body: `${attempts} failed sign-in attempts from ${where}. ${settings.maxFailedAttempts - attempts} more and the account locks. If this was not you, reset your password.`,
+        href: "/forgot-password",
+        entity: { type: "user", id: user.id },
+        email: { template: "auth.failed_attempts" },
+      });
+    }
   }
 
   private toActor(

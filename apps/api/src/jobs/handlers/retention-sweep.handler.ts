@@ -67,10 +67,17 @@ export async function runRetentionSweep(envelope: JobEnvelope<RetentionSweepPayl
     where: { createdAt: { lt: new Date(Date.now() - 7 * 86_400_000) } },
   });
 
+  // Read or not, a ninety-day-old notification is history, and history is
+  // what the audit trail is for.
+  const notifications = await tx.notification.deleteMany({
+    where: { createdAt: { lt: new Date(Date.now() - 90 * 86_400_000) } },
+  });
+
   return {
     sessions: sessions.count,
     jobs: jobs.count,
     passwordResets: passwordResets.count,
+    notifications: notifications.count,
     loginAttempts: loginAttempts.count,
     horizons: {
       sessions: sessionsBefore.toISOString(),

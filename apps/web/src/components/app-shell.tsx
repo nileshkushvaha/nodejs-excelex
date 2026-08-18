@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { CommandPalette } from "@/components/command-palette";
 import { FullscreenToggle, HelpMenu, QuickLinksMenu, TrackingSearch } from "@/components/header-menus";
+import { NotificationBell } from "@/components/notification-bell";
 import { Sidebar } from "@/components/sidebar";
 import { ThemeToggle } from "@/components/theme";
 
@@ -91,7 +92,7 @@ export function AppShell({
             <FullscreenToggle />
             <ThemeToggle />
             <HelpMenu permissions={permissions} />
-            <Notifications />
+            <NotificationBell />
             <UserMenu user={user} />
           </div>
         </header>
@@ -135,57 +136,6 @@ function StatusPill({ status, host }: { status: string; host: string }) {
  * having nothing to show. There is no notification system yet — a badge with a
  * number on it would be the first thing a user learns not to trust.
  */
-function Notifications() {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function onDown(event: MouseEvent) {
-      if (!ref.current?.contains(event.target as Node)) setOpen(false);
-    }
-    function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((p) => !p)}
-        aria-label="Notifications"
-        aria-expanded={open}
-        className="grid h-9 w-9 place-items-center rounded-full border border-line text-muted transition-colors hover:bg-surface-2 hover:text-fg focus-visible:outline-2 focus-visible:outline-accent"
-      >
-        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="h-4 w-4">
-          <path d="M12 2a6 6 0 00-6 6v3.6l-1.7 3.1A1 1 0 005.2 16h13.6a1 1 0 00.9-1.3L18 11.6V8a6 6 0 00-6-6zm0 20a3 3 0 002.8-2H9.2a3 3 0 002.8 2z" />
-        </svg>
-      </button>
-
-      {open ? (
-        <div
-          role="dialog"
-          aria-label="Notifications"
-          className="absolute right-0 z-50 mt-1 w-72 card rounded-xl p-4 shadow-lg"
-        >
-          <p className="text-sm font-medium text-fg">No notifications</p>
-          <p className="mt-1 text-xs text-muted">
-            Alerts for quota warnings, failed jobs and locked accounts arrive with the modules that
-            raise them. Everything that happens is already recorded in the audit trail.
-          </p>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 function UserMenu({ user }: { user: { fullName: string; email: string } }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);

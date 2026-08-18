@@ -28,7 +28,9 @@ The constraint that shapes all of it is ADR-0002: a client's rows are reachable 
 
 **7. Outgoing mail goes through the queue, from a per-client transport.** `MailService.send()` writes an outbox row (`mail_messages`) and enqueues `mail.send`; the job renders from a single layout, hands the message to the client's transport — their own SMTP server if configured (password sealed with AES-256-GCM under `SECRETS_KEY`, opened only in the sending process), else the deployment's `SMTP_URL` — and records the outcome on the row. A request never waits on a mail server; "did the email go out" is answered from the outbox. Settings live at `/settings/mail` with a test-send that records its result.
 
-**8. Permissions.** A new `System` group: `system.queue`, `system.schedule`, `system.cache` (view/manage each), `system.login.view`, `system.performance.view`. The activity log reads the audit trail and keeps `settings.audit.view`. View and manage are split throughout because reading a queue is harmless and draining one is not.
+**8. Notifications are per person, resolved by permission at send time.** `NotificationService.notify()` names recipients directly or as "everyone who holds permission X", resolved with the same resolver the guard uses; each recipient gets a row (`notifications`) and, when the notice says so, an email through the outbox with the row linked. Producers so far: the four `notify*` security switches (lockout to the person and to user administrators; failed attempts once per lock cycle), final job failures, failed schedule dispatches and undelivered mail — each to the people who could act. The bell polls; `/notifications` lists; ninety days then the sweep.
+
+**9. Permissions.** A new `System` group: `system.queue`, `system.schedule`, `system.cache` (view/manage each), `system.login.view`, `system.performance.view`. The activity log reads the audit trail and keeps `settings.audit.view`. View and manage are split throughout because reading a queue is harmless and draining one is not.
 
 ## Alternatives considered
 

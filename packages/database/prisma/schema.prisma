@@ -2386,3 +2386,49 @@ model PasswordReset {
   @@index([clientId])
   @@map("password_resets")
 }
+
+// ─────────────────────────────────────────────────────────────
+// NOTIFICATIONS — client scope
+// ─────────────────────────────────────────────────────────────
+
+enum NotificationSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+/// @scope(client)
+/// One thing one person should know about.
+///
+/// In-app first: the bell, the count, the list. Email is a channel some
+/// notifications also use — a locked-out person cannot see the bell — and
+/// when it is used, the outbox row is linked so "was I told" has one
+/// answer. Rows are per recipient rather than per event, because read
+/// state is per person and because who receives what is decided at the
+/// moment of sending, from the permissions they hold then.
+model Notification {
+  id       String @id @default(uuid(7)) @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+  userId   String @map("user_id") @db.Uuid
+
+  /// Dotted, stable: "auth.account_locked", "job.failed". Grouped on.
+  kind     String
+  severity NotificationSeverity @default(INFO)
+  title    String
+  body     String
+  /// Where in the application this is about, if anywhere.
+  href       String?
+  entityType String? @map("entity_type")
+  entityId   String? @map("entity_id")
+
+  /// The outbox row, when this was also emailed.
+  mailMessageId String? @map("mail_message_id") @db.Uuid
+
+  readAt    DateTime? @map("read_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([clientId, userId, readAt, createdAt])
+  @@index([clientId, kind, createdAt])
+  @@index([clientId])
+  @@map("notifications")
+}

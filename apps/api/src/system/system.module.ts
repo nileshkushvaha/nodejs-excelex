@@ -4,6 +4,7 @@ import { JobsModule } from "../jobs/jobs.module";
 import { ActivityModule } from "./activity/activity.module";
 import { CacheModule } from "./cache/cache.module";
 import { LoginHistoryModule } from "./login-history/login-history.module";
+import { NotificationsModule } from "./notifications/notifications.module";
 import { PerformanceModule } from "./performance/performance.module";
 import { QueueModule } from "./queue/queue.module";
 import { SchedulerModule } from "./scheduler/scheduler.module";
@@ -25,6 +26,7 @@ import { SchedulerModule } from "./scheduler/scheduler.module";
     CacheModule,
     ActivityModule,
     LoginHistoryModule,
+    NotificationsModule,
     PerformanceModule,
   ],
 })

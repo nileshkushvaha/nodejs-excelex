@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 
-import { NotEnforced, SaveBar, SettingsCard, numberField } from "@/components/settings-card";
+import { SaveBar, SettingsCard, numberField } from "@/components/settings-card";
 import { Toggle } from "@/components/toggle";
 import type { ActionResult, SecuritySettings } from "@/lib/api";
 import { saveLoginSecurity } from "./actions";
@@ -155,7 +155,11 @@ export function LoginSecurityForm({
           defaultChecked={settings.notifyAdminOnLock}
           disabled={!canManage}
         />
-        <NotEnforced reason="there is no mail transport yet. Every event below is already written to the audit trail, so nothing is lost in the meantime." />
+        <p className="text-xs text-muted">
+          Enforced. Notices arrive in the bell and, where the switch says so, by email through the
+          account&rsquo;s outgoing mail settings. &ldquo;Failed attempts&rdquo; is sent once per lock cycle,
+          when two attempts remain.
+        </p>
       </SettingsCard>
 
       <SaveBar pending={pending} updatedAt={settings.updatedAt} canManage={canManage} />

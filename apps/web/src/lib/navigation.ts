@@ -305,7 +305,6 @@ export const NAVIGATION: readonly NavigationSection[] = [
           { label: "Activity log", href: "/system/activity", permission: "settings.audit.view" },
           { label: "Login history", href: "/system/login-history", permission: "system.login.view" },
           { label: "Application performance", href: "/system/performance", permission: "system.performance.view" },
-          soon("Notifications", "/system/notifications"),
           soon("Exceptions", "/system/exceptions"),
           soon("Tickets", "/system/tickets"),
         ],

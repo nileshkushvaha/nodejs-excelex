@@ -39,6 +39,15 @@ export interface SendRequest {
   readonly clientId?: string;
 }
 
+export interface MailFailureEvent {
+  readonly clientId: string;
+  readonly messageId: string;
+  readonly template: string;
+  readonly to: string;
+  readonly error: string;
+  readonly provider: "PLATFORM" | "SMTP";
+}
+
 interface ResolvedTransport {
   readonly transporter: Transporter;
   readonly from: { name: string; address: string };
@@ -51,6 +60,7 @@ export class MailService implements OnModuleInit {
   private readonly logger = new Logger(MailService.name);
   private readonly box: SecretBox;
   private readonly transports = new Map<string, ResolvedTransport>();
+  private readonly failureListeners: Array<(event: MailFailureEvent) => void> = [];
 
   constructor(
     @Inject(ENVIRONMENT) private readonly environment: Environment,
@@ -159,6 +169,16 @@ export class MailService implements OnModuleInit {
         });
       });
       logEvent(this.logger, "warn", "mail.delivery_failed", { clientId, messageId, template: row.template, provider: transport.provider, message });
+      // The worker has already counted this attempt on the row.
+      if (job && job.attempts >= job.maxAttempts) {
+        for (const listener of this.failureListeners) {
+          try {
+            listener({ clientId, messageId, template: row.template, to: row.toEmail, error: message, provider: transport.provider });
+          } catch {
+            // A listener's failure is not the mail's problem.
+          }
+        }
+      }
       throw error;
     }
   }
@@ -184,6 +204,16 @@ export class MailService implements OnModuleInit {
       html: rendered.html,
     });
     return { providerMessageId: typeof info?.messageId === "string" ? info.messageId : null };
+  }
+
+  /**
+   * Told when a message has failed for the last time. The notification
+   * service listens, so the people who manage mail hear about a dead
+   * message; a listener here rather than an import there, because the
+   * notification service sends mail and the dependency must point one way.
+   */
+  onDeliveryFailed(listener: (event: MailFailureEvent) => void): void {
+    this.failureListeners.push(listener);
   }
 
   /** Called when a client's settings change, so the next send rebuilds. */

@@ -1278,3 +1278,28 @@ export interface MailMessagePage {
 
 export const getMailSettings = () => get<MailSettings>("/api/v1/settings/mail");
 export const getMailMessages = (query: string) => get<MailMessagePage>(`/api/v1/settings/mail/messages?${query}`);
+
+// ── Notifications ───────────────────────────────────────────────────────────
+
+export interface NotificationItem {
+  id: string;
+  kind: string;
+  severity: "INFO" | "WARNING" | "CRITICAL";
+  title: string;
+  body: string;
+  href: string | null;
+  entity: { type: string; id: string | null } | null;
+  emailed: boolean;
+  readAt: string | null;
+  createdAt: string;
+}
+
+export interface NotificationPage {
+  rows: NotificationItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+}
+
+export const getNotifications = (query: string) => get<NotificationPage>(`/api/v1/notifications?${query}`);

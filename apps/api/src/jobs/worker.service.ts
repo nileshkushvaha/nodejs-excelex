@@ -3,6 +3,7 @@ import { Worker, type Job as BullJob } from "bullmq";
 
 import { ENVIRONMENT, type Environment } from "../core/config/environment";
 import { PrismaService } from "../core/database/prisma.service";
+import { NotificationService } from "../core/notifications/notification.service";
 import { ErrorReporter } from "../core/observability/error-reporter";
 import { logEvent } from "../core/observability/log-event";
 import { MetricsService } from "../core/metrics/metrics.service";
@@ -49,6 +50,7 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
     private readonly queues: QueueService,
     private readonly registry: JobRegistry,
     private readonly reporter: ErrorReporter,
+    private readonly notifications: NotificationService,
     private readonly metrics: MetricsService,
   ) {}
 
@@ -90,6 +92,19 @@ export class WorkerService implements OnApplicationBootstrap, OnModuleDestroy {
         // Reported on the last attempt only: a retry that succeeds was not
         // an incident, and the row records every attempt regardless.
         if (job && job.attemptsMade >= (job.opts.attempts ?? 1)) {
+          if (job.data?.clientId && job.name !== "mail.send") {
+            // Mail failures are told to the mail administrators by MailService.
+            void this.notifications.notify({
+              clientId: job.data.clientId,
+              permission: "system.queue.view",
+              kind: "job.failed",
+              severity: "WARNING",
+              title: `Background job failed: ${job.name}`,
+              body: `${job.name} on the ${name} queue failed after ${job.attemptsMade} attempt(s): ${error.message.split("\n")[0]}`,
+              href: job.data.jobId ? `/system/queues?jobId=${job.data.jobId}` : "/system/queues",
+              entity: job.data.jobId ? { type: "job", id: job.data.jobId } : undefined,
+            });
+          }
           this.reporter.captureException(error, {
             event: "job.failed",
             clientId: job.data?.clientId,

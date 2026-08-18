@@ -4,6 +4,7 @@ import { Inject, Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } f
 
 import { ENVIRONMENT, type Environment } from "../../core/config/environment";
 import { PrismaService } from "../../core/database/prisma.service";
+import { NotificationService } from "../../core/notifications/notification.service";
 import { ErrorReporter } from "../../core/observability/error-reporter";
 import { DefaultSchedulesService } from "./default-schedules.service";
 import { logEvent } from "../../core/observability/log-event";
@@ -59,6 +60,7 @@ export class SchedulerService implements OnApplicationBootstrap, OnModuleDestroy
     private readonly queues: QueueService,
     private readonly reporter: ErrorReporter,
     private readonly defaults: DefaultSchedulesService,
+    private readonly notifications: NotificationService,
   ) {}
 
   get enabled(): boolean {
@@ -141,6 +143,16 @@ export class SchedulerService implements OnApplicationBootstrap, OnModuleDestroy
         try {
           if (await this.dispatch(schedule, now)) dispatched += 1;
         } catch (error) {
+          void this.notifications.notify({
+            clientId: schedule.clientId,
+            permission: "system.schedule.view",
+            kind: "schedule.dispatch_failed",
+            severity: "WARNING",
+            title: `Schedule could not run: ${schedule.name}`,
+            body: `${schedule.name} (${schedule.jobName}) could not be dispatched: ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`,
+            href: "/system/scheduler",
+            entity: { type: "job_schedule", id: schedule.id },
+          });
           this.reporter.captureException(error, {
             event: "scheduler.dispatch_failed",
             clientId: schedule.clientId,

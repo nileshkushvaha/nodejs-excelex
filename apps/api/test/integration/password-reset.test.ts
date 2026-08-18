@@ -118,7 +118,7 @@ describe("password reset by mailed code", () => {
     // The mail job runs in the same process; give it a moment.
     for (let i = 0; i < 60; i += 1) {
       const row = await prisma.forClient(TEST_ADMIN.clientId, async (tx) =>
-        tx.mailMessage.findFirst({ where: { toEmail: RESET_EMAIL, template: "auth.password_reset" }, orderBy: { createdAt: "desc" }, include: {} }),
+        tx.mailMessage.findFirst({ where: { toEmail: RESET_EMAIL, template: "auth.password_reset" }, orderBy: { createdAt: "desc" } }),
       );
       if (row?.status === "SENT") break;
       await new Promise((resolve) => setTimeout(resolve, 100));

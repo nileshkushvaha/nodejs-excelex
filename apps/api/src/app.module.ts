@@ -15,6 +15,7 @@ import { OriginCheckMiddleware } from "./core/http/origin-check.middleware";
 import { CoreModule } from "./core/core.module";
 import { DashboardController } from "./dashboard/dashboard.controller";
 import { MailModule } from "./core/mail/mail.module";
+import { NotificationModule } from "./core/notifications/notification.module";
 import { JobsModule } from "./jobs/jobs.module";
 import { SystemModule } from "./system/system.module";
 import { HealthController } from "./health/health.controller";
@@ -64,7 +65,7 @@ import { SecuritySettingsService } from "./settings/security-settings.service";
 import { SettingsController } from "./settings/settings.controller";
 
 @Module({
-  imports: [CoreModule, JobsModule, MailModule, SystemModule],
+  imports: [CoreModule, JobsModule, MailModule, NotificationModule, SystemModule],
   controllers: [
     AccessController,
     AuthController,
