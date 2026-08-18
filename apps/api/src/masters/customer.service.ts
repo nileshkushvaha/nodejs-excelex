@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from "@nestjs/comm
 import { Prisma } from "@excelex/database";
 
 import { requireRequestContext } from "../core/context/request-context";
+import { paginate } from "./paged";
 import { PrismaService } from "../core/database/prisma.service";
 
 /** The columns the list screen shows, and nothing else. */
@@ -54,10 +55,6 @@ export class CustomerService {
   async list(query: CustomerListQuery): Promise<CustomerPage> {
     const { clientId } = requireRequestContext();
 
-    const page = Math.max(1, query.page);
-    // Capped so a hand-edited pageSize cannot ask for the whole master.
-    const pageSize = Math.min(100, Math.max(5, query.pageSize));
-
     const where: Prisma.CustomerWhereInput = {
       deletedAt: null,
       ...(query.branchId ? { branchId: query.branchId } : {}),
@@ -76,43 +73,18 @@ export class CustomerService {
         : {}),
     };
 
-    return this.prisma.forClient(clientId!, async (tx) => {
-      // Count and page in one round trip. They must see the same snapshot or
-      // the last page can report rows it cannot show.
-      const [total, rows] = await Promise.all([
-        tx.customer.count({ where }),
-        tx.customer.findMany({
+    return this.prisma.forClient(clientId!, async (tx) =>
+      paginate(
+        tx.customer,
+        {
           where,
           include: { branch: true, serviceCentre: true },
           orderBy: { code: "asc" },
-          skip: (page - 1) * pageSize,
-          take: pageSize,
-        }),
-      ]);
-
-      return {
-        rows: rows.map((row) => ({
-          id: row.id,
-          code: row.code,
-          name: row.name,
-          contactPerson: row.contactPerson,
-          mobile: row.mobile,
-          email: row.email,
-          isActive: row.isActive,
-          contractHead: row.contractHead,
-          branch: row.branch
-            ? { id: row.branch.id, code: row.branch.code, name: row.branch.name }
-            : null,
-          serviceCentre: row.serviceCentre
-            ? { id: row.serviceCentre.id, code: row.serviceCentre.code, name: row.serviceCentre.name }
-            : null,
-        })),
-        total,
-        page,
-        pageSize,
-        pageCount: Math.max(1, Math.ceil(total / pageSize)),
-      };
-    });
+          request: { page: query.page, pageSize: query.pageSize },
+        },
+        toRow,
+      ),
+    );
   }
 
   /**
@@ -469,4 +441,33 @@ function serialise(row: Record<string, unknown>) {
     }
   }
   return out;
+}
+
+/** The list row, from the record the query loaded. */
+function toRow(row: {
+  id: string;
+  code: string;
+  name: string;
+  contactPerson: string | null;
+  mobile: string | null;
+  email: string | null;
+  isActive: boolean;
+  contractHead: string | null;
+  branch: { id: string; code: string; name: string } | null;
+  serviceCentre: { id: string; code: string; name: string } | null;
+}): CustomerRow {
+  return {
+    id: row.id,
+    code: row.code,
+    name: row.name,
+    contactPerson: row.contactPerson,
+    mobile: row.mobile,
+    email: row.email,
+    isActive: row.isActive,
+    contractHead: row.contractHead,
+    branch: row.branch ? { id: row.branch.id, code: row.branch.code, name: row.branch.name } : null,
+    serviceCentre: row.serviceCentre
+      ? { id: row.serviceCentre.id, code: row.serviceCentre.code, name: row.serviceCentre.name }
+      : null,
+  };
 }

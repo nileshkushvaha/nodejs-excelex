@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from "@nestjs/comm
 import { Prisma } from "@excelex/database";
 
 import { requireRequestContext } from "../core/context/request-context";
+import { paginate } from "./paged";
 import { PrismaService } from "../core/database/prisma.service";
 
 export interface ShipperInput {
@@ -80,32 +81,19 @@ export class ShipperService {
 
   async list(query: ShipperListQuery) {
     const { clientId } = requireRequestContext();
-    const page = Math.max(1, query.page);
-    const pageSize = Math.min(100, Math.max(5, query.pageSize));
-    const where = this.where(query);
 
-    return this.prisma.forClient(clientId!, async (tx) => {
-      // Counted and paged together, or the last page can report rows it
-      // cannot show.
-      const [total, rows] = await Promise.all([
-        tx.shipper.count({ where }),
-        tx.shipper.findMany({
-          where,
+    return this.prisma.forClient(clientId!, async (tx) =>
+      paginate(
+        tx.shipper,
+        {
+          where: this.where(query),
           include: { origin: true, serviceCentre: true },
           orderBy: [{ code: "asc" }],
-          skip: (page - 1) * pageSize,
-          take: pageSize,
-        }),
-      ]);
-
-      return {
-        rows: rows.map(serialise),
-        total,
-        page,
-        pageSize,
-        pageCount: Math.max(1, Math.ceil(total / pageSize)),
-      };
-    });
+          request: { page: query.page, pageSize: query.pageSize },
+        },
+        serialise,
+      ),
+    );
   }
 
   async listForExport(query: Omit<ShipperListQuery, "page" | "pageSize">) {
