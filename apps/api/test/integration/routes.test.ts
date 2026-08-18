@@ -1,8 +1,12 @@
 import type { INestApplication } from "@nestjs/common";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { POLICIES, permissionFor, type Resource } from "@excelex/permissions";
 import { startApi } from "./harness";
+import { routeCensus } from "./route-snapshot";
 
 /**
  * A census of the routing table, asserted rather than assumed.
@@ -56,6 +60,24 @@ describe("the routing table", () => {
 
   afterAll(async () => {
     await app.close();
+  });
+
+  it("registers exactly the routes it registered before", () => {
+    // A committed snapshot, so a refactor that must change nothing can be
+    // shown to have changed nothing. Splitting the masters controller moves
+    // 88 routes between files; this is what proves none of them moved
+    // between paths.
+    //
+    // When a route is genuinely added, the snapshot is updated in the same
+    // commit — which makes the addition visible in review rather than hidden
+    // inside a large diff.
+    // __dirname rather than import.meta: this package compiles to CommonJS,
+    // and the test must run under the same module system as the code it tests.
+    const expected = JSON.parse(
+      readFileSync(join(__dirname, "routes.snapshot.json"), "utf8"),
+    ) as string[];
+
+    expect(routeCensus(app)).toEqual(expected);
   });
 
   it("registers the masters surface", () => {

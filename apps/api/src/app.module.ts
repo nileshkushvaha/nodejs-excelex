@@ -13,7 +13,6 @@ import { ClientResolutionMiddleware } from "./core/context/client-resolution.mid
 import { PrismaService } from "./core/database/prisma.service";
 import { DashboardController } from "./dashboard/dashboard.controller";
 import { HealthController } from "./health/health.controller";
-import { MastersController } from "./masters/masters.controller";
 import { OrganisationService } from "./masters/organisation.service";
 import { DestinationImportService } from "./masters/import/destination-import.service";
 import { ProductImportService } from "./masters/import/product-import.service";
@@ -21,6 +20,18 @@ import { DestinationService } from "./masters/destination.service";
 import { ProductService } from "./masters/product.service";
 import { ChargeService } from "./masters/charge.service";
 import { DataController } from "./masters/data.controller";
+import { AccountGroupsController } from "./masters/account-groups.controller";
+import { ChargesController } from "./masters/charges.controller";
+import { ConsigneesController } from "./masters/consignees.controller";
+import { CustomersController } from "./masters/customers.controller";
+import { DestinationsController } from "./masters/destinations.controller";
+import { OrganisationController } from "./masters/organisation.controller";
+import { ProductsController } from "./masters/products.controller";
+import { ReferenceController } from "./masters/reference.controller";
+import { SalesExecutivesController } from "./masters/sales-executives.controller";
+import { ServiceCentresController } from "./masters/service-centres.controller";
+import { ShippersController } from "./masters/shippers.controller";
+import { ZonesController } from "./masters/zones.controller";
 import { MasterIoService } from "./masters/import/master-io.service";
 import { AccountGroupService } from "./masters/account-group.service";
 import { ConsigneeService } from "./masters/consignee.service";
@@ -45,7 +56,18 @@ import { SettingsController } from "./settings/settings.controller";
     AuthController,
     DashboardController,
     HealthController,
-    MastersController,
+    AccountGroupsController,
+    ChargesController,
+    ConsigneesController,
+    CustomersController,
+    DestinationsController,
+    OrganisationController,
+    ProductsController,
+    ReferenceController,
+    SalesExecutivesController,
+    ServiceCentresController,
+    ShippersController,
+    ZonesController,
     ProfileController,
     SettingsController,
     DataController,
