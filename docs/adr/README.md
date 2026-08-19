@@ -24,6 +24,7 @@ Each ADR states: context, decision, alternatives considered (with the reason eac
 | [0003](ADR-0003-session-and-auth-boundary.md) | Session and authentication boundary | Accepted | 1 |
 | [0004](ADR-0004-background-work-and-system-operations.md) | Background work and the System screens (queue, scheduler, cache, activity, login history, performance) | Accepted | 1 |
 | [0005](ADR-0005-error-handling-and-observability.md) | Error handling, logging and correlation: one vocabulary, one envelope, one filter; structured logs; the web reads the contract | Accepted | 1 |
+| [0006](ADR-0006-content-management.md) | Content management: pages, posts, taxonomies, media, menus — client-scoped, on the client's host | Accepted | 1 |
 
 ## Open decisions
 

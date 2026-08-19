@@ -22,6 +22,7 @@
     "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1112.0",
     "@excelex/database": "workspace:*",
     "@excelex/permissions": "workspace:*",
     "@excelex/rating": "workspace:*",
@@ -41,6 +42,9 @@
     "prom-client": "^15.1.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "sanitize-html": "^2.17.7",
+    "sharp": "^0.35.3",
+    "slugify": "^1.6.9",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -55,6 +59,7 @@
     "@types/multer": "^2.2.0",
     "@types/node": "^24.0.0",
     "@types/nodemailer": "^8.0.1",
+    "@types/sanitize-html": "^2.16.1",
     "@types/supertest": "^7.2.1",
     "eslint": "^9.18.0",
     "eslint-config-prettier": "^10.0.1",

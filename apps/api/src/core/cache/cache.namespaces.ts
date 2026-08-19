@@ -36,6 +36,11 @@ export const CACHE_NAMESPACES = {
     description: "Rate lookups for pricing.",
     ttlSeconds: 600,
   },
+  cms: {
+    label: "Public site",
+    description: "Published pages, posts, menus and site settings as the public site reads them; invalidated on publish.",
+    ttlSeconds: 300,
+  },
   dashboard: {
     label: "Dashboard",
     description: "Summary figures for the dashboard.",

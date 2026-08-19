@@ -33,7 +33,8 @@ export type PermissionGroup =
   | "Billing"
   | "Reports"
   | "Settings"
-  | "System";
+  | "System"
+  | "Content";
 
 function define<const T extends readonly PermissionDefinition[]>(definitions: T): T {
   return definitions;
@@ -114,6 +115,22 @@ export const PERMISSION_DEFINITIONS = define([
   { key: "system.performance.view", group: "System", label: "View application performance", description: "See request latency, error rates, event-loop and database health for this deployment." },
   { key: "system.exception.view", group: "System", label: "View exceptions", description: "See server-side failures grouped by cause, with their stacks and references." },
   { key: "system.exception.manage", group: "System", label: "Manage exceptions", description: "Resolve, ignore and reopen exception groups." },
+
+  // ── Content ──────────────────────────────────────────────────────────────
+  // The public site and blog. Publish is separate from manage so a writer
+  // can draft and an editor can release — WordPress's contributor / editor
+  // distinction without new role machinery.
+  { key: "cms.page.view", group: "Content", label: "View pages", description: "See the site's pages, including drafts." },
+  { key: "cms.page.manage", group: "Content", label: "Edit pages", description: "Create and edit pages and their drafts." },
+  { key: "cms.page.publish", group: "Content", label: "Publish pages", description: "Publish, schedule, unpublish and delete pages." },
+  { key: "cms.post.view", group: "Content", label: "View posts", description: "See blog posts, including drafts." },
+  { key: "cms.post.manage", group: "Content", label: "Edit posts", description: "Write and edit posts and their drafts." },
+  { key: "cms.post.publish", group: "Content", label: "Publish posts", description: "Publish, schedule, unpublish and delete posts." },
+  { key: "cms.taxonomy.manage", group: "Content", label: "Manage categories and tags", description: "Create, rename, merge and delete categories and tags." },
+  { key: "cms.media.view", group: "Content", label: "View media", description: "Browse the media library." },
+  { key: "cms.media.manage", group: "Content", label: "Manage media", description: "Upload, edit and delete media." },
+  { key: "cms.menu.manage", group: "Content", label: "Manage menus", description: "Change the site's navigation menus." },
+  { key: "cms.settings.manage", group: "Content", label: "Manage site settings", description: "Change the site title, home page, blog and SEO defaults." },
 ] as const satisfies readonly PermissionDefinition[]);
 
 /** Every permission key, as a union type. A typo is a compile error. */

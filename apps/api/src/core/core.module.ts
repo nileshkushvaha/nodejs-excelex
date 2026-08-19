@@ -11,6 +11,7 @@ import { ExceptionRecorder } from "./observability/exception-recorder";
 import { RateLimitGuard } from "./rate-limit/rate-limit.guard";
 import { RateLimiterService } from "./rate-limit/rate-limiter.service";
 import { RedisService } from "./redis/redis.service";
+import { StorageService } from "./storage/storage.service";
 
 /**
  * The handles every feature needs and none should construct.
@@ -34,10 +35,11 @@ import { RedisService } from "./redis/redis.service";
     RateLimiterService,
     ErrorReporter,
     ExceptionRecorder,
+    StorageService,
     PrismaService,
     RedisService,
     CacheService,
   ],
-  exports: [ENVIRONMENT, PrismaService, RedisService, CacheService, RateLimiterService, ErrorReporter, ExceptionRecorder],
+  exports: [ENVIRONMENT, PrismaService, RedisService, CacheService, RateLimiterService, ErrorReporter, ExceptionRecorder, StorageService],
 })
 export class CoreModule {}

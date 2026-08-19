@@ -2517,3 +2517,283 @@ model ExceptionGroup {
   @@index([clientId])
   @@map("exception_groups")
 }
+
+// ─────────────────────────────────────────────────────────────
+// CMS — client scope (ADR-0006)
+// ─────────────────────────────────────────────────────────────
+
+enum CmsKind {
+  PAGE
+  POST
+}
+
+enum CmsStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  ARCHIVED
+}
+
+enum CmsTaxonomy {
+  CATEGORY
+  TAG
+}
+
+/// @scope(client)
+/// A page or a post: everything a client publishes on its own site.
+///
+/// One table for both because the machinery — drafts, publishing, revisions,
+/// SEO, an author, a body — is the same; `kind` and a few nullable columns
+/// are the difference. The body is HTML the API has sanitised; `plainText`
+/// is derived from it for search and excerpts. Slugs are unique per client
+/// per kind and a published slug is not renamed silently: the old one is
+/// kept as a redirect.
+model CmsContent {
+  id       String @id @default(uuid(7)) @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+
+  kind   CmsKind
+  status CmsStatus @default(DRAFT)
+
+  title    String
+  slug     String
+  excerpt  String?
+  /// Sanitised HTML.
+  body      String  @default("")
+  plainText String  @default("") @map("plain_text")
+
+  /// Pages: hierarchy and ordering for menus and breadcrumbs.
+  parentId  String? @map("parent_id") @db.Uuid
+  menuOrder Int     @default(0) @map("menu_order")
+  /// Pages: which layout the public site renders — "default", "landing", "full-width".
+  template String @default("default")
+
+  featuredMediaId String? @map("featured_media_id") @db.Uuid
+
+  /// SEO. Null means "derive from the content".
+  metaTitle       String? @map("meta_title")
+  metaDescription String? @map("meta_description")
+  canonicalUrl    String? @map("canonical_url")
+  noIndex         Boolean @default(false) @map("no_index")
+  ogImageMediaId  String? @map("og_image_media_id") @db.Uuid
+
+  authorId     String?   @map("author_id") @db.Uuid
+  publishedAt  DateTime? @map("published_at") @db.Timestamptz(6)
+  scheduledFor DateTime? @map("scheduled_for") @db.Timestamptz(6)
+
+  /// Sticky posts float to the top of listings; WordPress's "sticky".
+  isSticky Boolean @default(false) @map("is_sticky")
+  /// Comma-free JSON bag for what the schema does not name yet.
+  attributes Json @default("{}")
+
+  createdById String?   @map("created_by_id") @db.Uuid
+  updatedById String?   @map("updated_by_id") @db.Uuid
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  terms     CmsContentTerm[]
+  revisions CmsRevision[]
+
+  @@unique([clientId, id])
+  @@unique([clientId, kind, slug])
+  @@index([clientId, kind, status, publishedAt])
+  @@index([clientId, kind, slug])
+  @@index([clientId, parentId, menuOrder])
+  @@index([clientId])
+  @@map("cms_contents")
+}
+
+/// @scope(client)
+/// A snapshot of the editable fields, taken on every save.
+model CmsRevision {
+  id        String @id @default(uuid(7)) @db.Uuid
+  clientId  String @map("client_id") @db.Uuid
+  contentId String @map("content_id") @db.Uuid
+
+  title    String
+  slug     String
+  excerpt  String?
+  body     String
+  /// The rest of the editable state (SEO, template, terms…), so a restore is complete.
+  snapshot Json
+  /// "save", "publish", "restore", "autosave".
+  reason String @default("save")
+
+  authorId  String?  @map("author_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  content CmsContent @relation(fields: [clientId, contentId], references: [clientId, id], onDelete: Cascade)
+
+  @@unique([clientId, id])
+  @@index([clientId, contentId, createdAt])
+  @@index([clientId])
+  @@map("cms_revisions")
+}
+
+/// @scope(client)
+/// A slug a published item used to have, so old links keep working.
+model CmsRedirect {
+  id       String @id @default(uuid(7)) @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+
+  fromPath String   @map("from_path")
+  toPath   String   @map("to_path")
+  /// 301 by default; 302 for something temporary.
+  statusCode Int    @default(301) @map("status_code")
+  hits      Int    @default(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([clientId, fromPath])
+  @@index([clientId])
+  @@map("cms_redirects")
+}
+
+/// @scope(client)
+/// Categories (hierarchical) and tags (flat), in one table.
+model CmsTerm {
+  id       String @id @default(uuid(7)) @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+
+  taxonomy    CmsTaxonomy
+  name        String
+  slug        String
+  description String?
+  parentId    String? @map("parent_id") @db.Uuid
+  /// Denormalised: how many published posts carry it. Kept by the service.
+  count Int @default(0)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  contents CmsContentTerm[]
+
+  @@unique([clientId, id])
+  @@unique([clientId, taxonomy, slug])
+  @@index([clientId, taxonomy, name])
+  @@index([clientId])
+  @@map("cms_terms")
+}
+
+/// @scope(client)
+model CmsContentTerm {
+  clientId  String @map("client_id") @db.Uuid
+  contentId String @map("content_id") @db.Uuid
+  termId    String @map("term_id") @db.Uuid
+
+  content CmsContent @relation(fields: [clientId, contentId], references: [clientId, id], onDelete: Cascade)
+  term    CmsTerm    @relation(fields: [clientId, termId], references: [clientId, id], onDelete: Cascade)
+
+  @@id([clientId, contentId, termId])
+  @@index([clientId, termId])
+  @@index([clientId])
+  @@map("cms_content_terms")
+}
+
+/// @scope(client)
+/// The media library: what was uploaded, and where its bytes are.
+model CmsMedia {
+  id       String @id @default(uuid(7)) @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+
+  /// The storage key, unique per client; the driver turns it into a URL.
+  storageKey String @map("storage_key")
+  fileName   String @map("file_name")
+  mimeType   String @map("mime_type")
+  sizeBytes  Int    @map("size_bytes")
+  width      Int?
+  height     Int?
+  /// A short hash of the bytes, for de-duplication and cache busting.
+  checksum String?
+
+  title   String?
+  altText String? @map("alt_text")
+  caption String?
+  /// A folder-like label an editor can filter by.
+  folder String?
+
+  uploadedById String?   @map("uploaded_by_id") @db.Uuid
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([clientId, storageKey])
+  @@index([clientId, createdAt])
+  @@index([clientId, mimeType])
+  @@index([clientId])
+  @@map("cms_media")
+}
+
+/// @scope(client)
+/// A navigation menu, by location: "header", "footer", or a custom name.
+model CmsMenu {
+  id       String @id @default(uuid(7)) @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+
+  name     String
+  location String
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  items CmsMenuItem[]
+
+  @@unique([clientId, id])
+  @@unique([clientId, location])
+  @@index([clientId])
+  @@map("cms_menus")
+}
+
+/// @scope(client)
+/// One entry in a menu, nested by parent, pointing at content, a term or a URL.
+model CmsMenuItem {
+  id       String @id @default(uuid(7)) @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+  menuId   String @map("menu_id") @db.Uuid
+
+  parentId String? @map("parent_id") @db.Uuid
+  position Int     @default(0)
+
+  label       String
+  description String?
+  /// Exactly one of the three targets is set; the URL is used as-is.
+  contentId String? @map("content_id") @db.Uuid
+  termId    String? @map("term_id") @db.Uuid
+  url       String?
+  openInNewTab Boolean @default(false) @map("open_in_new_tab")
+
+  menu CmsMenu @relation(fields: [clientId, menuId], references: [clientId, id], onDelete: Cascade)
+
+  @@unique([clientId, id])
+  @@index([clientId, menuId, parentId, position])
+  @@index([clientId])
+  @@map("cms_menu_items")
+}
+
+/// @scope(client)
+/// The site as a whole: one row per client, created on first save.
+model CmsSiteSettings {
+  id       String @id @default(uuid(7)) @db.Uuid
+  clientId String @unique @map("client_id") @db.Uuid
+
+  siteTitle   String?  @map("site_title")
+  tagline     String?
+  /// Null: the static home page. Set: that page is the home page.
+  homePageId  String?  @map("home_page_id") @db.Uuid
+  /// Where the blog index lives, e.g. "/blog".
+  blogPath    String   @default("/blog") @map("blog_path")
+  postsPerPage Int     @default(10) @map("posts_per_page")
+  footerText  String?  @map("footer_text")
+  socialLinks Json     @default("[]") @map("social_links")
+  /// Default SEO when a page has none.
+  defaultMetaDescription String? @map("default_meta_description")
+  defaultOgImageMediaId  String? @map("default_og_image_media_id") @db.Uuid
+  /// Robots: whether the whole site is indexable (a staging client says no).
+  indexable Boolean @default(true)
+
+  updatedById String?  @map("updated_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("cms_site_settings")
+}

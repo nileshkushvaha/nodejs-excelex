@@ -14,6 +14,7 @@ import { ClientResolutionMiddleware } from "./core/context/client-resolution.mid
 import { OriginCheckMiddleware } from "./core/http/origin-check.middleware";
 import { CoreModule } from "./core/core.module";
 import { DashboardController } from "./dashboard/dashboard.controller";
+import { CmsModule } from "./cms/cms.module";
 import { MailModule } from "./core/mail/mail.module";
 import { NotificationModule } from "./core/notifications/notification.module";
 import { JobsModule } from "./jobs/jobs.module";
@@ -65,7 +66,7 @@ import { SecuritySettingsService } from "./settings/security-settings.service";
 import { SettingsController } from "./settings/settings.controller";
 
 @Module({
-  imports: [CoreModule, JobsModule, MailModule, NotificationModule, SystemModule],
+  imports: [CoreModule, JobsModule, MailModule, NotificationModule, SystemModule, CmsModule],
   controllers: [
     AccessController,
     AuthController,

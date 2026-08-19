@@ -72,6 +72,14 @@ export const POLICIES = {
   loginHistory: readOnly("system.login"),
   performance: readOnly("system.performance"),
   exception: crud("system.exception"),
+
+  // Content: view / manage, with publish as its own key checked by name.
+  cmsPage: crud("cms.page"),
+  cmsPost: crud("cms.post"),
+  cmsTerm: { view: "cms.post.view", create: "cms.taxonomy.manage", update: "cms.taxonomy.manage", delete: "cms.taxonomy.manage", import: "cms.taxonomy.manage", export: "cms.post.view" },
+  cmsMedia: crud("cms.media"),
+  cmsMenu: { view: "cms.page.view", create: "cms.menu.manage", update: "cms.menu.manage", delete: "cms.menu.manage", import: "cms.menu.manage", export: "cms.page.view" },
+  cmsSettings: { view: "cms.page.view", create: "cms.settings.manage", update: "cms.settings.manage", delete: "cms.settings.manage", import: "cms.settings.manage", export: "cms.page.view" },
 } as const satisfies Record<string, Policy>;
 
 export type Resource = keyof typeof POLICIES;

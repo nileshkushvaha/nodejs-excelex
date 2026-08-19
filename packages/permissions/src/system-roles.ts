@@ -93,4 +93,26 @@ export const SYSTEM_ROLES: readonly SystemRoleDefinition[] = [
       "reports.operations.view",
     ],
   },
+  {
+    name: "Content Editor",
+    description: "Writes and publishes the public site and blog. No access to operations or billing.",
+    permissions: [
+      "cms.page.view",
+      "cms.page.manage",
+      "cms.page.publish",
+      "cms.post.view",
+      "cms.post.manage",
+      "cms.post.publish",
+      "cms.taxonomy.manage",
+      "cms.media.view",
+      "cms.media.manage",
+      "cms.menu.manage",
+      "cms.settings.manage",
+    ],
+  },
+  {
+    name: "Content Writer",
+    description: "Drafts pages and posts for an editor to publish.",
+    permissions: ["cms.page.view", "cms.page.manage", "cms.post.view", "cms.post.manage", "cms.media.view", "cms.media.manage"],
+  },
 ];

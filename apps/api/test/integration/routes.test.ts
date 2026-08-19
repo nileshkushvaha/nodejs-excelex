@@ -153,6 +153,12 @@ describe("the routing table", () => {
       loginHistory: "system/login-history",
       performance: "system/performance",
       exception: "system/exceptions",
+      cmsPage: "cms/pages",
+      cmsPost: "cms/posts",
+      cmsTerm: "cms/terms",
+      cmsMedia: "cms/media",
+      cmsMenu: "cms/menus",
+      cmsSettings: "cms/settings",
     };
 
     const paths = routes.map((route) => route.path).join(" ");

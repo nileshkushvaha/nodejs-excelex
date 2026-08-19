@@ -126,6 +126,24 @@ const environmentSchema = z
     SECRETS_KEY: z.string().min(1).default("ZGV2ZWxvcG1lbnQtb25seS1zZWNyZXRzLWtleS0wMDE="),
 
     /**
+     * Where uploaded files live. "local" writes under STORAGE_ROOT and the API
+     * serves them; "s3" writes to S3-compatible object storage (AWS S3, MinIO,
+     * R2) and serves from STORAGE_PUBLIC_URL. Production must use s3: local
+     * disk is per API instance and vanishes with the container.
+     */
+    STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),
+    STORAGE_ROOT: z.string().min(1).default("./storage"),
+    STORAGE_S3_BUCKET: z.string().min(1).optional(),
+    STORAGE_S3_REGION: z.string().min(1).optional(),
+    STORAGE_S3_ENDPOINT: z.string().url().optional(),
+    STORAGE_S3_ACCESS_KEY: z.string().min(1).optional(),
+    STORAGE_S3_SECRET_KEY: z.string().min(1).optional(),
+    /** Public base URL for stored files (a CDN or the bucket's website endpoint). */
+    STORAGE_PUBLIC_URL: z.string().url().optional(),
+    /** Largest upload accepted, in megabytes. */
+    UPLOAD_MAX_MB: z.coerce.number().int().min(1).max(500).default(25),
+
+    /**
      * Where server-side failures are reported besides the log. Unset, nothing
      * is sent anywhere. The environment name defaults to NODE_ENV; the
      * release to the git SHA the deployment sets, so a report says which
@@ -150,6 +168,17 @@ const environmentSchema = z
           "must use the __Host- prefix in production: the browser then enforces " +
           "Secure, Path=/ and no Domain, so host-only scoping does not depend on us",
       });
+    }
+
+    if (env.STORAGE_DRIVER === "local") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["STORAGE_DRIVER"],
+        message: "local disk is per instance and lost with the container; use s3 in production",
+      });
+    }
+    if (env.STORAGE_DRIVER === "s3" && (!env.STORAGE_S3_BUCKET || !env.STORAGE_PUBLIC_URL)) {
+      ctx.addIssue({ code: "custom", path: ["STORAGE_S3_BUCKET"], message: "s3 storage needs STORAGE_S3_BUCKET and STORAGE_PUBLIC_URL" });
     }
 
     if (env.SECRETS_KEY === "ZGV2ZWxvcG1lbnQtb25seS1zZWNyZXRzLWtleS0wMDE=") {
