@@ -1,4 +1,5 @@
 import { cookies, headers } from "next/headers";
+import { cache } from "react";
 
 import {
   ApiError,
@@ -1394,3 +1395,450 @@ export interface AdminSessionSummary {
 
 export const getAdminSessions = (query: string) => get<AdminSessionPage>(`/api/v1/system/sessions?${query}`);
 export const getAdminSessionSummary = () => get<AdminSessionSummary>("/api/v1/system/sessions/summary");
+
+// ── CMS: public ──
+//
+// The public site reads these without a session. Every fetcher here returns
+// null on any failure — a 404, a permission refusal, an outage — because the
+// public site's answer to all three is the same: render what it has (the
+// static copy in src/content/site.ts, or a 404) rather than an error. Nobody
+// browsing a courier's website should see a stack trace because the CMS is
+// being deployed. The fetchers are wrapped in React's cache() so that a page's
+// generateMetadata and its body share one request rather than two.
+
+
+export interface PublicMenuItem {
+  id: string;
+  label: string;
+  description: string | null;
+  url: string;
+  target: { contentId?: string | null; termId?: string | null; url?: string | null } | null;
+  openInNewTab: boolean;
+  position: number;
+  children: PublicMenuItem[];
+}
+
+export interface PublicSite {
+  title: string;
+  tagline: string | null;
+  blogPath: string;
+  postsPerPage: number;
+  footerText: string | null;
+  socialLinks: Array<{ label: string; url: string }>;
+  indexable: boolean;
+  menus: { header: PublicMenuItem[] | null; footer: PublicMenuItem[] | null };
+  defaultMetaDescription: string | null;
+  defaultOgImageUrl: string | null;
+  homePage: { slug: string } | null;
+}
+
+export interface PublicImage {
+  url: string;
+  alt: string | null;
+  width: number | null;
+  height: number | null;
+}
+
+export interface PublicSeo {
+  title: string | null;
+  description: string | null;
+  canonical: string | null;
+  noIndex: boolean;
+  ogImageUrl: string | null;
+}
+
+export interface PublicPage {
+  id: string;
+  title: string;
+  slug: string;
+  path: string;
+  template: string | null;
+  body: string;
+  excerpt: string | null;
+  featuredImage: PublicImage | null;
+  seo: PublicSeo;
+  publishedAt: string | null;
+  updatedAt: string;
+  breadcrumbs: Array<{ title: string; path: string }>;
+  children: Array<{ title: string; path: string }>;
+}
+
+/** What `public/pages/*path` returns when the path is a moved page. */
+export interface PublicRedirect {
+  redirect: { to: string; statusCode: number };
+}
+
+export interface PublicPostRow {
+  id: string;
+  title: string;
+  slug: string;
+  path: string;
+  excerpt: string | null;
+  featuredImage: PublicImage | null;
+  author: { fullName: string } | null;
+  publishedAt: string | null;
+  readingMinutes: number;
+  categories: Array<{ name: string; slug: string; path: string }>;
+  tags: Array<{ name: string; slug: string }>;
+  isSticky: boolean;
+}
+
+export interface PublicPost extends PublicPostRow {
+  body: string;
+  seo: PublicSeo;
+  updatedAt: string;
+  previous: { title: string; path: string } | null;
+  next: { title: string; path: string } | null;
+}
+
+export interface PublicPostPage {
+  rows: PublicPostRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+}
+
+export interface PublicCategory {
+  id: string;
+  name: string;
+  slug: string;
+  path: string;
+  description: string | null;
+  count: number;
+  children: PublicCategory[];
+}
+
+export interface PublicTag {
+  id: string;
+  name: string;
+  slug: string;
+  count: number;
+}
+
+export interface PublicSitemap {
+  urls: Array<{ path: string; updatedAt: string; kind: string }>;
+}
+
+export interface PublicFeed {
+  title: string;
+  link: string;
+  items: Array<{
+    title: string;
+    path: string;
+    excerpt: string | null;
+    publishedAt: string | null;
+    author: string | null;
+  }>;
+}
+
+/** Null on any failure at all — the public site never shows an API error. */
+async function getPublic<T>(path: string): Promise<T | null> {
+  const result = await getResult<T>(path);
+  return result.ok ? result.data : null;
+}
+
+const previewQuery = (preview?: string | null) =>
+  preview ? `?preview=${encodeURIComponent(preview)}` : "";
+
+export const getPublicSite = cache(() => getPublic<PublicSite>("/api/v1/public/site"));
+
+/** `path` with or without a leading slash; the API takes it without. */
+export const getPublicPage = cache((path: string, preview?: string | null) =>
+  getPublic<PublicPage | PublicRedirect>(
+    `/api/v1/public/pages/${path.replace(/^\/+/, "").split("/").map(encodeURIComponent).join("/")}${previewQuery(preview)}`,
+  ),
+);
+
+export const getPublicPosts = cache((query: string) =>
+  getPublic<PublicPostPage>(`/api/v1/public/posts${query ? `?${query}` : ""}`),
+);
+
+export const getPublicPost = cache((slug: string, preview?: string | null) =>
+  getPublic<PublicPost>(`/api/v1/public/posts/${encodeURIComponent(slug)}${previewQuery(preview)}`),
+);
+
+export const getPublicCategories = cache(() => getPublic<PublicCategory[]>("/api/v1/public/categories"));
+export const getPublicTags = cache(() => getPublic<PublicTag[]>("/api/v1/public/tags"));
+export const getPublicSitemap = () => getPublic<PublicSitemap>("/api/v1/public/sitemap");
+export const getPublicFeed = () => getPublic<PublicFeed>("/api/v1/public/feed");
+
+/**
+ * The origin the visitor used, for absolute URLs in the sitemap, feed and
+ * canonical tags. Read from the request rather than configured, because each
+ * client's site lives on its own host and one setting could not name them all.
+ */
+export async function getPublicOrigin(): Promise<string> {
+  const headerStore = await headers();
+  const host = headerStore.get("x-forwarded-host") ?? headerStore.get("host") ?? "localhost:3000";
+  const proto = headerStore.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  return `${proto}://${host}`;
+}
+
+// ── CMS: content ────────────────────────────────────────────────────────────
+
+/**
+ * TRASH is not a database status — a trashed row is a soft-deleted one — but
+ * the list treats it as a tab like any other, so the row carries it as a
+ * status word. The API sets it from `deletedAt`; the row keeps `deletedAt`
+ * too, so a client that only got the timestamp still reads as trashed.
+ */
+export type CmsStatus = "DRAFT" | "SCHEDULED" | "PUBLISHED" | "ARCHIVED" | "TRASH";
+export type CmsKind = "PAGE" | "POST";
+export type CmsTaxonomy = "CATEGORY" | "TAG";
+/** The plural the routes use: `cms/pages`, `cms/posts`. */
+export type CmsCollection = "pages" | "posts";
+
+export interface CmsTermRef {
+  id: string;
+  taxonomy: CmsTaxonomy;
+  name: string;
+  slug: string;
+}
+
+export interface CmsMediaRef {
+  id: string;
+  url: string;
+  altText: string | null;
+  width: number | null;
+  height: number | null;
+}
+
+export interface CmsContentRow {
+  id: string;
+  kind: CmsKind;
+  status: CmsStatus;
+  title: string;
+  slug: string;
+  excerpt: string | null;
+  path: string;
+  template: string;
+  parentId: string | null;
+  menuOrder: number;
+  isSticky: boolean;
+  author: { id: string; fullName: string } | null;
+  featuredMedia: CmsMediaRef | null;
+  terms: CmsTermRef[];
+  publishedAt: string | null;
+  scheduledFor: string | null;
+  updatedAt: string;
+  createdAt: string;
+  revisionCount: number;
+  deletedAt?: string | null;
+}
+
+export interface CmsContentDetail extends CmsContentRow {
+  body: string;
+  plainText: string;
+  metaTitle: string | null;
+  metaDescription: string | null;
+  canonicalUrl: string | null;
+  noIndex: boolean;
+  ogImage: { id: string; url: string } | null;
+  attributes: Record<string, unknown>;
+  deletedAt: string | null;
+  updatedBy: { id: string; fullName: string } | null;
+}
+
+export interface CmsContentPage {
+  rows: CmsContentRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+}
+
+export interface CmsCounts {
+  all: number;
+  DRAFT: number;
+  SCHEDULED: number;
+  PUBLISHED: number;
+  ARCHIVED: number;
+  TRASH: number;
+}
+
+/** What POST/PUT accept. Everything but the title is optional. */
+export interface CmsContentInput {
+  title: string;
+  slug?: string;
+  excerpt?: string | null;
+  body?: string;
+  parentId?: string | null;
+  menuOrder?: number;
+  template?: string;
+  featuredMediaId?: string | null;
+  metaTitle?: string | null;
+  metaDescription?: string | null;
+  canonicalUrl?: string | null;
+  noIndex?: boolean;
+  ogImageMediaId?: string | null;
+  isSticky?: boolean;
+  termIds?: string[];
+  attributes?: Record<string, unknown>;
+}
+
+export interface CmsRevisionSummary {
+  id: string;
+  createdAt: string;
+  reason: string;
+  author: { id: string; fullName: string } | null;
+  title: string;
+  slug: string;
+  bodyLength: number;
+}
+
+export interface CmsRevisionDetail extends CmsRevisionSummary {
+  body: string;
+  excerpt: string | null;
+  snapshot: Record<string, unknown>;
+}
+
+export const getCmsContents = (collection: CmsCollection, query: string) =>
+  get<CmsContentPage>(`/api/v1/cms/${collection}?${query}`);
+export const getCmsContent = (collection: CmsCollection, id: string) =>
+  get<CmsContentDetail>(`/api/v1/cms/${collection}/${id}`);
+export const getCmsCounts = (collection: CmsCollection) =>
+  get<CmsCounts>(`/api/v1/cms/${collection}/counts`);
+export const getCmsRevisions = (collection: CmsCollection, id: string) =>
+  get<CmsRevisionSummary[]>(`/api/v1/cms/${collection}/${id}/revisions`);
+export const getCmsRevision = (collection: CmsCollection, id: string, revisionId: string) =>
+  get<CmsRevisionDetail>(`/api/v1/cms/${collection}/${id}/revisions/${revisionId}`);
+export const getCmsPreviewToken = (collection: CmsCollection, id: string) =>
+  get<{ token: string; expiresAt: string }>(`/api/v1/cms/${collection}/${id}/preview-token`);
+
+// ── CMS: terms ──────────────────────────────────────────────────────────────
+
+export interface CmsTerm {
+  id: string;
+  taxonomy: CmsTaxonomy;
+  name: string;
+  slug: string;
+  description: string | null;
+  parentId: string | null;
+  count: number;
+  /** Categories: ancestor slugs joined with "/". Tags: the slug. */
+  path: string;
+}
+
+export const getCmsTerms = (query: string) => get<CmsTerm[]>(`/api/v1/cms/terms?${query}`);
+
+// ── CMS: menus ──────────────────────────────────────────────────────────────
+
+export interface CmsMenuItem {
+  id: string;
+  label: string;
+  description: string | null;
+  /** Resolved: a content path, a term archive path, or the raw URL. */
+  url: string | null;
+  target: { contentId?: string | null; termId?: string | null; url?: string | null };
+  openInNewTab: boolean;
+  position: number;
+  children: CmsMenuItem[];
+}
+
+export interface CmsMenu {
+  id: string;
+  name: string;
+  location: string;
+  items: CmsMenuItem[];
+}
+
+/** One item as PUT sends it: the tree without ids or resolved urls. */
+export interface CmsMenuItemInput {
+  label: string;
+  description?: string | null;
+  contentId?: string | null;
+  termId?: string | null;
+  url?: string | null;
+  openInNewTab?: boolean;
+  children?: CmsMenuItemInput[];
+}
+
+export const getCmsMenus = () => get<CmsMenu[]>("/api/v1/cms/menus");
+
+// ── CMS: settings ───────────────────────────────────────────────────────────
+
+export interface CmsSiteSettings {
+  siteTitle: string;
+  tagline: string | null;
+  homePageId: string | null;
+  homePage: { id: string; title: string; slug: string } | null;
+  blogPath: string;
+  postsPerPage: number;
+  footerText: string | null;
+  socialLinks: Array<{ label: string; url: string }>;
+  defaultMetaDescription: string | null;
+  defaultOgImage: { id: string; url: string } | null;
+  indexable: boolean;
+  updatedAt: string | null;
+}
+
+export const getCmsSettings = () => get<CmsSiteSettings>("/api/v1/cms/settings");
+
+// ── CMS: media ──────────────────────────────────────────────────────────────
+
+export interface CmsMedia {
+  id: string;
+  url: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  width: number | null;
+  height: number | null;
+  altText: string | null;
+  title: string | null;
+  caption: string | null;
+  folder: string | null;
+  uploadedBy: { id: string; fullName: string } | null;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+}
+
+export interface CmsMediaPage {
+  rows: CmsMedia[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+}
+
+export interface CmsMediaFolder {
+  folder: string;
+  count: number;
+}
+
+/** Query keys: page, pageSize, search, mimeType (prefix, e.g. "image/"), folder, includeDeleted. */
+export const getCmsMedia = (query: string) => get<CmsMediaPage>(`/api/v1/cms/media?${query}`);
+export const getCmsMediaItem = (id: string) => get<CmsMedia>(`/api/v1/cms/media/${id}`);
+export const getCmsMediaFolders = () => get<CmsMediaFolder[]>("/api/v1/cms/media/folders");
+
+/**
+ * Forwards a browser request to the API as-is — body, content-type and all.
+ *
+ * apiFetch is JSON-only on purpose; a multipart upload has to keep its
+ * boundary and its bytes intact, so the route handler that receives it hands
+ * the whole thing on with the same cookie and Host the JSON path uses. The
+ * API's answer is returned untouched, so its error envelope reaches the
+ * browser exactly as any other call's would.
+ */
+export async function apiForward(request: Request, path: string): Promise<Response> {
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  const contentType = request.headers.get("content-type");
+  const body = request.method === "GET" || request.method === "HEAD" ? undefined : Buffer.from(await request.arrayBuffer());
+  const upstream = await fetch(`${API_ORIGIN}${path}`, {
+    method: request.method,
+    headers: {
+      cookie: request.headers.get("cookie") ?? "",
+      host: request.headers.get("host") ?? "localhost",
+      ...(forwardedFor ? { "x-forwarded-for": forwardedFor } : {}),
+      ...(contentType ? { "content-type": contentType } : {}),
+    },
+    ...(body ? { body } : {}),
+    cache: "no-store",
+  });
+  const headers = new Headers();
+  const upstreamType = upstream.headers.get("content-type");
+  if (upstreamType) headers.set("content-type", upstreamType);
+  return new Response(await upstream.arrayBuffer(), { status: upstream.status, headers });
+}

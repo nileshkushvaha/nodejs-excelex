@@ -1,6 +1,12 @@
 import { Module } from "@nestjs/common";
 
 import { JobsModule } from "../jobs/jobs.module";
+import { ContentModule } from "./content/content.module";
+import { MediaModule } from "./media/media.module";
+import { MenusModule } from "./menus/menus.module";
+import { CmsPublicModule } from "./public/public.module";
+import { CmsSettingsModule } from "./settings/settings.module";
+import { TermsModule } from "./terms/terms.module";
 
 /**
  * Content management (ADR-0006): pages, posts, taxonomies, media, menus,
@@ -10,7 +16,7 @@ import { JobsModule } from "../jobs/jobs.module";
  * /api/v1/public/*.
  */
 @Module({
-  imports: [JobsModule],
+  imports: [JobsModule, MediaModule, ContentModule, TermsModule, MenusModule, CmsSettingsModule, CmsPublicModule],
   controllers: [],
   providers: [],
 })

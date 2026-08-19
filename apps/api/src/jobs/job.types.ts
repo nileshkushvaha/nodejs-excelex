@@ -15,6 +15,8 @@ export const JOB_NAMES = {
   RETENTION_SWEEP: "retention.sweep",
   /** Sends one queued email and records what the mail server said. */
   MAIL_SEND: "mail.send",
+  /** Publishes CMS content whose scheduled time has arrived. */
+  CMS_PUBLISH_DUE: "cms.publish_due",
   /** Proves the queue runs end to end. Does nothing else. */
   HEARTBEAT: "system.heartbeat",
 } as const;
@@ -34,6 +36,7 @@ export const JOB_DESCRIPTIONS: Record<JobName, string> = {
   [JOB_NAMES.RETENTION_SWEEP]:
     "Delete expired sessions, old finished jobs and old login attempts per the retention policy. Payload may set sessionDays, jobDays, loginAttemptDays.",
   [JOB_NAMES.MAIL_SEND]: "Send one queued email through the client's transport. Payload: messageId.",
+  [JOB_NAMES.CMS_PUBLISH_DUE]: "Publish pages and posts whose scheduled time has arrived. No payload.",
   [JOB_NAMES.HEARTBEAT]: "Prove the queue runs end to end. Does nothing else.",
 };
 

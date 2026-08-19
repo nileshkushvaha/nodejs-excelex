@@ -1,3 +1,4 @@
+import { firstParam, renderCmsPageOrNull } from "@/components/site/cms-page";
 import { PageHeader } from "@/components/site/page-header";
 import { Reveal } from "@/components/site/reveal";
 import { Section } from "@/components/site/section";
@@ -7,7 +8,16 @@ export const metadata = {
   description: "Enter an AWB number to see where your consignment is.",
 };
 
-export default function TrackPage() {
+type Props = { searchParams: Promise<{ [key: string]: string | string[] | undefined }> };
+
+export default async function TrackPage(props: Props) {
+  // A CMS page published at this path wins over the static copy below; the
+  // static copy is what visitors see until an editor writes one (or when the
+  // CMS cannot be reached).
+  const query = await props.searchParams;
+  const cms = await renderCmsPageOrNull("/track", firstParam(query.preview));
+  if (cms) return cms;
+
   return (
     <>
       <PageHeader

@@ -1,13 +1,30 @@
 import Link from "next/link";
 
 import { ServiceIcon } from "@/components/site/artwork";
+import { CmsPageView, firstParam, isRedirect } from "@/components/site/cms-page";
 import { Hero } from "@/components/site/hero";
 import { Reveal } from "@/components/site/reveal";
 import { CallToAction, CtaButton, CtaGhost, Section } from "@/components/site/section";
 import { Stats } from "@/components/site/stats";
 import { REASONS, SERVICES, STEPS } from "@/content/site";
+import { getPublicPage, getPublicSite } from "@/lib/api";
 
-export default function HomePage() {
+type Props = { searchParams: Promise<{ [key: string]: string | string[] | undefined }> };
+
+/**
+ * The front page. If the site settings name a home page, that CMS page is
+ * rendered here — at "/", not at its own path — and the static banner and
+ * sections below are what every client sees until an editor picks one. The
+ * static home is also the answer whenever the CMS is silent: no settings, no
+ * such page, API down.
+ */
+export default async function HomePage(props: Props) {
+  const [site, query] = await Promise.all([getPublicSite(), props.searchParams]);
+  if (site?.homePage?.slug) {
+    const page = await getPublicPage(site.homePage.slug, firstParam(query.preview));
+    if (page && !isRedirect(page)) return <CmsPageView page={page} preview={Boolean(query.preview)} />;
+  }
+
   return (
     <>
       <Hero />

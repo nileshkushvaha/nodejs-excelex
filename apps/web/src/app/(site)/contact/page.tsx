@@ -1,3 +1,4 @@
+import { firstParam, renderCmsPageOrNull } from "@/components/site/cms-page";
 import { PageHeader } from "@/components/site/page-header";
 import { Reveal } from "@/components/site/reveal";
 import { Section } from "@/components/site/section";
@@ -11,7 +12,16 @@ export const metadata = {
 const field =
   "w-full rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent-soft";
 
-export default function ContactPage() {
+type Props = { searchParams: Promise<{ [key: string]: string | string[] | undefined }> };
+
+export default async function ContactPage(props: Props) {
+  // A CMS page published at this path wins over the static copy below; the
+  // static copy is what visitors see until an editor writes one (or when the
+  // CMS cannot be reached).
+  const query = await props.searchParams;
+  const cms = await renderCmsPageOrNull("/contact", firstParam(query.preview));
+  if (cms) return cms;
+
   return (
     <>
       <PageHeader

@@ -11,3 +11,4 @@ dist/
 # silently emit nothing, because tsc believes the output already exists.
 *.tsbuildinfo
 .claude/
+apps/api/storage/

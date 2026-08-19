@@ -280,6 +280,26 @@ export const NAVIGATION: readonly NavigationSection[] = [
     ],
   },
   {
+    title: "Content",
+    groups: [
+      {
+        label: "Website",
+        icon: "report",
+        permission: "cms.page.view",
+        children: [
+          { label: "Overview", href: "/content", permission: "cms.page.view" },
+          { label: "Pages", href: "/content/pages", permission: "cms.page.view" },
+          { label: "Posts", href: "/content/posts", permission: "cms.post.view" },
+          { label: "Categories", href: "/content/categories", permission: "cms.post.view" },
+          { label: "Tags", href: "/content/tags", permission: "cms.post.view" },
+          { label: "Media", href: "/content/media", permission: "cms.media.view" },
+          { label: "Menus", href: "/content/menus", permission: "cms.menu.manage" },
+          { label: "Site settings", href: "/content/settings", permission: "cms.settings.manage" },
+        ],
+      },
+    ],
+  },
+  {
     title: "Utility",
     groups: [
       {

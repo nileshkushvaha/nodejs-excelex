@@ -1,4 +1,5 @@
 import { ServiceIcon } from "@/components/site/artwork";
+import { firstParam, renderCmsPageOrNull } from "@/components/site/cms-page";
 import { PageHeader } from "@/components/site/page-header";
 import { Reveal } from "@/components/site/reveal";
 import { CallToAction, CtaButton, Section } from "@/components/site/section";
@@ -9,7 +10,16 @@ export const metadata = {
   description: "Domestic express, international, surface cargo and e-commerce logistics.",
 };
 
-export default function ServicesPage() {
+type Props = { searchParams: Promise<{ [key: string]: string | string[] | undefined }> };
+
+export default async function ServicesPage(props: Props) {
+  // A CMS page published at this path wins over the static copy below; the
+  // static copy is what visitors see until an editor writes one (or when the
+  // CMS cannot be reached).
+  const query = await props.searchParams;
+  const cms = await renderCmsPageOrNull("/services", firstParam(query.preview));
+  if (cms) return cms;
+
   return (
     <>
       <PageHeader

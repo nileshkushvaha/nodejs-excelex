@@ -1,4 +1,5 @@
 
+import { firstParam, renderCmsPageOrNull } from "@/components/site/cms-page";
 import { PageHeader } from "@/components/site/page-header";
 import { Reveal } from "@/components/site/reveal";
 import { CallToAction, CtaButton, Section } from "@/components/site/section";
@@ -9,7 +10,16 @@ export const metadata = {
   description: "Who ExcelEx is and how the network is run.",
 };
 
-export default function AboutPage() {
+type Props = { searchParams: Promise<{ [key: string]: string | string[] | undefined }> };
+
+export default async function AboutPage(props: Props) {
+  // A CMS page published at this path wins over the static copy below; the
+  // static copy is what visitors see until an editor writes one (or when the
+  // CMS cannot be reached).
+  const query = await props.searchParams;
+  const cms = await renderCmsPageOrNull("/about", firstParam(query.preview));
+  if (cms) return cms;
+
   return (
     <>
       <PageHeader

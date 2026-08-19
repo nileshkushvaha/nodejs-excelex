@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { ThemeToggle } from "@/components/theme";
-import { NAV } from "@/content/site";
+import { NAV, type NavItem } from "@/content/site";
 
 /**
  * The public header.
@@ -15,8 +15,12 @@ import { NAV } from "@/content/site";
  * scroll it takes a background and a border so text never lands on text. The
  * scroll progress line along the bottom edge is the only always-on motion —
  * it answers "how much is left" without occupying any layout.
+ *
+ * The menu comes in as a prop: the layout resolves it on the server — the CMS
+ * header menu when one is published, the static NAV otherwise — so this
+ * component never knows or cares where the links came from.
  */
-export function SiteHeader() {
+export function SiteHeader({ nav = NAV }: { nav?: readonly NavItem[] }) {
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -72,8 +76,8 @@ export function SiteHeader() {
         </Link>
 
         <nav className="ml-auto hidden items-center gap-1 lg:flex">
-          {NAV.map((item) =>
-            item.children ? (
+          {nav.map((item) =>
+            item.children?.length ? (
               <div
                 key={item.href}
                 className="relative"
@@ -109,7 +113,9 @@ export function SiteHeader() {
                         className="block rounded-lg px-3 py-2 transition-colors hover:bg-surface-2"
                       >
                         <span className="block text-sm font-medium text-fg">{child.label}</span>
-                        <span className="block text-xs text-muted">{child.description}</span>
+                        {child.description ? (
+                          <span className="block text-xs text-muted">{child.description}</span>
+                        ) : null}
                       </Link>
                     ))}
                   </div>
@@ -165,7 +171,7 @@ export function SiteHeader() {
         }`}
       >
         <nav className="px-5 py-4">
-          {NAV.map((item) => (
+          {nav.map((item) => (
             <div key={item.href} className="border-b border-line-soft py-1">
               <Link
                 href={item.href}
@@ -175,7 +181,7 @@ export function SiteHeader() {
               >
                 {item.label}
               </Link>
-              {item.children ? (
+              {item.children?.length ? (
                 <div className="pb-2 pl-3">
                   {item.children.map((child) => (
                     <Link

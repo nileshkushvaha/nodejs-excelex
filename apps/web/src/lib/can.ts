@@ -51,3 +51,16 @@ function matches(granted: string, required: string): boolean {
   const prefix = granted.slice(0, -2);
   return required === prefix || required.startsWith(`${prefix}.`);
 }
+
+/**
+ * A permission that has no resource/action row in the policy table.
+ *
+ * Publishing is a third verb next to view and manage — `cms.page.publish` —
+ * and the CRUD map has no column for it. Rather than invent one, the screen
+ * asks by key, through the same wildcard matcher `can` uses, so `cms.*` and
+ * `*` still grant it.
+ */
+export function hasPermission(session: CurrentSession | null | undefined, key: string): boolean {
+  if (!session) return false;
+  return session.user.permissions.some((granted) => matches(granted, key));
+}

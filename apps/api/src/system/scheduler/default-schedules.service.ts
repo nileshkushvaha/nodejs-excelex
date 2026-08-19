@@ -42,6 +42,14 @@ export const DEFAULT_SCHEDULES: readonly DefaultSchedule[] = [
     timezone: "Asia/Kolkata",
     payload: {},
   },
+  {
+    name: "Publish scheduled content",
+    description: "Publishes pages and posts whose scheduled time has arrived. Pause it to hold scheduled items back.",
+    jobName: JOB_NAMES.CMS_PUBLISH_DUE,
+    cron: "*/5 * * * *",
+    timezone: "Asia/Kolkata",
+    payload: {},
+  },
 ];
 
 @Injectable()
