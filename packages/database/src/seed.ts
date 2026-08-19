@@ -21,13 +21,20 @@ import { syncPermissionCatalogue } from "./sync-permissions";
  * caller — the seed gets no privileged shortcut, which is exactly what makes it
  * a useful rehearsal of the real write path.
  *
- * Idempotent: safe to re-run, resets the demo password.
+ * Idempotent: safe to re-run. An existing administrator keeps their password
+ * — the seed also syncs the permission catalogue and runs on every deploy,
+ * and a deploy must not silently reset anyone's credentials. Pass
+ * SEED_RESET_ADMIN_PASSWORD=true to reset it deliberately (a fresh
+ * developer machine, a forgotten demo password).
  */
 
 const CLIENT_ID = "11111111-1111-4111-8111-111111111111";
 const HOSTNAME = process.env["SEED_HOSTNAME"] ?? "localhost";
 const ADMIN_EMAIL = process.env["SEED_ADMIN_EMAIL"] ?? "admin@excelex.in";
 const ADMIN_PASSWORD = process.env["SEED_ADMIN_PASSWORD"] ?? "ChangeMe!2026";
+const RESET_ADMIN_PASSWORD = process.env["SEED_RESET_ADMIN_PASSWORD"] === "true";
+
+let passwordSet = false;
 
 async function main(): Promise<void> {
   const connectionString = process.env["DATABASE_MIGRATION_URL"];
@@ -125,10 +132,11 @@ async function main(): Promise<void> {
       const role = { id: administratorRoleId };
 
       const foundUser = await tx.user.findFirst({ where: { email: ADMIN_EMAIL, deletedAt: null } });
+      passwordSet = !foundUser || RESET_ADMIN_PASSWORD;
       const user = foundUser
         ? await tx.user.update({
             where: { id: foundUser.id },
-            data: { passwordHash, isActive: true },
+            data: { isActive: true, ...(RESET_ADMIN_PASSWORD ? { passwordHash } : {}) },
           })
         : await tx.user.create({
             data: {
@@ -180,7 +188,11 @@ async function main(): Promise<void> {
 
     console.log(`Seeded client 'excelex' with ${SYSTEM_ROLES.length} system roles`);
     console.log(`  hostname  ${HOSTNAME}`);
-    console.log(`  sign in   ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`);
+    console.log(
+      passwordSet
+        ? `  sign in   ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`
+        : `  sign in   ${ADMIN_EMAIL} (password unchanged; SEED_RESET_ADMIN_PASSWORD=true to reset it)`,
+    );
   } finally {
     await prisma.$disconnect();
   }

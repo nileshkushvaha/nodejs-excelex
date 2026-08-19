@@ -114,6 +114,8 @@ jobs:
       # needs the seeded client and its system roles to exist.
       - name: Seed the development client
         run: pnpm run db:seed
+        env:
+          SEED_RESET_ADMIN_PASSWORD: "true"
 
       - name: Integration tests
         run: pnpm run test:integration
